@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import { useGoals } from '@/lib/goals';
@@ -14,6 +15,7 @@ const EMOJIS = ['🎯', '🏝️', '💻', '🛟', '🚗', '🏠', '✈️', '�
 export default function GoalsSettingsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { mode } = useMode();
   const { goals, ready, add, update, remove } = useGoals();
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
   const [creating, setCreating] = useState(false);
@@ -47,6 +49,7 @@ export default function GoalsSettingsPage() {
       current: 0,
       due: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().slice(0, 10),
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      scope: mode,
     });
     setCreating(true);
   };

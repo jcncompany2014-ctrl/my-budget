@@ -20,18 +20,26 @@ export function useMode() {
   return ctx;
 }
 
+const applyDataMode = (mode: Scope) => {
+  if (typeof document === 'undefined') return;
+  document.documentElement.setAttribute('data-mode', mode);
+};
+
 export function ModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<Scope>('personal');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY) as Scope | null;
-    if (saved === 'personal' || saved === 'business') setModeState(saved);
+    const initial = saved === 'personal' || saved === 'business' ? saved : 'personal';
+    setModeState(initial);
+    applyDataMode(initial);
     setReady(true);
   }, []);
 
   const setMode = useCallback((m: Scope) => {
     setModeState(m);
+    applyDataMode(m);
     window.localStorage.setItem(STORAGE_KEY, m);
   }, []);
 
@@ -40,8 +48,6 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
   }, [mode, setMode]);
 
   return (
-    <ModeContext.Provider value={{ mode, setMode, toggle, ready }}>
-      {children}
-    </ModeContext.Provider>
+    <ModeContext.Provider value={{ mode, setMode, toggle, ready }}>{children}</ModeContext.Provider>
   );
 }

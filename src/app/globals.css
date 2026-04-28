@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand greens */
+  /* ─── Brand greens (personal mode primary) ─── */
   --color-green-50: #E6F7EE;
   --color-green-100: #C7EFD9;
   --color-green-200: #8FDFB3;
@@ -11,10 +11,15 @@
   --color-green-600: #009E48;
   --color-green-700: #00853C;
 
-  /* Toss blue */
+  /* ─── Brand blues (business mode primary, Toss blue) ─── */
   --color-blue-50: #E8F3FF;
+  --color-blue-100: #CCE3FF;
+  --color-blue-200: #99C7FF;
+  --color-blue-300: #66ABFF;
+  --color-blue-400: #4396F8;
   --color-blue-500: #3182F6;
   --color-blue-600: #1B64DA;
+  --color-blue-700: #1450AE;
 
   /* Reds */
   --color-red-50: #FEECEC;
@@ -28,7 +33,7 @@
   --color-pink-500: #F472B6;
   --color-teal-500: #14B8A6;
 
-  /* Neutrals — Toss greyscale */
+  /* Neutrals */
   --color-gray-50: #F9FAFB;
   --color-gray-100: #F2F4F6;
   --color-gray-150: #EEF0F2;
@@ -41,23 +46,38 @@
   --color-gray-800: #333D4B;
   --color-gray-900: #191F28;
 
-  /* Semantic surfaces (light mode defaults) */
+  /* Surfaces */
   --color-bg: #F2F4F6;
   --color-card: #FFFFFF;
   --color-elev: #FFFFFF;
   --color-divider: #EEF0F2;
 
-  /* Semantic text */
+  /* Text */
   --color-text-1: #191F28;
   --color-text-2: #4E5968;
   --color-text-3: #8B95A1;
   --color-text-4: #B0B8C1;
 
-  /* Brand */
+  /* Brand (default = personal/green) */
   --color-primary: #00B956;
   --color-primary-soft: #E6F7EE;
+  --color-primary-strong: #009E48;
+  --color-primary-grad-from: #00B956;
+  --color-primary-grad-to: #00853C;
+
   --color-danger: #F04452;
   --color-danger-soft: #FEECEC;
+
+  /* ─── Typography scale (limited set) ─── */
+  /* xxs=11 xs=12 sm=13 base=15 lg=17 xl=22 2xl=28 3xl=34 */
+  --text-xxs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
 
   /* Radii */
   --radius-sm: 8px;
@@ -69,9 +89,25 @@
   /* Fonts */
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Dark theme overrides — toggled by [data-theme="dark"] on <html> */
+/* ─── Business mode: switch primary to blue ─── */
+html[data-mode="business"] {
+  --color-primary: #3182F6;
+  --color-primary-soft: #E8F3FF;
+  --color-primary-strong: #1B64DA;
+  --color-primary-grad-from: #3182F6;
+  --color-primary-grad-to: #1450AE;
+}
+
+/* ─── Dark theme ─── */
 html[data-theme="dark"] {
   --color-bg: #0E1218;
   --color-card: #161B22;
@@ -87,6 +123,11 @@ html[data-theme="dark"] {
   --color-danger-soft: rgba(240, 68, 82, 0.14);
 }
 
+html[data-theme="dark"][data-mode="business"] {
+  --color-primary-soft: rgba(49, 130, 246, 0.14);
+}
+
+/* ─── Base ─── */
 @layer base {
   html,
   body {
@@ -100,31 +141,89 @@ html[data-theme="dark"] {
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
   }
+  /* All numeric content uses tabular-nums by default via .tnum */
   .tnum {
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+  input,
+  button,
+  select,
+  textarea {
+    font-family: inherit;
   }
 }
 
-/* Subtle tap feedback */
+/* ─── Tap feedback ─── */
 .tap {
-  transition: transform 120ms ease, background-color 120ms ease, opacity 120ms ease;
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    opacity var(--motion-fast) var(--ease-out);
 }
 .tap:active {
   transform: scale(0.97);
   opacity: 0.85;
 }
 
-/* Animations */
+/* ─── Animations ─── */
 @keyframes slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes pop-in {
-  0% { transform: scale(0.6); opacity: 0; }
-  60% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes count-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100%) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Hide scrollbars on horizontal scrollers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }

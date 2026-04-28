@@ -17,24 +17,23 @@ export default function ModeToggle() {
         ] as const
       ).map(([k, label]) => {
         const active = mode === k;
+        const activeBg =
+          active && k === 'business'
+            ? 'var(--color-blue-500)'
+            : active && k === 'personal'
+              ? 'var(--color-green-500)'
+              : 'transparent';
         return (
           <button
             key={k}
             type="button"
             onClick={() => setMode(k)}
-            className="tap rounded-full px-4 py-1.5 text-[13px] font-bold transition-all"
+            className="tap rounded-full px-4 py-1.5 font-bold transition-colors"
             style={{
-              background: active
-                ? k === 'business'
-                  ? 'var(--color-text-1)'
-                  : 'var(--color-card)'
-                : 'transparent',
-              color: active
-                ? k === 'business'
-                  ? 'var(--color-card)'
-                  : 'var(--color-text-1)'
-                : 'var(--color-text-3)',
-              boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+              fontSize: 'var(--text-sm)',
+              background: activeBg,
+              color: active ? '#fff' : 'var(--color-text-3)',
+              minWidth: 56,
             }}
           >
             {label}

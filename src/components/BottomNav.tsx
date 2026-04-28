@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 type Tab = {
   href: string;
@@ -9,7 +10,8 @@ type Tab = {
   icon: (active: boolean) => React.ReactNode;
 };
 
-const stroke = (active: boolean) => (active ? 'var(--color-primary)' : 'var(--color-text-3)');
+const stroke = (active: boolean) =>
+  active ? 'var(--color-primary)' : 'var(--color-text-3)';
 
 const TABS: Tab[] = [
   {
@@ -32,22 +34,13 @@ const TABS: Tab[] = [
     label: '내역',
     icon: (active) => (
       <svg viewBox="0 0 24 24" fill="none" width={24} height={24}>
-        <path d="M5 7h14M5 12h14M5 17h14" stroke={stroke(active)} strokeWidth={1.8} strokeLinecap="round" />
+        <path
+          d="M5 7h14M5 12h14M5 17h14"
+          stroke={stroke(active)}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+        />
       </svg>
-    ),
-  },
-  {
-    href: '/add',
-    label: '',
-    icon: () => (
-      <div
-        className="flex h-12 w-12 items-center justify-center rounded-full shadow-md"
-        style={{ background: 'var(--color-primary)' }}
-      >
-        <svg viewBox="0 0 24 24" fill="none" width={22} height={22}>
-          <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth={2.4} strokeLinecap="round" />
-        </svg>
-      </div>
     ),
   },
   {
@@ -55,7 +48,12 @@ const TABS: Tab[] = [
     label: '통계',
     icon: (active) => (
       <svg viewBox="0 0 24 24" fill="none" width={24} height={24}>
-        <path d="M5 19V10M12 19V5M19 19v-7" stroke={stroke(active)} strokeWidth={1.8} strokeLinecap="round" />
+        <path
+          d="M5 19V10M12 19V5M19 19v-7"
+          stroke={stroke(active)}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+        />
       </svg>
     ),
   },
@@ -64,7 +62,15 @@ const TABS: Tab[] = [
     label: '자산',
     icon: (active) => (
       <svg viewBox="0 0 24 24" fill="none" width={24} height={24}>
-        <rect x={3} y={6} width={18} height={13} rx={2.5} stroke={stroke(active)} strokeWidth={1.8} />
+        <rect
+          x={3}
+          y={6}
+          width={18}
+          height={13}
+          rx={2.5}
+          stroke={stroke(active)}
+          strokeWidth={1.8}
+        />
         <path d="M16 12.5h2" stroke={stroke(active)} strokeWidth={1.8} strokeLinecap="round" />
       </svg>
     ),
@@ -73,37 +79,185 @@ const TABS: Tab[] = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const tabs = TABS;
+  const left = tabs.slice(0, 2);
+  const right = tabs.slice(2);
 
   return (
-    <nav
-      className="sticky bottom-0 z-40 flex h-[68px] items-center justify-around border-t px-2"
-      style={{
-        borderColor: 'var(--color-divider)',
-        background: 'var(--color-card)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-      }}
+    <>
+      <nav
+        className="sticky bottom-0 z-40 flex h-[72px] items-center justify-around border-t px-2"
+        style={{
+          borderColor: 'var(--color-divider)',
+          background: 'var(--color-card)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
+        {left.map((tab) => (
+          <NavItem key={tab.href} tab={tab} active={pathname === tab.href} />
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          className="tap -mt-7 flex h-14 w-14 items-center justify-center rounded-full shadow-lg"
+          style={{ background: 'var(--color-primary)' }}
+          aria-label="추가"
+        >
+          <svg viewBox="0 0 24 24" fill="none" width={26} height={26}>
+            <path
+              d="M12 5v14M5 12h14"
+              stroke="#fff"
+              strokeWidth={2.6}
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
+        {right.map((tab) => (
+          <NavItem key={tab.href} tab={tab} active={pathname === tab.href} />
+        ))}
+      </nav>
+
+      {menuOpen && (
+        <ActionMenu
+          onClose={() => setMenuOpen(false)}
+          onPick={(href) => {
+            setMenuOpen(false);
+            router.push(href);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function NavItem({ tab, active }: { tab: Tab; active: boolean }) {
+  return (
+    <Link
+      href={tab.href}
+      className="tap flex flex-1 flex-col items-center justify-center gap-0.5"
     >
-      {TABS.map((tab) => {
-        const isAdd = tab.href === '/add';
-        const active = !isAdd && pathname === tab.href;
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={`tap flex flex-1 flex-col items-center gap-0.5 ${isAdd ? '-mt-6' : ''}`}
-          >
-            {tab.icon(active)}
-            {tab.label && (
-              <span
-                className="text-[11px] font-medium"
-                style={{ color: active ? 'var(--color-primary)' : 'var(--color-text-3)' }}
-              >
-                {tab.label}
-              </span>
-            )}
-          </Link>
-        );
-      })}
-    </nav>
+      {tab.icon(active)}
+      <span
+        style={{
+          fontSize: 'var(--text-xxs)',
+          fontWeight: 600,
+          color: active ? 'var(--color-primary)' : 'var(--color-text-3)',
+        }}
+      >
+        {tab.label}
+      </span>
+    </Link>
+  );
+}
+
+function ActionMenu({
+  onClose,
+  onPick,
+}: {
+  onClose: () => void;
+  onPick: (href: string) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[440px] rounded-t-3xl p-5 pt-4"
+        style={{
+          background: 'var(--color-card)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+          animation: 'slide-up 280ms var(--ease-out)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="mx-auto mb-4 h-1 w-10 rounded-full"
+          style={{ background: 'var(--color-gray-200)' }}
+        />
+
+        <div className="grid grid-cols-2 gap-2">
+          <Action
+            emoji="−"
+            label="지출"
+            tone="danger"
+            onClick={() => onPick('/add?type=expense')}
+          />
+          <Action
+            emoji="+"
+            label="수입"
+            tone="primary"
+            onClick={() => onPick('/add?type=income')}
+          />
+          <Action emoji="↔" label="이체" tone="neutral" onClick={() => onPick('/transfer')} />
+          <Action
+            emoji="⚡"
+            label="빠른 입력"
+            tone="neutral"
+            onClick={() => onPick('/quick-add')}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="tap mt-3 h-12 w-full rounded-xl"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          닫기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Action({
+  emoji,
+  label,
+  tone,
+  onClick,
+}: {
+  emoji: string;
+  label: string;
+  tone: 'primary' | 'danger' | 'neutral';
+  onClick: () => void;
+}) {
+  const bg =
+    tone === 'primary'
+      ? 'var(--color-primary-soft)'
+      : tone === 'danger'
+        ? 'var(--color-danger-soft)'
+        : 'var(--color-gray-100)';
+  const fg =
+    tone === 'primary'
+      ? 'var(--color-primary)'
+      : tone === 'danger'
+        ? 'var(--color-danger)'
+        : 'var(--color-text-1)';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="tap flex flex-col items-center justify-center gap-2 rounded-2xl py-5"
+      style={{ background: bg }}
+    >
+      <span
+        className="flex h-10 w-10 items-center justify-center rounded-full"
+        style={{ background: fg, color: '#fff', fontSize: 22, fontWeight: 800 }}
+      >
+        {emoji}
+      </span>
+      <span style={{ color: fg, fontSize: 'var(--text-sm)', fontWeight: 700 }}>{label}</span>
+    </button>
   );
 }

@@ -81,10 +81,26 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="관리">
-        <Row label="계좌 관리" subtitle="은행, 카드, 현금 지갑" onClick={() => router.push('/settings/accounts')} />
+        <Row label="계좌 관리" subtitle="은행, 카드, 현금, 투자 계좌" onClick={() => router.push('/settings/accounts')} />
         <Row label="예산 설정" subtitle="카테고리별 한 달 한도" onClick={() => router.push('/settings/budgets')} />
         <Row label="저축 목표" subtitle="목표 만들고 추적" onClick={() => router.push('/settings/goals')} />
         <Row label="정기결제" subtitle="구독·통신비·멤버십" onClick={() => router.push('/settings/recurring')} />
+        <Row label="대출 관리" subtitle="원리금·이자율·만기" onClick={() => router.push('/settings/loans')} />
+        <Row label="투자 관리" subtitle="주식·펀드·암호화폐" onClick={() => router.push('/settings/investments')} />
+        <Row label="카테고리" subtitle="커스텀 카테고리 추가/편집" onClick={() => router.push('/settings/categories')} />
+        <Row label="즐겨찾기 거래" subtitle="자주 쓰는 거래" onClick={() => router.push('/settings/favorites')} />
+        <Row label="챌린지" subtitle="지출 한도 챌린지" onClick={() => router.push('/settings/challenges')} />
+      </Section>
+
+      <Section title="사업자 (사업 모드)">
+        <Row label="거래처" subtitle="매출처·매입처 등록" onClick={() => router.push('/settings/vendors')} />
+        <Row label="직원·인건비" subtitle="월 기본급 자동 집계" onClick={() => router.push('/settings/employees')} />
+        <Row label="사업장" subtitle="매장 A/B 분리 관리" onClick={() => router.push('/settings/locations')} />
+      </Section>
+
+      <Section title="리포트">
+        <Row label="이번 달 리포트" subtitle="카테고리별 분석 + CSV/PDF" onClick={() => router.push('/reports/monthly')} />
+        <Row label="연간 리포트" subtitle="올해의 가게 TOP 5" onClick={() => router.push('/reports/yearly')} />
       </Section>
 
       <Section title="데이터">

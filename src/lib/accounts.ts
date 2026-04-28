@@ -1,20 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useMode } from '@/components/ModeProvider';
 import { SEED_ACCOUNTS } from '@/lib/seed';
-import type { Account } from '@/lib/types';
+import type { Account, Scope } from '@/lib/types';
 
-const KEY = 'asset/accounts/v1';
+const KEY = 'asset/accounts/v2';
+
+function normalize(list: Account[]): Account[] {
+  return list.map((a) => (a.scope ? a : { ...a, scope: 'personal' as Scope }));
+}
 
 function load(): Account[] {
-  if (typeof window === 'undefined') return SEED_ACCOUNTS;
+  if (typeof window === 'undefined') return normalize(SEED_ACCOUNTS);
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Account[];
+    if (raw) return normalize(JSON.parse(raw) as Account[]);
+    // Migrate from v1 if present
+    const legacy = window.localStorage.getItem('asset/accounts/v1');
+    if (legacy) {
+      const migrated = normalize(JSON.parse(legacy) as Account[]);
+      window.localStorage.setItem(KEY, JSON.stringify(migrated));
+      return migrated;
+    }
   } catch {
     // fall through
   }
-  return SEED_ACCOUNTS;
+  return normalize(SEED_ACCOUNTS);
 }
 
 function save(list: Account[]) {
@@ -22,7 +34,10 @@ function save(list: Account[]) {
   window.localStorage.setItem(KEY, JSON.stringify(list));
 }
 
-export function useAccounts() {
+/**
+ * Returns all accounts, regardless of mode.
+ */
+export function useAllAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -42,7 +57,6 @@ export function useAccounts() {
       return next;
     });
   };
-
   const update = (id: string, patch: Partial<Account>) => {
     setAccounts((prev) => {
       const next = prev.map((a) => (a.id === id ? { ...a, ...patch } : a));
@@ -50,7 +64,6 @@ export function useAccounts() {
       return next;
     });
   };
-
   const remove = (id: string) => {
     setAccounts((prev) => {
       const next = prev.filter((a) => a.id !== id);
@@ -60,4 +73,17 @@ export function useAccounts() {
   };
 
   return { accounts, ready, add, update, remove };
+}
+
+/**
+ * Returns accounts for the current mode only.
+ */
+export function useAccounts() {
+  const all = useAllAccounts();
+  const { mode } = useMode();
+  const accounts = useMemo(
+    () => all.accounts.filter((a) => a.scope === mode),
+    [all.accounts, mode],
+  );
+  return { ...all, accounts, allAccounts: all.accounts };
 }

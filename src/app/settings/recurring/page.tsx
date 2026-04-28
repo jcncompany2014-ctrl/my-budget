@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import { CATEGORIES } from '@/lib/categories';
@@ -14,6 +15,7 @@ const DEFAULT_EMOJIS = ['🎬', '🎵', '🤖', '▶️', '🌬️', '🏢', '�
 export default function RecurringSettingsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { mode } = useMode();
   const { items, ready, add, update, remove } = useRecurring();
   const [editing, setEditing] = useState<RecurringItem | null>(null);
   const [creating, setCreating] = useState(false);
@@ -45,7 +47,8 @@ export default function RecurringSettingsPage() {
       emoji: DEFAULT_EMOJIS[Math.floor(Math.random() * DEFAULT_EMOJIS.length)],
       amount: 0,
       day: new Date().getDate(),
-      cat: 'subs',
+      cat: mode === 'business' ? 'biz_etc' : 'subs',
+      scope: mode,
     });
     setCreating(true);
   };

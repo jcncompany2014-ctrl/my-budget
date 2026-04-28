@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
@@ -13,11 +14,13 @@ const TYPE_LABELS: Record<AccountType, string> = {
   bank: '은행',
   card: '카드',
   cash: '현금',
+  investment: '투자',
 };
 
 export default function AccountsSettingsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { mode } = useMode();
   const { accounts, ready, add, update, remove } = useAccounts();
   const [editing, setEditing] = useState<Account | null>(null);
   const [creating, setCreating] = useState(false);
@@ -55,7 +58,8 @@ export default function AccountsSettingsPage() {
       bank: '',
       type: 'bank',
       balance: 0,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      color: mode === 'business' ? '#3182F6' : '#00B956',
+      scope: mode,
     });
     setCreating(true);
   };
@@ -63,7 +67,7 @@ export default function AccountsSettingsPage() {
   return (
     <>
       <TopBar
-        title="계좌 관리"
+        title={mode === 'business' ? '사업 계좌' : '개인 계좌'}
         right={
           <button
             type="button"
@@ -207,7 +211,7 @@ function AccountEditor({
 
         <Field label="종류">
           <div className="flex gap-2">
-            {(['bank', 'card', 'cash'] as AccountType[]).map((t) => {
+            {(['bank', 'card', 'cash', 'investment'] as AccountType[]).map((t) => {
               const sel = draft.type === t;
               return (
                 <button

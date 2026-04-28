@@ -1,12 +1,18 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Keypad from '@/components/Keypad';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
-import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
+import {
+  CATEGORIES,
+  expenseCategoriesByScope,
+  incomeCategoriesByScope,
+  suggestCategory,
+} from '@/lib/categories';
+import { useFavorites } from '@/lib/favorites';
 import { fmt, fmtShort } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
@@ -15,23 +21,44 @@ const QUICK_AMOUNTS = [1000, 5000, 10000, 50000];
 
 type TxType = 'expense' | 'income';
 
-export default function AddPage() {
+export default function AddPageWrap() {
+  return (
+    <Suspense fallback={null}>
+      <AddPage />
+    </Suspense>
+  );
+}
+
+function AddPage() {
   const router = useRouter();
+  const search = useSearchParams();
+  const initialType = (search.get('type') === 'income' ? 'income' : 'expense') as TxType;
   const { mode } = useMode();
   const { add } = useAllTransactions();
   const { accounts } = useAccounts();
+  const { add: addFav } = useFavorites();
   const toast = useToast();
 
   const expenseList = useMemo(() => expenseCategoriesByScope(mode), [mode]);
   const incomeList = useMemo(() => incomeCategoriesByScope(mode), [mode]);
 
-  const [type, setType] = useState<TxType>('expense');
+  const [type, setType] = useState<TxType>(initialType);
   const [amount, setAmount] = useState('0');
   const [cat, setCat] = useState<string>(expenseList[0]?.id ?? 'food');
   const [merchant, setMerchant] = useState('');
   const [memo, setMemo] = useState('');
   const [accId, setAccId] = useState<string>('');
   const [step, setStep] = useState<1 | 2>(1);
+  const [catTouched, setCatTouched] = useState(false);
+
+  // Smart category suggestion based on merchant input (only when user hasn't manually picked)
+  useEffect(() => {
+    if (catTouched || type !== 'expense') return;
+    const suggestion = suggestCategory(merchant, mode);
+    if (suggestion && CATEGORIES[suggestion] && CATEGORIES[suggestion].scope === mode) {
+      setCat(suggestion);
+    }
+  }, [merchant, type, mode, catTouched]);
 
   useEffect(() => {
     if (!accId && accounts[0]) setAccId(accounts[0].id);
@@ -48,7 +75,7 @@ export default function AddPage() {
   const valid = useMemo(() => Number(amount) > 0, [amount]);
   const cats = type === 'expense' ? expenseList : incomeList;
 
-  const submit = () => {
+  const submit = (saveAsFavorite = false) => {
     if (!valid) return;
     const numericAmount = Number(amount);
     const tx: Transaction = {
@@ -62,7 +89,19 @@ export default function AddPage() {
       scope: mode,
     };
     add(tx);
-    toast.show('저장 완료', 'success');
+    if (saveAsFavorite && CATEGORIES[cat]) {
+      addFav({
+        id: 'fav-' + Date.now().toString(36),
+        name: tx.merchant,
+        emoji: CATEGORIES[cat].emoji,
+        amount: numericAmount,
+        cat,
+        acc: accId,
+        scope: mode,
+        type,
+      });
+    }
+    toast.show(saveAsFavorite ? '저장 + 즐겨찾기 등록' : '저장 완료', 'success');
     router.replace('/');
   };
 
@@ -220,7 +259,10 @@ export default function AddPage() {
                   <button
                     key={c.id}
                     type="button"
-                    onClick={() => setCat(c.id)}
+                    onClick={() => {
+                      setCat(c.id);
+                      setCatTouched(true);
+                    }}
                     className="tap flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5"
                     style={{
                       background: sel ? `${c.color}22` : 'var(--color-gray-100)',
@@ -301,16 +343,41 @@ export default function AddPage() {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="tap h-14 w-20 rounded-2xl text-base font-bold"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+              className="tap h-14 w-16 rounded-2xl"
+              style={{
+                background: 'var(--color-gray-100)',
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 700,
+              }}
             >
               이전
             </button>
             <button
               type="button"
-              onClick={submit}
-              className="tap h-14 flex-1 rounded-2xl text-base font-bold"
-              style={{ background: 'var(--color-primary)', color: '#fff' }}
+              onClick={() => submit(true)}
+              className="tap h-14 w-16 rounded-2xl"
+              style={{
+                background: 'var(--color-primary-soft)',
+                color: 'var(--color-primary)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: 700,
+              }}
+              aria-label="즐겨찾기로 저장"
+              title="즐겨찾기로 저장"
+            >
+              ⭐
+            </button>
+            <button
+              type="button"
+              onClick={() => submit(false)}
+              className="tap h-14 flex-1 rounded-2xl"
+              style={{
+                background: 'var(--color-primary)',
+                color: '#fff',
+                fontSize: 'var(--text-base)',
+                fontWeight: 700,
+              }}
             >
               저장하기
             </button>
