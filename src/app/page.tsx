@@ -5,8 +5,10 @@ import { useMemo } from 'react';
 import CountUp from '@/components/CountUp';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
+import Sparkline from '@/components/Sparkline';
 import TxRow from '@/components/TxRow';
 import UpcomingRecurring from '@/components/UpcomingRecurring';
+import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
@@ -58,13 +60,26 @@ export default function HomePage() {
         <div className="flex items-center gap-1">
           <Link
             href="/calendar"
-            className="tap flex h-10 w-10 items-center justify-center rounded-full"
+            className="tap relative flex h-10 w-10 items-center justify-center rounded-full"
             aria-label="캘린더"
           >
             <svg viewBox="0 0 24 24" fill="none" width={22} height={22}>
               <rect x={3.5} y={5.5} width={17} height={15} rx={3} stroke="var(--color-text-1)" strokeWidth={1.8} />
               <path d="M3.5 10h17M8 3v4M16 3v4" stroke="var(--color-text-1)" strokeWidth={1.8} strokeLinecap="round" />
             </svg>
+            {tx.some((t) => t.date.slice(0, 10) === new Date().toISOString().slice(0, 10)) && (
+              <span
+                className="absolute"
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: 'var(--color-primary)',
+                  top: 8,
+                  right: 8,
+                }}
+              />
+            )}
           </Link>
           <Link
             href="/settings"
@@ -105,6 +120,21 @@ export default function HomePage() {
       )}
     </div>
   );
+}
+
+function lastNDaysCategory(tx: Transaction[], catId: string, n: number): number[] {
+  const result: number[] = [];
+  const today = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - i);
+    const key = day.toISOString().slice(0, 10);
+    const sum = tx
+      .filter((t) => t.cat === catId && t.date.slice(0, 10) === key && t.amount < 0)
+      .reduce((s, t) => s + Math.abs(t.amount), 0);
+    result.push(sum);
+  }
+  return result;
 }
 
 function PersonalHome({
@@ -279,17 +309,18 @@ function PersonalHome({
             <div className="flex flex-col gap-3">
               {topCats.map(([catId, amt]) => {
                 const c = CATEGORIES[catId];
-                const pct = expense > 0 ? (amt / expense) * 100 : 0;
+                const sparkValues = lastNDaysCategory(tx, catId, 14);
                 return (
                   <div key={catId} className="flex items-center gap-3">
-                    <div
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
-                      style={{ background: c ? `${c.color}1f` : 'var(--color-gray-150)' }}
+                    <IconCircle
+                      size={36}
+                      background={c ? `${c.color}1f` : 'var(--color-gray-150)'}
+                      fontSize={18}
                     >
                       {c?.emoji ?? '💰'}
-                    </div>
+                    </IconCircle>
                     <div className="min-w-0 flex-1">
-                      <div className="mb-1.5 flex items-baseline justify-between">
+                      <div className="mb-1 flex items-baseline justify-between">
                         <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                           {c?.name ?? catId}
                         </span>
@@ -297,9 +328,12 @@ function PersonalHome({
                           {fmt(amt)}원
                         </span>
                       </div>
-                      <div className="h-1 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-100)' }}>
-                        <div className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%`, background: c?.color ?? 'var(--color-primary)' }} />
+                      <div className="flex items-center gap-2">
+                        <div className="h-1 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-100)' }}>
+                          <div className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${expense > 0 ? (amt / expense) * 100 : 0}%`, background: c?.color ?? 'var(--color-primary)' }} />
+                        </div>
+                        <Sparkline values={sparkValues} color={c?.color ?? 'var(--color-primary)'} width={48} height={18} />
                       </div>
                     </div>
                   </div>

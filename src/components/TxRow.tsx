@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import IconCircle from '@/components/ui/IconCircle';
+import Money from '@/components/Money';
 import { useAccounts } from '@/lib/accounts';
-import { CATEGORIES } from '@/lib/categories';
-import { fmtSigned } from '@/lib/format';
+import { CATEGORIES, isTransferCategory } from '@/lib/categories';
 import type { Transaction } from '@/lib/types';
 
 type Props = {
@@ -31,6 +32,7 @@ export default function TxRow({
   const cat = CATEGORIES[tx.cat];
   const { accounts } = useAccounts();
   const account = accounts.find((a) => a.id === tx.acc);
+  const isTransfer = isTransferCategory(tx.cat) || !!tx.transferPairId;
 
   const subtitleParts: string[] = [];
   if (showTime) subtitleParts.push(fmtTime(tx.date));
@@ -44,28 +46,42 @@ export default function TxRow({
       className={`tap flex items-center gap-3 px-4 ${compact ? 'py-2.5' : 'py-3'}`}
       style={{ borderBottom: borderBottom ? '1px solid var(--color-divider)' : 'none' }}
     >
-      <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl"
-        style={{ background: cat?.color ? `${cat.color}1a` : 'var(--color-gray-150)' }}
+      <IconCircle
+        size={40}
+        background={cat?.color ? `${cat.color}1a` : 'var(--color-gray-150)'}
+        fontSize={20}
       >
         {cat?.emoji ?? '💰'}
-      </div>
+      </IconCircle>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-medium" style={{ color: 'var(--color-text-1)' }}>
+        <p
+          className="truncate"
+          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }}
+        >
           {tx.merchant}
         </p>
         {subtitleParts.length > 0 && (
-          <p className="truncate text-xs" style={{ color: 'var(--color-text-3)' }}>
+          <p
+            className="truncate"
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+          >
             {subtitleParts.join(' · ')}
           </p>
         )}
       </div>
-      <span
-        className="tnum text-[15px] font-semibold"
-        style={{ color: tx.amount > 0 ? 'var(--color-primary)' : 'var(--color-text-1)' }}
-      >
-        {fmtSigned(tx.amount)}
-      </span>
+      <Money
+        value={tx.amount}
+        sign="auto"
+        style={{
+          color: isTransfer
+            ? 'var(--color-text-2)'
+            : tx.amount > 0
+              ? 'var(--color-primary)'
+              : 'var(--color-text-1)',
+          fontSize: 'var(--text-base)',
+          fontWeight: 600,
+        }}
+      />
     </Link>
   );
 }

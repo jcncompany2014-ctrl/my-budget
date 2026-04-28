@@ -219,6 +219,48 @@ html[data-theme="dark"][data-mode="business"] {
     opacity: 0;
   }
 }
+@keyframes skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Focus visible (keyboard accessibility) ─── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Reduced motion: respect user preference ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Smooth iOS scroll ─── */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+}
 
 /* Hide scrollbars on horizontal scrollers */
 .no-scrollbar::-webkit-scrollbar {

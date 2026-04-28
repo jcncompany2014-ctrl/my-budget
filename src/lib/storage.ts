@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
+import { applyTxToAccounts, reverseTxFromAccounts, transferPairIds } from '@/lib/integrity';
 import { SEED_TRANSACTIONS } from '@/lib/seed';
+import { KEYS } from '@/lib/storage-keys';
 import type { Scope, Transaction } from '@/lib/types';
 
-const KEY = 'asset/transactions/v2';
+const KEY = KEYS.transactions;
 
 function normalize(list: Transaction[]): Transaction[] {
   return list.map((t) => (t.scope ? t : { ...t, scope: 'personal' }));
@@ -17,7 +19,7 @@ function loadFromStorage(): Transaction[] {
     const raw = window.localStorage.getItem(KEY);
     if (raw) return normalize(JSON.parse(raw) as Transaction[]);
   } catch {
-    // fall through to seed
+    // fall through
   }
   return normalize(SEED_TRANSACTIONS);
 }
@@ -27,10 +29,6 @@ function saveToStorage(tx: Transaction[]) {
   window.localStorage.setItem(KEY, JSON.stringify(tx));
 }
 
-/**
- * Returns transactions for the current mode (personal or business).
- * Use `useAllTransactions` if you need every transaction regardless of mode.
- */
 export function useTransactions() {
   const { mode } = useMode();
   const all = useAllTransactions();
@@ -55,6 +53,7 @@ export function useAllTransactions() {
   }, []);
 
   const add = (t: Transaction) => {
+    applyTxToAccounts(t);
     setTx((prev) => {
       const next = [t, ...prev];
       saveToStorage(next);
@@ -62,23 +61,58 @@ export function useAllTransactions() {
     });
   };
 
-  const remove = (id: string) => {
+  /**
+   * Remove a transaction. If it's a transfer leg, the paired leg is removed too.
+   * Returns the removed transaction(s) for undo support.
+   */
+  const remove = (id: string): Transaction[] => {
+    let removed: Transaction[] = [];
     setTx((prev) => {
-      const next = prev.filter((t) => t.id !== id);
+      const target = prev.find((t) => t.id === id);
+      if (!target) return prev;
+      const idsToRemove = target.transferPairId ? transferPairIds(target, prev) : [id];
+      removed = prev.filter((t) => idsToRemove.includes(t.id));
+      removed.forEach((t) => reverseTxFromAccounts(t));
+      const next = prev.filter((t) => !idsToRemove.includes(t.id));
       saveToStorage(next);
       return next;
     });
+    return removed;
   };
 
   const update = (id: string, patch: Partial<Transaction>) => {
     setTx((prev) => {
-      const next = prev.map((t) => (t.id === id ? { ...t, ...patch } : t));
+      const cur = prev.find((t) => t.id === id);
+      if (!cur) return prev;
+      const oldAmount = cur.amount;
+      const oldAcc = cur.acc;
+      const merged = { ...cur, ...patch };
+      // Sync account balances if amount or account changed
+      if (patch.amount !== undefined && patch.amount !== oldAmount) {
+        // Reverse old, apply new
+        reverseTxFromAccounts(cur);
+        applyTxToAccounts(merged);
+      } else if (patch.acc !== undefined && patch.acc !== oldAcc) {
+        reverseTxFromAccounts(cur);
+        applyTxToAccounts(merged);
+      }
+      const next = prev.map((t) => (t.id === id ? merged : t));
       saveToStorage(next);
       return next;
     });
   };
 
-  return { tx, ready, add, remove, update };
+  /** Restore a previously removed transaction (used by undo). */
+  const restore = (txs: Transaction[]) => {
+    txs.forEach((t) => applyTxToAccounts(t));
+    setTx((prev) => {
+      const next = [...txs, ...prev];
+      saveToStorage(next);
+      return next;
+    });
+  };
+
+  return { tx, ready, add, remove, update, restore };
 }
 
 export function txCountByScope(tx: Transaction[]): Record<Scope, number> {

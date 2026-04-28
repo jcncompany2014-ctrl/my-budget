@@ -97,8 +97,35 @@ export default function ListPage() {
   };
 
   const bulkDelete = () => {
-    selected.forEach((id) => remove(id));
-    toast.show(`${selected.size}건 삭제 완료`, 'info');
+    const allRemoved: typeof tx = [];
+    selected.forEach((id) => {
+      const r = remove(id);
+      allRemoved.push(...r);
+    });
+    const count = selected.size;
+    toast.show(`${count}건 삭제 완료`, {
+      variant: 'info',
+      durationMs: 5000,
+      action: {
+        label: '되돌리기',
+        onClick: () => {
+          // restore all
+          // Since useTransactions exposes restore via useAllTransactions, fall back: re-add
+          // But list page used scoped useTransactions. Using simple update via storage:
+          if (typeof window !== 'undefined') {
+            try {
+              const raw = window.localStorage.getItem('asset/transactions/v2');
+              const cur = raw ? JSON.parse(raw) : [];
+              const next = [...allRemoved, ...cur];
+              window.localStorage.setItem('asset/transactions/v2', JSON.stringify(next));
+              window.location.reload();
+            } catch {
+              /* ignore */
+            }
+          }
+        },
+      },
+    });
     exitBulk();
   };
 

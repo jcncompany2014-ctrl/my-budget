@@ -8,10 +8,17 @@ type Toast = {
   id: number;
   message: string;
   variant: ToastVariant;
+  action?: { label: string; onClick: () => void };
+};
+
+type ShowOptions = {
+  variant?: ToastVariant;
+  action?: { label: string; onClick: () => void };
+  durationMs?: number;
 };
 
 type ToastContextValue = {
-  show: (message: string, variant?: ToastVariant) => void;
+  show: (message: string, optsOrVariant?: ShowOptions | ToastVariant) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -25,13 +32,27 @@ export function useToast() {
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const show = useCallback((message: string, variant: ToastVariant = 'success') => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, variant }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 1800);
-  }, []);
+  const show = useCallback(
+    (message: string, optsOrVariant?: ShowOptions | ToastVariant) => {
+      const opts =
+        typeof optsOrVariant === 'string'
+          ? { variant: optsOrVariant }
+          : optsOrVariant ?? {};
+      const id = Date.now() + Math.random();
+      const toast: Toast = {
+        id,
+        message,
+        variant: opts.variant ?? 'success',
+        action: opts.action,
+      };
+      setToasts((prev) => [...prev, toast]);
+      const duration = opts.durationMs ?? (opts.action ? 5000 : 1800);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    },
+    [],
+  );
 
   return (
     <ToastContext.Provider value={{ show }}>
@@ -41,14 +62,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
       >
         {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} />
+          <ToastItem key={t.id} toast={t} onDismiss={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))} />
         ))}
       </div>
     </ToastContext.Provider>
   );
 }
 
-function ToastItem({ toast }: { toast: Toast }) {
+function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const r = requestAnimationFrame(() => setVisible(true));
@@ -64,7 +85,7 @@ function ToastItem({ toast }: { toast: Toast }) {
 
   return (
     <div
-      className="pointer-events-auto rounded-full px-5 py-3 text-sm font-semibold shadow-lg transition-all duration-300"
+      className="pointer-events-auto flex items-center gap-3 rounded-full pl-5 pr-2 py-2 shadow-lg transition-all duration-300"
       style={{
         background: tone.bg,
         color: tone.text,
@@ -72,7 +93,25 @@ function ToastItem({ toast }: { toast: Toast }) {
         transform: visible ? 'translateY(0)' : 'translateY(10px)',
       }}
     >
-      {toast.message}
+      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{toast.message}</span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick();
+            onDismiss();
+          }}
+          className="tap rounded-full px-3 py-1.5"
+          style={{
+            background: 'rgba(255,255,255,0.22)',
+            color: tone.text,
+            fontSize: 'var(--text-xxs)',
+            fontWeight: 800,
+          }}
+        >
+          {toast.action.label}
+        </button>
+      )}
     </div>
   );
 }

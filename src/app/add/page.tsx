@@ -5,15 +5,17 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Keypad from '@/components/Keypad';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
+import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
+import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categorize';
 import {
   CATEGORIES,
   expenseCategoriesByScope,
   incomeCategoriesByScope,
-  suggestCategory,
 } from '@/lib/categories';
 import { useFavorites } from '@/lib/favorites';
 import { fmt, fmtShort } from '@/lib/format';
+import { haptics } from '@/lib/haptics';
 import { useAllTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
@@ -34,7 +36,7 @@ function AddPage() {
   const search = useSearchParams();
   const initialType = (search.get('type') === 'income' ? 'income' : 'expense') as TxType;
   const { mode } = useMode();
-  const { add } = useAllTransactions();
+  const { add, tx: history } = useAllTransactions();
   const { accounts } = useAccounts();
   const { add: addFav } = useFavorites();
   const toast = useToast();
@@ -51,14 +53,20 @@ function AddPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [catTouched, setCatTouched] = useState(false);
 
-  // Smart category suggestion based on merchant input (only when user hasn't manually picked)
+  // Smart category suggestion: history first, then heuristic
   useEffect(() => {
     if (catTouched || type !== 'expense') return;
-    const suggestion = suggestCategory(merchant, mode);
+    const suggestion = autoCategorize(merchant, mode, history);
     if (suggestion && CATEGORIES[suggestion] && CATEGORIES[suggestion].scope === mode) {
       setCat(suggestion);
     }
-  }, [merchant, type, mode, catTouched]);
+  }, [merchant, type, mode, catTouched, history]);
+
+  // Suggested amount from history (display hint, doesn't auto-fill)
+  const amountHint = useMemo(
+    () => (merchant.trim().length >= 2 ? suggestAmount(merchant, mode, history) : null),
+    [merchant, mode, history],
+  );
 
   useEffect(() => {
     if (!accId && accounts[0]) setAccId(accounts[0].id);
@@ -75,7 +83,7 @@ function AddPage() {
   const valid = useMemo(() => Number(amount) > 0, [amount]);
   const cats = type === 'expense' ? expenseList : incomeList;
 
-  const submit = (saveAsFavorite = false) => {
+  const submit = (saveAsFavorite = false, force = false) => {
     if (!valid) return;
     const numericAmount = Number(amount);
     const tx: Transaction = {
@@ -88,7 +96,26 @@ function AddPage() {
       acc: accId,
       scope: mode,
     };
+
+    // Duplicate detection
+    if (!force) {
+      const dup = detectDuplicate(tx, history);
+      if (dup) {
+        haptics.warn();
+        toast.show(
+          `방금 같은 거래가 있어요 (${fmt(Math.abs(dup.amount))}원). 한 번 더 누르면 추가`,
+          {
+            variant: 'info',
+            durationMs: 4000,
+            action: { label: '추가', onClick: () => submit(saveAsFavorite, true) },
+          },
+        );
+        return;
+      }
+    }
+
     add(tx);
+    haptics.success();
     if (saveAsFavorite && CATEGORIES[cat]) {
       addFav({
         id: 'fav-' + Date.now().toString(36),
@@ -193,17 +220,37 @@ function AddPage() {
             </p>
           </section>
 
+          {amountHint !== null && amount === '0' && (
+            <div className="px-4 pb-2 text-center">
+              <button
+                type="button"
+                onClick={() => setAmount(String(amountHint))}
+                className="tap inline-flex items-center gap-1 rounded-full px-3 py-1.5"
+                style={{
+                  background: 'var(--color-primary-soft)',
+                  color: 'var(--color-primary)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 700,
+                }}
+              >
+                💡 평소 {fmt(amountHint)}원
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap justify-center gap-2 px-4 pb-3">
             {QUICK_AMOUNTS.map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => addQuick(n)}
-                className="tap rounded-full px-3 py-1.5 text-xs font-semibold"
+                className="tap rounded-full px-3 py-1.5"
                 style={{
                   border: '1px solid var(--color-gray-200)',
                   background: 'var(--color-card)',
                   color: 'var(--color-text-2)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
                 }}
               >
                 +{fmtShort(n)}

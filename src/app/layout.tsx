@@ -4,6 +4,7 @@ import { ToastProvider } from '@/components/Toast';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ModeProvider } from '@/components/ModeProvider';
 import AppShell from '@/components/AppShell';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: '가계부',
@@ -31,13 +32,15 @@ export default function RootLayout({
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full">
-        <ThemeProvider>
-          <ModeProvider>
-            <ToastProvider>
-              <AppShell>{children}</AppShell>
-            </ToastProvider>
-          </ModeProvider>
-        </ThemeProvider>
+        <ErrorBoundary>
+          <ThemeProvider>
+            <ModeProvider>
+              <ToastProvider>
+                <AppShell>{children}</AppShell>
+              </ToastProvider>
+            </ModeProvider>
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

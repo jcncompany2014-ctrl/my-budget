@@ -182,25 +182,10 @@ function ActionMenu({
         />
 
         <div className="grid grid-cols-2 gap-2">
-          <Action
-            emoji="−"
-            label="지출"
-            tone="danger"
-            onClick={() => onPick('/add?type=expense')}
-          />
-          <Action
-            emoji="+"
-            label="수입"
-            tone="primary"
-            onClick={() => onPick('/add?type=income')}
-          />
-          <Action emoji="↔" label="이체" tone="neutral" onClick={() => onPick('/transfer')} />
-          <Action
-            emoji="⚡"
-            label="빠른 입력"
-            tone="neutral"
-            onClick={() => onPick('/quick-add')}
-          />
+          <Action icon={<MinusIcon />} label="지출" tone="danger" onClick={() => onPick('/add?type=expense')} />
+          <Action icon={<PlusIcon />} label="수입" tone="primary" onClick={() => onPick('/add?type=income')} />
+          <Action icon={<TransferIcon />} label="이체" tone="neutral" onClick={() => onPick('/transfer')} />
+          <Action icon={<BoltIcon />} label="빠른 입력" tone="neutral" onClick={() => onPick('/quick-add')} />
         </div>
 
         <button
@@ -222,12 +207,12 @@ function ActionMenu({
 }
 
 function Action({
-  emoji,
+  icon,
   label,
   tone,
   onClick,
 }: {
-  emoji: string;
+  icon: React.ReactNode;
   label: string;
   tone: 'primary' | 'danger' | 'neutral';
   onClick: () => void;
@@ -252,12 +237,47 @@ function Action({
       style={{ background: bg }}
     >
       <span
-        className="flex h-10 w-10 items-center justify-center rounded-full"
-        style={{ background: fg, color: '#fff', fontSize: 22, fontWeight: 800 }}
+        className="inline-flex shrink-0 items-center justify-center rounded-full"
+        style={{
+          width: 44,
+          height: 44,
+          background: fg,
+          color: '#fff',
+          lineHeight: 1,
+        }}
       >
-        {emoji}
+        {icon}
       </span>
       <span style={{ color: fg, fontSize: 'var(--text-sm)', fontWeight: 700 }}>{label}</span>
     </button>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={22} height={22} fill="none" aria-hidden>
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" />
+    </svg>
+  );
+}
+function MinusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={22} height={22} fill="none" aria-hidden>
+      <path d="M5 12h14" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" />
+    </svg>
+  );
+}
+function TransferIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={22} height={22} fill="none" aria-hidden>
+      <path d="M7 8h11l-3-3M17 16H6l3 3" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function BoltIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={22} height={22} fill="currentColor" aria-hidden>
+      <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
+    </svg>
   );
 }

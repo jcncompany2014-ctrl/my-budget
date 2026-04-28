@@ -26,7 +26,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const router = useRouter();
   const toast = useToast();
-  const { tx, ready, remove, update } = useAllTransactions();
+  const { tx, ready, remove, update, restore } = useAllTransactions();
   const { accounts } = useAccounts();
   const [confirming, setConfirming] = useState(false);
 
@@ -66,8 +66,18 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   const isIncome = item.amount > 0;
 
   const onDelete = () => {
-    remove(item.id);
-    toast.show('삭제되었습니다', 'info');
+    const removed = remove(item.id);
+    toast.show(removed.length > 1 ? '이체 거래(양쪽) 삭제됨' : '삭제되었습니다', {
+      variant: 'info',
+      durationMs: 5000,
+      action: {
+        label: '되돌리기',
+        onClick: () => {
+          restore(removed);
+          toast.show('복원 완료', 'success');
+        },
+      },
+    });
     router.replace('/');
   };
 
