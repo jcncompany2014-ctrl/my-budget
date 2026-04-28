@@ -95,14 +95,24 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
             />
           </svg>
         </button>
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          className="tap rounded-full px-3 py-2 text-sm font-semibold"
-          style={{ color: 'var(--color-danger)' }}
-        >
-          삭제
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => router.push(`/tx/${item.id}/edit`)}
+            className="tap rounded-full px-3 py-2 text-sm font-semibold"
+            style={{ color: 'var(--color-primary)' }}
+          >
+            편집
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="tap rounded-full px-3 py-2 text-sm font-semibold"
+            style={{ color: 'var(--color-danger)' }}
+          >
+            삭제
+          </button>
+        </div>
       </header>
 
       <section className="px-6 pb-8 pt-6 text-center">

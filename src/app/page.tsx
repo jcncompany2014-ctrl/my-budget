@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
 import TxRow from '@/components/TxRow';
+import UpcomingRecurring from '@/components/UpcomingRecurring';
 import { useAccounts } from '@/lib/accounts';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
@@ -42,11 +43,22 @@ export default function HomePage() {
       {/* Top: mode toggle + settings */}
       <header className="sticky top-0 z-30 flex items-center justify-between px-4 pb-2 pt-3" style={{ background: 'var(--color-bg)' }}>
         <ModeToggle />
-        <Link
-          href="/settings"
-          className="tap flex h-10 w-10 items-center justify-center rounded-full"
-          aria-label="설정"
-        >
+        <div className="flex items-center gap-1">
+          <Link
+            href="/calendar"
+            className="tap flex h-10 w-10 items-center justify-center rounded-full"
+            aria-label="캘린더"
+          >
+            <svg viewBox="0 0 24 24" fill="none" width={22} height={22}>
+              <rect x={3.5} y={5.5} width={17} height={15} rx={3} stroke="var(--color-text-1)" strokeWidth={1.8} />
+              <path d="M3.5 10h17M8 3v4M16 3v4" stroke="var(--color-text-1)" strokeWidth={1.8} strokeLinecap="round" />
+            </svg>
+          </Link>
+          <Link
+            href="/settings"
+            className="tap flex h-10 w-10 items-center justify-center rounded-full"
+            aria-label="설정"
+          >
           <svg viewBox="0 0 24 24" fill="none" width={22} height={22}>
             <circle cx={12} cy={12} r={3} stroke="var(--color-text-1)" strokeWidth={1.8} />
             <path
@@ -57,7 +69,8 @@ export default function HomePage() {
               strokeLinejoin="round"
             />
           </svg>
-        </Link>
+          </Link>
+        </div>
       </header>
 
       {/* Greeting */}
@@ -302,6 +315,8 @@ function PersonalHome({
           )}
         </div>
       </section>
+
+      <UpcomingRecurring />
 
       {/* Goals */}
       <section className="px-5 pb-3">

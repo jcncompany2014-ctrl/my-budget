@@ -84,6 +84,7 @@ export default function SettingsPage() {
         <Row label="계좌 관리" subtitle="은행, 카드, 현금 지갑" onClick={() => router.push('/settings/accounts')} />
         <Row label="예산 설정" subtitle="카테고리별 한 달 한도" onClick={() => router.push('/settings/budgets')} />
         <Row label="저축 목표" subtitle="목표 만들고 추적" onClick={() => router.push('/settings/goals')} />
+        <Row label="정기결제" subtitle="구독·통신비·멤버십" onClick={() => router.push('/settings/recurring')} />
       </Section>
 
       <Section title="데이터">

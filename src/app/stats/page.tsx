@@ -28,8 +28,48 @@ export default function StatsPage() {
     return tx.filter((t) => new Date(t.date) >= weekAgo);
   }, [tx, period]);
 
+  // Last month comparison (only meaningful for month view)
+  const lastMonthExpense = useMemo(() => {
+    const now = new Date();
+    const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return tx
+      .filter((t) => {
+        const d = new Date(t.date);
+        return d.getFullYear() === last.getFullYear() && d.getMonth() === last.getMonth();
+      })
+      .filter(isExpense)
+      .reduce((s, t) => s + Math.abs(t.amount), 0);
+  }, [tx]);
+
+  // Weekly trend — last 4 weeks
+  const weeklyTrend = useMemo(() => {
+    const now = new Date();
+    const weeks: { label: string; expense: number }[] = [];
+    for (let i = 3; i >= 0; i--) {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 7 * (i + 1) + 1);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(now);
+      end.setDate(now.getDate() - 7 * i);
+      end.setHours(23, 59, 59, 999);
+      const sum = tx
+        .filter((t) => {
+          const d = new Date(t.date);
+          return d >= start && d <= end;
+        })
+        .filter(isExpense)
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+      const label = i === 0 ? '이번주' : i === 1 ? '지난주' : `${i + 1}주 전`;
+      weeks.push({ label, expense: sum });
+    }
+    return weeks;
+  }, [tx]);
+
   const expenses = filtered.filter(isExpense);
   const total = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
+  const monthDelta = period === 'month' && lastMonthExpense > 0
+    ? Math.round(((total - lastMonthExpense) / lastMonthExpense) * 100)
+    : null;
 
   const byCat = useMemo(() => {
     const map = new Map<string, number>();
@@ -97,6 +137,86 @@ export default function StatsPage() {
         </div>
       ) : (
         <>
+          {/* Month-over-month comparison */}
+          {period === 'month' && monthDelta !== null && (
+            <section className="px-5 pb-2 pt-1">
+              <div
+                className="flex items-center justify-between rounded-2xl px-4 py-3"
+                style={{
+                  background:
+                    monthDelta < 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)',
+                }}
+              >
+                <div>
+                  <p
+                    className="text-[11px] font-bold"
+                    style={{
+                      color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                    }}
+                  >
+                    지난 달 대비
+                  </p>
+                  <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-2)' }}>
+                    {monthDelta < 0
+                      ? `${fmt(lastMonthExpense - total)}원 덜 썼어요`
+                      : `${fmt(total - lastMonthExpense)}원 더 썼어요`}
+                  </p>
+                </div>
+                <p
+                  className="tnum text-base font-extrabold"
+                  style={{ color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)' }}
+                >
+                  {monthDelta > 0 ? '+' : ''}
+                  {monthDelta}%
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* Weekly trend */}
+          <section className="px-5 pb-3 pt-1">
+            <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
+              <p className="mb-3 text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
+                주간 지출 추이
+              </p>
+              <div className="flex items-end justify-between gap-2" style={{ height: 80 }}>
+                {weeklyTrend.map((w, i) => {
+                  const max = Math.max(...weeklyTrend.map((x) => x.expense), 1);
+                  const pct = (w.expense / max) * 100;
+                  const isThis = i === weeklyTrend.length - 1;
+                  return (
+                    <div key={w.label} className="flex flex-1 flex-col items-center gap-1.5">
+                      <div className="flex w-full flex-1 items-end">
+                        <div
+                          className="w-full rounded-t-md transition-all"
+                          style={{
+                            height: `${pct}%`,
+                            minHeight: 2,
+                            background: isThis ? 'var(--color-primary)' : 'var(--color-gray-200)',
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="tnum text-[10px] font-medium"
+                        style={{ color: 'var(--color-text-3)' }}
+                      >
+                        {w.expense > 0 ? `${Math.round(w.expense / 10000)}만` : '-'}
+                      </span>
+                      <span
+                        className="text-[10px] font-bold"
+                        style={{
+                          color: isThis ? 'var(--color-primary)' : 'var(--color-text-3)',
+                        }}
+                      >
+                        {w.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
           <section className="flex justify-center px-5 py-6">
             <CategoryDonut data={byCat} total={total} />
           </section>
