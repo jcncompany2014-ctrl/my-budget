@@ -1,18 +1,20 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
+import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
-import { SEED_BUDGETS } from '@/lib/seed';
 import { useTransactions } from '@/lib/storage';
 
 export default function BudgetPage() {
   const router = useRouter();
   const { tx, ready } = useTransactions();
   const { mode } = useMode();
+  const { budgets, ready: budgetsReady } = useBudgets();
 
   const spent = useMemo(() => {
     if (!ready) return new Map<string, number>();
@@ -27,9 +29,9 @@ export default function BudgetPage() {
     return map;
   }, [tx, ready]);
 
-  const personalBudgets = Object.entries(SEED_BUDGETS).map(([cat, b]) => {
+  const personalBudgets = Object.entries(budgets).map(([cat, b]) => {
     const used = spent.get(cat) ?? 0;
-    const pct = Math.min(100, Math.round((used / b.limit) * 100));
+    const pct = b.limit > 0 ? Math.min(100, Math.round((used / b.limit) * 100)) : 0;
     return { cat, limit: b.limit, used, pct, info: CATEGORIES[cat] };
   });
 
@@ -151,62 +153,81 @@ export default function BudgetPage() {
   // ─── Personal mode ───
   const totalLimit = personalBudgets.reduce((s, i) => s + i.limit, 0);
   const totalUsed = personalBudgets.reduce((s, i) => s + i.used, 0);
-  const totalPct = Math.min(100, Math.round((totalUsed / totalLimit) * 100));
+  const totalPct = totalLimit > 0 ? Math.min(100, Math.round((totalUsed / totalLimit) * 100)) : 0;
 
   return (
     <>
       <TopBar
         title="예산"
         right={
-          <button
-            type="button"
-            onClick={() => router.back()}
+          <Link
+            href="/settings/budgets"
             className="tap rounded-full px-3 py-2 text-sm font-semibold"
-            style={{ color: 'var(--color-text-3)' }}
+            style={{ color: 'var(--color-primary)' }}
           >
-            완료
-          </button>
+            설정
+          </Link>
         }
       />
 
-      <section className="px-5 pb-3 pt-1">
-        <div className="rounded-2xl p-5" style={{ background: 'var(--color-card)' }}>
-          <p className="text-xs font-medium" style={{ color: 'var(--color-text-3)' }}>
-            이번 달 총 예산
-          </p>
-          <p className="tnum mt-1 text-2xl font-extrabold" style={{ color: 'var(--color-text-1)' }}>
-            {fmt(totalUsed)}
-            <span className="text-base font-semibold" style={{ color: 'var(--color-text-3)' }}>
-              {' '}/ {fmt(totalLimit)}원
-            </span>
-          </p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${totalPct}%`,
-                background:
-                  totalPct >= 100
-                    ? 'var(--color-danger)'
-                    : totalPct >= 80
-                      ? 'var(--color-orange-500)'
-                      : 'var(--color-primary)',
-              }}
-            />
-          </div>
-        </div>
-      </section>
+      {!budgetsReady ? null : personalBudgets.length === 0 ? (
+        <section className="px-5 pb-10 pt-4">
+          <Link
+            href="/settings/budgets"
+            className="tap flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center"
+            style={{ background: 'var(--color-card)' }}
+          >
+            <p className="text-3xl">📊</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
+              예산을 설정해 보세요
+            </p>
+            <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
+              카테고리별로 한 달 한도를 정해두면 진행률이 보여요
+            </p>
+          </Link>
+        </section>
+      ) : (
+        <>
+          <section className="px-5 pb-3 pt-1">
+            <div className="rounded-2xl p-5" style={{ background: 'var(--color-card)' }}>
+              <p className="text-xs font-medium" style={{ color: 'var(--color-text-3)' }}>
+                이번 달 총 예산
+              </p>
+              <p className="tnum mt-1 text-2xl font-extrabold" style={{ color: 'var(--color-text-1)' }}>
+                {fmt(totalUsed)}
+                <span className="text-base font-semibold" style={{ color: 'var(--color-text-3)' }}>
+                  {' '}/ {fmt(totalLimit)}원
+                </span>
+              </p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${totalPct}%`,
+                    background:
+                      totalPct >= 100
+                        ? 'var(--color-danger)'
+                        : totalPct >= 80
+                          ? 'var(--color-orange-500)'
+                          : 'var(--color-primary)',
+                  }}
+                />
+              </div>
+            </div>
+          </section>
 
-      <section className="px-5 pb-10 pt-4">
-        <h2 className="mb-3 text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
-          카테고리별
-        </h2>
-        <div className="space-y-2">
-          {personalBudgets.map((i) => (
-            <BudgetCard key={i.cat} item={i} />
-          ))}
-        </div>
-      </section>
+          <section className="px-5 pb-10 pt-4">
+            <h2 className="mb-3 text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
+              카테고리별
+            </h2>
+            <div className="space-y-2">
+              {personalBudgets.map((i) => (
+                <BudgetCard key={i.cat} item={i} />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </>
   );
 }

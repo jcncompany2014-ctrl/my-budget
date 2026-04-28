@@ -3,10 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
 import { useToast } from '@/components/Toast';
+import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
-import { SEED_ACCOUNTS } from '@/lib/seed';
-import { useTransactions } from '@/lib/storage';
+import { useAllTransactions } from '@/lib/storage';
 
 const fmtDate = (iso: string) => {
   const d = new Date(iso);
@@ -26,7 +26,8 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const router = useRouter();
   const toast = useToast();
-  const { tx, ready, remove, update } = useTransactions();
+  const { tx, ready, remove, update } = useAllTransactions();
+  const { accounts } = useAccounts();
   const [confirming, setConfirming] = useState(false);
 
   const item = tx.find((t) => t.id === id);
@@ -61,7 +62,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   }
 
   const cat = CATEGORIES[item.cat];
-  const account = SEED_ACCOUNTS.find((a) => a.id === item.acc);
+  const account = accounts.find((a) => a.id === item.acc);
   const isIncome = item.amount > 0;
 
   const onDelete = () => {

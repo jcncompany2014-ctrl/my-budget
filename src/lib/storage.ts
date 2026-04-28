@@ -5,7 +5,7 @@ import { useMode } from '@/components/ModeProvider';
 import { SEED_TRANSACTIONS } from '@/lib/seed';
 import type { Scope, Transaction } from '@/lib/types';
 
-const KEY = 'asset/transactions/v1';
+const KEY = 'asset/transactions/v2';
 
 function normalize(list: Transaction[]): Transaction[] {
   return list.map((t) => (t.scope ? t : { ...t, scope: 'personal' }));

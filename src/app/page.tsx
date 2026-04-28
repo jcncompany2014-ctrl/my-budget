@@ -3,10 +3,7 @@
 import Link from 'next/link';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
-import InstallHint from '@/components/InstallHint';
-import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
-import UpcomingRecurring from '@/components/UpcomingRecurring';
 import { fmt, fmtKRW, isExpense } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
@@ -47,8 +44,6 @@ export default function HomePage() {
           </svg>
         </Link>
       </header>
-
-      <InstallHint />
 
       {mode === 'personal' ? <PersonalHome tx={tx} /> : <BusinessHome tx={tx} />}
     </>
@@ -113,8 +108,6 @@ function PersonalHome({ tx }: { tx: Transaction[] }) {
           <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>목표를 향해</p>
         </Link>
       </section>
-
-      <UpcomingRecurring />
 
       <RecentTransactions tx={tx} />
     </>

@@ -1,0 +1,322 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import TopBar from '@/components/TopBar';
+import { useToast } from '@/components/Toast';
+import { useAccounts } from '@/lib/accounts';
+import { fmt } from '@/lib/format';
+import type { Account, AccountType } from '@/lib/types';
+
+const COLORS = ['#00B956', '#3182F6', '#F472B6', '#FF8A1F', '#8B5CF6', '#14B8A6', '#FFCC00', '#EF4444'];
+const TYPE_LABELS: Record<AccountType, string> = {
+  bank: '은행',
+  card: '카드',
+  cash: '현금',
+};
+
+export default function AccountsSettingsPage() {
+  const router = useRouter();
+  const toast = useToast();
+  const { accounts, ready, add, update, remove } = useAccounts();
+  const [editing, setEditing] = useState<Account | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  if (!ready) {
+    return (
+      <div className="flex h-[calc(100dvh-68px)] items-center justify-center">
+        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
+      </div>
+    );
+  }
+
+  const handleSave = (a: Account) => {
+    if (creating) {
+      add(a);
+      toast.show('계좌 추가 완료', 'success');
+    } else {
+      update(a.id, a);
+      toast.show('계좌 수정 완료', 'success');
+    }
+    setEditing(null);
+    setCreating(false);
+  };
+
+  const handleDelete = (id: string) => {
+    remove(id);
+    toast.show('계좌 삭제 완료', 'info');
+    setEditing(null);
+  };
+
+  const startNew = () => {
+    setEditing({
+      id: 'acc-' + Date.now().toString(36),
+      name: '',
+      bank: '',
+      type: 'bank',
+      balance: 0,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    });
+    setCreating(true);
+  };
+
+  return (
+    <>
+      <TopBar
+        title="계좌 관리"
+        right={
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="tap rounded-full px-3 py-2 text-sm font-semibold"
+            style={{ color: 'var(--color-text-3)' }}
+          >
+            완료
+          </button>
+        }
+      />
+
+      <section className="px-5 pb-3 pt-1">
+        {accounts.length === 0 ? (
+          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
+            <p className="text-3xl">🏦</p>
+            <p className="mt-2 text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
+              아직 계좌가 없어요
+            </p>
+            <p className="mt-1 text-xs" style={{ color: 'var(--color-text-3)' }}>
+              아래 + 버튼으로 계좌를 추가하세요
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {accounts.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => {
+                  setEditing(a);
+                  setCreating(false);
+                }}
+                className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
+                style={{ background: 'var(--color-card)' }}
+              >
+                <div
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-bold text-white"
+                  style={{ background: a.color }}
+                >
+                  {(a.bank || a.name).slice(0, 1)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
+                    {a.name}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
+                    {TYPE_LABELS[a.type]} · {a.bank || '—'}
+                  </p>
+                </div>
+                <p
+                  className="tnum text-[14px] font-bold"
+                  style={{ color: a.type === 'card' ? 'var(--color-danger)' : 'var(--color-text-1)' }}
+                >
+                  {a.type === 'card' ? '-' : ''}
+                  {fmt(Math.abs(a.balance))}원
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="px-5 pb-10 pt-2">
+        <button
+          type="button"
+          onClick={startNew}
+          className="tap w-full rounded-2xl border-2 border-dashed py-4 text-sm font-bold"
+          style={{ borderColor: 'var(--color-gray-300)', color: 'var(--color-text-2)' }}
+        >
+          + 계좌 추가
+        </button>
+      </section>
+
+      {editing && (
+        <AccountEditor
+          account={editing}
+          isNew={creating}
+          onSave={handleSave}
+          onDelete={creating ? undefined : () => handleDelete(editing.id)}
+          onCancel={() => {
+            setEditing(null);
+            setCreating(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function AccountEditor({
+  account,
+  isNew,
+  onSave,
+  onDelete,
+  onCancel,
+}: {
+  account: Account;
+  isNew: boolean;
+  onSave: (a: Account) => void;
+  onDelete?: () => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(account);
+
+  const valid = draft.name.trim().length > 0;
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
+      <div
+        className="w-full max-w-[440px] rounded-t-3xl p-6"
+        style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
+      >
+        <div
+          className="mx-auto mb-4 h-1 w-10 rounded-full"
+          style={{ background: 'var(--color-gray-200)' }}
+        />
+        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
+          {isNew ? '새 계좌' : '계좌 편집'}
+        </h2>
+
+        <Field label="이름" required>
+          <input
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            placeholder="예) 주거래 통장"
+            className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+          />
+        </Field>
+
+        <Field label="은행/카드사">
+          <input
+            value={draft.bank}
+            onChange={(e) => setDraft({ ...draft, bank: e.target.value })}
+            placeholder="예) 토스뱅크 (선택)"
+            className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+          />
+        </Field>
+
+        <Field label="종류">
+          <div className="flex gap-2">
+            {(['bank', 'card', 'cash'] as AccountType[]).map((t) => {
+              const sel = draft.type === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, type: t })}
+                  className="tap flex-1 rounded-xl py-3 text-[13px] font-bold"
+                  style={{
+                    background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                    color: sel ? '#fff' : 'var(--color-text-2)',
+                  }}
+                >
+                  {TYPE_LABELS[t]}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="잔액">
+          <input
+            type="number"
+            inputMode="numeric"
+            value={Number.isNaN(draft.balance) ? '' : draft.balance}
+            onChange={(e) => setDraft({ ...draft, balance: Number(e.target.value) || 0 })}
+            placeholder="0"
+            className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+          />
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
+            카드는 사용액(빚)을 음수로 입력 (예: -100000)
+          </p>
+        </Field>
+
+        <Field label="색상">
+          <div className="flex flex-wrap gap-2">
+            {COLORS.map((c) => {
+              const sel = draft.color === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, color: c })}
+                  className="tap h-10 w-10 rounded-full"
+                  style={{
+                    background: c,
+                    outline: sel ? `3px solid ${c}33` : 'none',
+                    outlineOffset: 2,
+                  }}
+                  aria-label={c}
+                />
+              );
+            })}
+          </div>
+        </Field>
+
+        <div className="mt-2 flex gap-2">
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="tap h-12 rounded-xl px-4 text-sm font-bold"
+              style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
+            >
+              삭제
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            disabled={!valid}
+            onClick={() => onSave(draft)}
+            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+            style={{
+              background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
+              color: valid ? '#fff' : 'var(--color-text-4)',
+            }}
+          >
+            저장
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3">
+      <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
+        {label}
+        {required && <span style={{ color: 'var(--color-danger)' }}> *</span>}
+      </label>
+      {children}
+    </div>
+  );
+}

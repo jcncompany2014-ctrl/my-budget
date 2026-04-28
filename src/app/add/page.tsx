@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Keypad from '@/components/Keypad';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
+import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
-import { SEED_ACCOUNTS } from '@/lib/seed';
 import { fmt, fmtShort } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
@@ -19,6 +19,7 @@ export default function AddPage() {
   const router = useRouter();
   const { mode } = useMode();
   const { add } = useAllTransactions();
+  const { accounts } = useAccounts();
   const toast = useToast();
 
   const expenseList = useMemo(() => expenseCategoriesByScope(mode), [mode]);
@@ -29,8 +30,12 @@ export default function AddPage() {
   const [cat, setCat] = useState<string>(expenseList[0]?.id ?? 'food');
   const [merchant, setMerchant] = useState('');
   const [memo, setMemo] = useState('');
-  const [accId, setAccId] = useState<string>(SEED_ACCOUNTS[0]?.id ?? 'a1');
+  const [accId, setAccId] = useState<string>('');
   const [step, setStep] = useState<1 | 2>(1);
+
+  useEffect(() => {
+    if (!accId && accounts[0]) setAccId(accounts[0].id);
+  }, [accounts, accId]);
 
   // Reset selected category when mode/type changes
   useEffect(() => {
@@ -266,7 +271,7 @@ export default function AddPage() {
               계좌
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {SEED_ACCOUNTS.map((a) => {
+              {accounts.map((a) => {
                 const sel = accId === a.id;
                 return (
                   <button

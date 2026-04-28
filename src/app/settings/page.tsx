@@ -16,8 +16,8 @@ export default function SettingsPage() {
 
   const onImport = async (file: File) => {
     try {
-      const tx = await importBackup(file);
-      toast.show(`${tx.length}건 복원 완료`, 'success');
+      const r = await importBackup(file);
+      toast.show(`거래 ${r.transactions}건 복원 완료`, 'success');
       window.location.reload();
     } catch (e) {
       toast.show(e instanceof Error ? e.message : '복원 실패', 'error');
@@ -52,7 +52,12 @@ export default function SettingsPage() {
         />
       </Section>
 
-      {/* Data */}
+      <Section title="관리">
+        <Row label="계좌 관리" subtitle="은행, 카드, 현금 지갑" onClick={() => router.push('/settings/accounts')} />
+        <Row label="예산 설정" subtitle="카테고리별 한 달 한도" onClick={() => router.push('/settings/budgets')} />
+        <Row label="저축 목표" subtitle="목표 만들고 추적" onClick={() => router.push('/settings/goals')} />
+      </Section>
+
       <Section title="데이터">
         <Row
           label="백업 내보내기"
