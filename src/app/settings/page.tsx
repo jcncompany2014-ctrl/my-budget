@@ -1,18 +1,25 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import TopBar from '@/components/TopBar';
 import { useTheme } from '@/components/ThemeProvider';
 import { useToast } from '@/components/Toast';
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
+import { useProfile } from '@/lib/profile';
 
 export default function SettingsPage() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
   const toast = useToast();
+  const { profile, setName } = useProfile();
   const fileInput = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState<null | 'reset'>(null);
+  const [nameDraft, setNameDraft] = useState(profile.name);
+
+  useEffect(() => {
+    setNameDraft(profile.name);
+  }, [profile.name]);
 
   const onImport = async (file: File) => {
     try {
@@ -39,6 +46,27 @@ export default function SettingsPage() {
           </button>
         }
       />
+
+      <Section title="프로필">
+        <div className="px-4 py-3.5">
+          <label className="mb-1.5 block text-[12px] font-semibold" style={{ color: 'var(--color-text-3)' }}>
+            이름
+          </label>
+          <input
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => {
+              if (nameDraft !== profile.name) {
+                setName(nameDraft.trim());
+                toast.show('이름 저장 완료', 'success');
+              }
+            }}
+            placeholder="홈 화면에 표시될 이름"
+            className="h-11 w-full rounded-xl px-3 text-[15px] font-medium outline-none"
+            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+          />
+        </div>
+      </Section>
 
       {/* Appearance */}
       <Section title="외관">
