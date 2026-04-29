@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import CountUp from '@/components/CountUp';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
+import SmartPrompts from '@/components/SmartPrompts';
 import Sparkline from '@/components/Sparkline';
 import TxRow from '@/components/TxRow';
 import UpcomingRecurring from '@/components/UpcomingRecurring';
@@ -112,6 +113,8 @@ export default function HomePage() {
           {mode === 'business' ? `${monthName}월 사업 가계부` : `${monthName}월의 가계부`}
         </h1>
       </section>
+
+      <SmartPrompts />
 
       {mode === 'personal' ? (
         <PersonalHome tx={tx} accounts={accounts} budgets={budgets} goals={goals} loanCount={loans.filter((l) => l.scope === 'personal').length} />

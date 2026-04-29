@@ -54,6 +54,13 @@ export type Transaction = {
   transferTo?: string;
   /** When this is a transfer leg, was it cross-mode? */
   transferCrossMode?: boolean;
+
+  /** Foreign currency original amount (display) */
+  fxAmount?: number;
+  fxCurrency?: string;
+
+  /** Split breakdown — when present, each entry's amount sums to this tx's amount */
+  splits?: { cat: string; amount: number; memo?: string }[];
 };
 
 export type Budget = {

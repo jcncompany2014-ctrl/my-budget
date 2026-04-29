@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Confetti from '@/components/Confetti';
+import LineChart from '@/components/LineChart';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import { fmt } from '@/lib/format';
@@ -122,6 +123,9 @@ export default function GoalsPage() {
                       </p>
                     </div>
                   )}
+
+                  {/* Gap chart: ideal vs actual progress */}
+                  <GoalGapChart goal={g} />
                 </Link>
               );
             })}
@@ -131,5 +135,36 @@ export default function GoalsPage() {
 
       {confettiId && <Confetti onDone={() => setConfettiId(null)} />}
     </>
+  );
+}
+
+function GoalGapChart({ goal }: { goal: { target: number; current: number; due: string } }) {
+  // Simple linear ideal vs current single-point projection
+  const today = new Date();
+  const due = new Date(goal.due);
+  const totalDays = Math.max(1, Math.ceil((due.getTime() - new Date().setMonth(today.getMonth() - 3)) / (1000 * 60 * 60 * 24)));
+  const elapsedDays = Math.max(0, Math.min(totalDays, Math.ceil((today.getTime() - new Date().setMonth(today.getMonth() - 3)) / (1000 * 60 * 60 * 24))));
+  const points = 6;
+  const ideal: number[] = [];
+  const actual: number[] = [];
+  const labels: string[] = [];
+  for (let i = 0; i < points; i++) {
+    const fraction = i / (points - 1);
+    ideal.push(goal.target * fraction);
+    actual.push(goal.current * (i === points - 1 ? 1 : Math.min(1, fraction * (elapsedDays / totalDays + 0.05))));
+    labels.push(['시작', '', '', '', '', '오늘'][i] ?? '');
+  }
+  return (
+    <div className="mt-3 rounded-xl px-2 py-2" style={{ background: 'var(--color-gray-50)' }}>
+      <LineChart
+        labels={labels}
+        height={80}
+        showAxis={false}
+        series={[
+          { values: ideal, color: 'var(--color-gray-300)' },
+          { values: actual, color: goal && (goal as { color?: string }).color ? ((goal as { color?: string }).color as string) : 'var(--color-primary)' },
+        ]}
+      />
+    </div>
   );
 }

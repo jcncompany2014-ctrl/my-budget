@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import TopBar from '@/components/TopBar';
 import { useTheme } from '@/components/ThemeProvider';
 import { useToast } from '@/components/Toast';
+import { ensureAutoBackup, lastAutoBackupAt, restoreLastAutoBackup } from '@/lib/auto-backup';
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
+import { parseTransactionsCSV } from '@/lib/csv-import';
 import { useCurrency, useLanguage } from '@/lib/locale';
 import { useProfile } from '@/lib/profile';
 import { localStorageBytes, STORAGE_LIMIT_BYTES } from '@/lib/storage-keys';
@@ -26,7 +28,31 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setStorageBytes(localStorageBytes());
+    ensureAutoBackup();
   }, []);
+
+  const csvInput = useRef<HTMLInputElement>(null);
+
+  const onImportCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const txs = parseTransactionsCSV(reader.result as string);
+        if (txs.length === 0) {
+          toast.show('CSV에서 거래를 찾지 못했어요', 'error');
+          return;
+        }
+        const raw = window.localStorage.getItem('asset/transactions/v2');
+        const cur = raw ? JSON.parse(raw) : [];
+        window.localStorage.setItem('asset/transactions/v2', JSON.stringify([...txs, ...cur]));
+        toast.show(`${txs.length}건 가져오기 완료`, 'success');
+        setTimeout(() => window.location.reload(), 600);
+      } catch {
+        toast.show('CSV 파싱 실패', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   useEffect(() => {
     setNameDraft(profile.name);
@@ -193,6 +219,39 @@ export default function SettingsPage() {
             const f = e.target.files?.[0];
             if (f) void onImport(f);
             e.target.value = '';
+          }}
+        />
+        <Row
+          label="CSV 가져오기"
+          subtitle="다른 가계부에서 내보낸 CSV"
+          onClick={() => csvInput.current?.click()}
+        />
+        <input
+          ref={csvInput}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onImportCSV(f);
+            e.target.value = '';
+          }}
+        />
+        <Row
+          label="자동 백업"
+          subtitle={lastAutoBackupAt() ? `최근 ${lastAutoBackupAt()!.toLocaleDateString('ko-KR')}` : '아직 없음'}
+          right={
+            <span style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+              매주 자동
+            </span>
+          }
+          onClick={() => {
+            if (restoreLastAutoBackup()) {
+              toast.show('자동 백업으로 복원 완료', 'success');
+              setTimeout(() => window.location.reload(), 400);
+            } else {
+              toast.show('자동 백업이 없어요', 'info');
+            }
           }}
         />
         <Row

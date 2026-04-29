@@ -159,11 +159,40 @@ html[data-theme="dark"][data-mode="business"] {
   transition:
     transform var(--motion-fast) var(--ease-out),
     background-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
     opacity var(--motion-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
 }
 .tap:active {
   transform: scale(0.97);
   opacity: 0.85;
+}
+
+/* Cards that lift on press */
+.tap-lift:active {
+  transform: scale(0.985) translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Emoji color font fallback (consistent across platforms) */
+.emoji,
+[data-emoji] {
+  font-family:
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji', 'EmojiOne Color', 'Twemoji Mozilla', sans-serif;
+  font-variant-emoji: emoji;
+}
+
+/* iOS 키보드가 입력란을 가리지 않도록 — 입력 시 viewport 자동 스크롤 */
+input,
+textarea {
+  scroll-margin-top: 100px;
+  scroll-margin-bottom: 200px;
+}
+
+/* Page route transition */
+.page-fade {
+  animation: page-fade 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ─── Animations ─── */
@@ -243,6 +272,14 @@ html[data-theme="dark"][data-mode="business"] {
 @keyframes ring-pulse {
   0% { box-shadow: 0 0 0 0 var(--color-primary); opacity: 0.5; }
   100% { box-shadow: 0 0 0 14px transparent; opacity: 0; }
+}
+@keyframes page-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer-num {
+  0%, 100% { background-position: 200% 0; }
+  50% { background-position: -200% 0; }
 }
 
 /* Smooth color transitions when mode/theme changes */

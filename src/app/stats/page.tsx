@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import CategoryDonut from '@/components/CategoryDonut';
+import LineChart from '@/components/LineChart';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
+import YearHeatmap from '@/components/YearHeatmap';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt, isExpense } from '@/lib/format';
 import { detectAnomalies } from '@/lib/insights';
@@ -66,6 +68,38 @@ export default function StatsPage() {
   }, [tx]);
 
   const anomalies = useMemo(() => detectAnomalies(tx), [tx]);
+
+  // 6-month trend
+  const sixMonthTrend = useMemo(() => {
+    const now = new Date();
+    const months: { label: string; expense: number; income: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthTx = tx.filter((t) => {
+        const d = new Date(t.date);
+        return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
+      });
+      const expense = monthTx.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
+      const income = monthTx.filter((t) => t.amount > 0 && !t.transferPairId).reduce((s, t) => s + t.amount, 0);
+      months.push({
+        label: `${m.getMonth() + 1}월`,
+        expense,
+        income,
+      });
+    }
+    return months;
+  }, [tx]);
+
+  // 12-month heatmap data
+  const heatmapData = useMemo(() => {
+    const map = new Map<string, number>();
+    tx.forEach((t) => {
+      if (!isExpense(t)) return;
+      const key = t.date.slice(0, 10);
+      map.set(key, (map.get(key) ?? 0) + Math.abs(t.amount));
+    });
+    return map;
+  }, [tx]);
 
   const expenses = filtered.filter(isExpense);
   const total = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
@@ -243,6 +277,43 @@ export default function StatsPage() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </section>
+
+          {/* 6-month trend line */}
+          <section className="px-5 pb-3 pt-2">
+            <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
+              <p className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                6개월 추이
+              </p>
+              <LineChart
+                labels={sixMonthTrend.map((m) => m.label)}
+                series={[
+                  { label: '지출', values: sixMonthTrend.map((m) => m.expense), color: 'var(--color-danger)' },
+                  { label: '수입', values: sixMonthTrend.map((m) => m.income), color: 'var(--color-primary)' },
+                ]}
+                height={140}
+              />
+              <div className="mt-2 flex items-center justify-center gap-4">
+                <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+                  <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>●</span> 지출
+                </span>
+                <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+                  <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>●</span> 수입
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* 12-month heatmap */}
+          <section className="px-5 pb-3 pt-2">
+            <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
+              <p className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                1년 지출 히트맵
+              </p>
+              <div className="overflow-x-auto no-scrollbar">
+                <YearHeatmap daySpend={heatmapData} cellSize={10} gap={2} />
               </div>
             </div>
           </section>
