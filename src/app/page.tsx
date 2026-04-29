@@ -512,18 +512,36 @@ function BusinessHome({
       <section className="grid grid-cols-3 gap-2 px-5 pb-3">
         <Link href="/business/vendors" className="tap rounded-2xl px-3 py-4 text-center"
           style={{ background: 'var(--color-card)' }}>
-          <p style={{ fontSize: 22 }}>🤝</p>
+          <p style={{ fontSize: 22, lineHeight: 1 }}>🤝</p>
           <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>거래처</p>
         </Link>
         <Link href="/settings/employees" className="tap rounded-2xl px-3 py-4 text-center"
           style={{ background: 'var(--color-card)' }}>
-          <p style={{ fontSize: 22 }}>👥</p>
+          <p style={{ fontSize: 22, lineHeight: 1 }}>👥</p>
           <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>인건비</p>
         </Link>
         <Link href="/settings/locations" className="tap rounded-2xl px-3 py-4 text-center"
           style={{ background: 'var(--color-card)' }}>
-          <p style={{ fontSize: 22 }}>🏪</p>
+          <p style={{ fontSize: 22, lineHeight: 1 }}>🏪</p>
           <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>사업장</p>
+        </Link>
+      </section>
+
+      <section className="grid grid-cols-3 gap-2 px-5 pb-3">
+        <Link href="/business/cashflow" className="tap rounded-2xl px-3 py-4 text-center"
+          style={{ background: 'var(--color-card)' }}>
+          <p style={{ fontSize: 22, lineHeight: 1 }}>💹</p>
+          <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>현금흐름</p>
+        </Link>
+        <Link href="/business/income-tax" className="tap rounded-2xl px-3 py-4 text-center"
+          style={{ background: 'var(--color-card)' }}>
+          <p style={{ fontSize: 22, lineHeight: 1 }}>💰</p>
+          <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>소득세</p>
+        </Link>
+        <Link href="/business/inventory" className="tap rounded-2xl px-3 py-4 text-center"
+          style={{ background: 'var(--color-card)' }}>
+          <p style={{ fontSize: 22, lineHeight: 1 }}>📦</p>
+          <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>재고</p>
         </Link>
       </section>
 

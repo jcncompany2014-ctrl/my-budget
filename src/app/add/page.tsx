@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
 import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categorize';
+import { useBusinessProfile } from '@/lib/business-profile';
 import { applyRules, useCategoryRules } from '@/lib/category-rules';
 import {
   CATEGORIES,
@@ -17,8 +18,10 @@ import {
 import { useFavorites } from '@/lib/favorites';
 import { fmt, fmtShort } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
+import { useLocations } from '@/lib/locations';
 import { useAllTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
+import { useVendors } from '@/lib/vendors';
 
 const QUICK_AMOUNTS = [1000, 5000, 10000, 50000];
 
@@ -41,6 +44,9 @@ function AddPage() {
   const { accounts } = useAccounts();
   const { add: addFav } = useFavorites();
   const { items: rules } = useCategoryRules();
+  const { items: vendors } = useVendors();
+  const { items: locations } = useLocations();
+  const { value: bizProfile } = useBusinessProfile();
   const toast = useToast();
 
   const expenseList = useMemo(() => expenseCategoriesByScope(mode), [mode]);
@@ -54,6 +60,10 @@ function AddPage() {
   const [accId, setAccId] = useState<string>('');
   const [step, setStep] = useState<1 | 2>(1);
   const [catTouched, setCatTouched] = useState(false);
+  const [vendorId, setVendorId] = useState<string>('');
+  const [locationId, setLocationId] = useState<string>('');
+  const [outstanding, setOutstanding] = useState<boolean>(false);
+  const [hasReceipt, setHasReceipt] = useState<boolean>(false);
 
   // Smart category suggestion: user rules → history → heuristic
   useEffect(() => {
@@ -120,6 +130,22 @@ function AddPage() {
           },
         );
         return;
+      }
+    }
+
+    if (mode === 'business') {
+      tx.vendor = vendorId || undefined;
+      tx.location = locationId || undefined;
+      tx.outstanding = outstanding || undefined;
+      tx.hasReceipt = hasReceipt || undefined;
+
+      // Card / delivery fee auto-suggestion: when category is biz_sales_card or biz_sales_app and user enters gross amount, hint expected net after fees
+      if (cat === 'biz_sales_card' && bizProfile.cardFeeRate > 0) {
+        const fee = Math.round((numericAmount * bizProfile.cardFeeRate) / 100);
+        tx.memo = (tx.memo ?? '') + (tx.memo ? ' · ' : '') + `카드 수수료 약 ${fmt(fee)}원`;
+      } else if (cat === 'biz_sales_app' && bizProfile.deliveryFeeRate > 0) {
+        const fee = Math.round((numericAmount * bizProfile.deliveryFeeRate) / 100);
+        tx.memo = (tx.memo ?? '') + (tx.memo ? ' · ' : '') + `배달앱 수수료 약 ${fmt(fee)}원`;
       }
     }
 
@@ -381,6 +407,149 @@ function AddPage() {
               }}
             />
           </section>
+
+          {mode === 'business' && (
+            <>
+              {vendors.filter((v) => v.scope === 'business').length > 0 && (
+                <section className="px-4 pb-3">
+                  <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                    거래처
+                  </label>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setVendorId('')}
+                      className="tap shrink-0 rounded-2xl px-4 py-2"
+                      style={{
+                        background: !vendorId ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                        color: !vendorId ? '#fff' : 'var(--color-text-2)',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      없음
+                    </button>
+                    {vendors.filter((v) => v.scope === 'business').map((v) => {
+                      const sel = vendorId === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => setVendorId(v.id)}
+                          className="tap shrink-0 rounded-2xl px-4 py-2"
+                          style={{
+                            background: sel ? `${v.color}22` : 'var(--color-gray-100)',
+                            color: sel ? v.color : 'var(--color-text-2)',
+                            outline: sel ? `1.5px solid ${v.color}` : 'none',
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {v.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {locations.length > 0 && (
+                <section className="px-4 pb-3">
+                  <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                    사업장
+                  </label>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setLocationId('')}
+                      className="tap shrink-0 rounded-2xl px-4 py-2"
+                      style={{
+                        background: !locationId ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                        color: !locationId ? '#fff' : 'var(--color-text-2)',
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      🌐 전체
+                    </button>
+                    {locations.map((l) => {
+                      const sel = locationId === l.id;
+                      return (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => setLocationId(l.id)}
+                          className="tap shrink-0 rounded-2xl px-4 py-2"
+                          style={{
+                            background: sel ? `${l.color}22` : 'var(--color-gray-100)',
+                            color: sel ? l.color : 'var(--color-text-2)',
+                            outline: sel ? `1.5px solid ${l.color}` : 'none',
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {l.emoji} {l.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              <section className="px-4 pb-3">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOutstanding(!outstanding)}
+                    className="tap inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
+                    style={{
+                      background: outstanding ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                      color: outstanding ? 'var(--color-primary)' : 'var(--color-text-3)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {outstanding ? '✓' : ''} 외상 (미수/미지급)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHasReceipt(!hasReceipt)}
+                    className="tap inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
+                    style={{
+                      background: hasReceipt ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                      color: hasReceipt ? 'var(--color-primary)' : 'var(--color-text-3)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {hasReceipt ? '✓' : ''} 증빙 있음
+                  </button>
+                </div>
+              </section>
+
+              {(cat === 'biz_sales_card' || cat === 'biz_sales_app') && Number(amount) > 0 && (
+                <section className="px-4 pb-3">
+                  <div className="rounded-xl px-3 py-2" style={{ background: 'var(--color-primary-soft)' }}>
+                    <p style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                      {cat === 'biz_sales_card' ? '카드 수수료 추정' : '배달앱 수수료 추정'}
+                    </p>
+                    <p className="tnum mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                      약 {fmt(
+                        Math.round(
+                          (Number(amount) *
+                            (cat === 'biz_sales_card' ? bizProfile.cardFeeRate : bizProfile.deliveryFeeRate)) /
+                            100,
+                        ),
+                      )}원 ({cat === 'biz_sales_card' ? bizProfile.cardFeeRate : bizProfile.deliveryFeeRate}%)
+                      <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 500 }}>
+                        {' '}· 메모에 자동 기록
+                      </span>
+                    </p>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
 
           <section className="px-4 pb-4">
             <label className="mb-2.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>

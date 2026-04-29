@@ -20,6 +20,7 @@ export const KEYS = {
   yearlyGoals: 'asset/yearly-goals/v1',
   events: 'asset/events/v1',
   profile: 'asset/profile/v1',
+  businessProfile: 'asset/business-profile/v1',
   theme: 'asset/theme/v1',
   mode: 'asset/mode/v1',
   language: 'asset/language/v1',

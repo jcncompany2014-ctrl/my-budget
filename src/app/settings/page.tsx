@@ -181,13 +181,17 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="사업자 (사업 모드)">
+        <Row label="사업자 정보" subtitle="상호·등록번호·수수료율·자동 인건비" onClick={() => router.push('/business/profile')} />
         <Row label="거래처" subtitle="매출처·매입처 등록" onClick={() => router.push('/settings/vendors')} />
         <Row label="직원·인건비" subtitle="월 기본급 자동 집계" onClick={() => router.push('/settings/employees')} />
         <Row label="사업장" subtitle="매장 A/B 분리 관리" onClick={() => router.push('/settings/locations')} />
         <Row label="일일 마감" subtitle="매장별 일별 매출 정리" onClick={() => router.push('/business/daily-close')} />
         <Row label="세무 일정" subtitle="부가세·종합소득세 D-day" onClick={() => router.push('/business/tax-calendar')} />
         <Row label="부가세 도우미" subtitle="분기별 매출/매입 정리" onClick={() => router.push('/business/vat')} />
-        <Row label="손익계산서" subtitle="매출·비용·영업이익" onClick={() => router.push('/business/pnl')} />
+        <Row label="종합소득세 / 원천세" subtitle="누적 영업이익 기반 + 3.3% 계산기" onClick={() => router.push('/business/income-tax')} />
+        <Row label="손익계산서" subtitle="매출·비용·영업이익 + 매장별" onClick={() => router.push('/business/pnl')} />
+        <Row label="현금흐름표" subtitle="기간별 유입/유출" onClick={() => router.push('/business/cashflow')} />
+        <Row label="재고 추정" subtitle="매입 − 매출 기반" onClick={() => router.push('/business/inventory')} />
       </Section>
 
       <Section title="리포트">
