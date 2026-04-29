@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
 import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categorize';
+import { applyRules, useCategoryRules } from '@/lib/category-rules';
 import {
   CATEGORIES,
   expenseCategoriesByScope,
@@ -39,6 +40,7 @@ function AddPage() {
   const { add, tx: history } = useAllTransactions();
   const { accounts } = useAccounts();
   const { add: addFav } = useFavorites();
+  const { items: rules } = useCategoryRules();
   const toast = useToast();
 
   const expenseList = useMemo(() => expenseCategoriesByScope(mode), [mode]);
@@ -53,14 +55,21 @@ function AddPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [catTouched, setCatTouched] = useState(false);
 
-  // Smart category suggestion: history first, then heuristic
+  // Smart category suggestion: user rules → history → heuristic
   useEffect(() => {
     if (catTouched || type !== 'expense') return;
+    // 1. User-defined rules win
+    const ruleMatch = applyRules(merchant, rules);
+    if (ruleMatch && CATEGORIES[ruleMatch] && CATEGORIES[ruleMatch].scope === mode) {
+      setCat(ruleMatch);
+      return;
+    }
+    // 2. History-based learning
     const suggestion = autoCategorize(merchant, mode, history);
     if (suggestion && CATEGORIES[suggestion] && CATEGORIES[suggestion].scope === mode) {
       setCat(suggestion);
     }
-  }, [merchant, type, mode, catTouched, history]);
+  }, [merchant, type, mode, catTouched, history, rules]);
 
   // Suggested amount from history (display hint, doesn't auto-fill)
   const amountHint = useMemo(
@@ -343,15 +352,33 @@ function AddPage() {
           </section>
 
           <section className="px-4 pb-3">
-            <label className="mb-2.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-              메모
-            </label>
+            <div className="mb-2.5 flex items-baseline justify-between">
+              <label style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                메모
+              </label>
+              <span
+                className="tnum"
+                style={{
+                  color: memo.length > 80 ? 'var(--color-danger)' : 'var(--color-text-3)',
+                  fontSize: 'var(--text-xxs)',
+                  fontWeight: 600,
+                }}
+              >
+                {memo.length}/100
+              </span>
+            </div>
             <input
               value={memo}
-              onChange={(e) => setMemo(e.target.value)}
+              onChange={(e) => setMemo(e.target.value.slice(0, 100))}
               placeholder="짧은 메모 (선택)"
-              className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+              maxLength={100}
+              className="h-12 w-full rounded-xl px-4 outline-none"
+              style={{
+                background: 'var(--color-gray-100)',
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 500,
+              }}
             />
           </section>
 

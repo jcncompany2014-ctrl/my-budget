@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { use, useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/components/Toast';
+import IconCircle from '@/components/ui/IconCircle';
+import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import {
   CATEGORIES,
@@ -11,7 +13,7 @@ import {
 } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
-import type { Scope } from '@/lib/types';
+import type { Scope, Transaction } from '@/lib/types';
 
 export default function EditTxPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -30,6 +32,8 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
   const [accId, setAccId] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [splits, setSplits] = useState<NonNullable<Transaction['splits']>>([]);
+  const [splitOpen, setSplitOpen] = useState(false);
 
   useEffect(() => {
     if (!item) return;
@@ -42,6 +46,7 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
     const d = new Date(item.date);
     setDate(d.toISOString().slice(0, 10));
     setTime(d.toTimeString().slice(0, 5));
+    setSplits(item.splits ?? []);
   }, [item]);
 
   const scope: Scope = item?.scope ?? 'personal';
@@ -88,10 +93,15 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
       memo: memo.trim(),
       acc: accId,
       date: isoDate,
+      splits: splits.length > 0 ? splits : undefined,
     });
     toast.show('수정 완료', 'success');
     router.replace(`/tx/${item.id}`);
   };
+
+  const totalSplit = splits.reduce((s, x) => s + Math.abs(x.amount), 0);
+  const numericAbs = Math.abs(Number(amount) || 0);
+  const splitsRemainder = numericAbs - totalSplit;
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ background: 'var(--color-card)' }}>
@@ -230,6 +240,27 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
         </div>
       </Field>
 
+      <Field label="카테고리 분할">
+        <button
+          type="button"
+          onClick={() => setSplitOpen(true)}
+          className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
+          style={{ background: 'var(--color-gray-100)' }}
+        >
+          <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+            {splits.length === 0 ? '단일 카테고리' : `${splits.length}개로 분할`}
+          </span>
+          {splits.length > 0 && (
+            <span className="tnum" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+              합계 {fmt(totalSplit)}원
+            </span>
+          )}
+        </button>
+        <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+          마트 영수증을 식비/생활용품으로 나눌 때 같은 거래에 두 카테고리를 적용
+        </p>
+      </Field>
+
       <Field label="날짜·시간">
         <div className="grid grid-cols-2 gap-2">
           <input
@@ -276,7 +307,163 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
           저장하기
         </button>
       </div>
+
+      <Sheet open={splitOpen} onClose={() => setSplitOpen(false)} title="카테고리 분할">
+        <SplitsEditor
+          totalAmount={numericAbs}
+          splits={splits}
+          onChange={setSplits}
+          remainder={splitsRemainder}
+          scope={scope}
+        />
+        <button
+          type="button"
+          onClick={() => setSplitOpen(false)}
+          className="tap mt-4 h-12 w-full rounded-xl"
+          style={{
+            background: 'var(--color-primary)',
+            color: '#fff',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          완료
+        </button>
+      </Sheet>
     </div>
+  );
+}
+
+function SplitsEditor({
+  totalAmount,
+  splits,
+  onChange,
+  remainder,
+  scope,
+}: {
+  totalAmount: number;
+  splits: NonNullable<Transaction['splits']>;
+  onChange: (next: NonNullable<Transaction['splits']>) => void;
+  remainder: number;
+  scope: Scope;
+}) {
+  const cats = expenseCategoriesByScope(scope);
+  const valid = splits.length > 0 && remainder === 0;
+
+  const update = (i: number, patch: Partial<NonNullable<Transaction['splits']>[number]>) => {
+    onChange(splits.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  };
+  const remove = (i: number) => onChange(splits.filter((_, idx) => idx !== i));
+  const add = () => {
+    const used = splits.reduce((s, x) => s + Math.abs(x.amount), 0);
+    onChange([
+      ...splits,
+      { cat: cats[0]?.id ?? 'food', amount: Math.max(0, totalAmount - used), memo: '' },
+    ]);
+  };
+
+  return (
+    <>
+      <div className="mb-3 rounded-xl p-3" style={{ background: 'var(--color-gray-50)' }}>
+        <div className="flex items-baseline justify-between">
+          <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+            거래 총액
+          </span>
+          <span className="tnum" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+            {fmt(totalAmount)}원
+          </span>
+        </div>
+        <div className="mt-1 flex items-baseline justify-between">
+          <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+            잔여
+          </span>
+          <span
+            className="tnum"
+            style={{
+              color: remainder === 0 ? 'var(--color-primary)' : remainder < 0 ? 'var(--color-danger)' : 'var(--color-text-2)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 700,
+            }}
+          >
+            {remainder >= 0 ? '' : '−'}{fmt(remainder)}원
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {splits.map((s, i) => {
+          const c = CATEGORIES[s.cat];
+          return (
+            <div key={i} className="rounded-xl p-3" style={{ background: 'var(--color-gray-100)' }}>
+              <div className="flex items-center gap-2">
+                <select
+                  value={s.cat}
+                  onChange={(e) => update(i, { cat: e.target.value })}
+                  className="flex-1 rounded-lg px-2 py-2 outline-none"
+                  style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+                >
+                  {cats.map((cc) => (
+                    <option key={cc.id} value={cc.id}>
+                      {cc.emoji} {cc.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={s.amount || ''}
+                  onChange={(e) => update(i, { amount: Number(e.target.value) || 0 })}
+                  placeholder="0"
+                  className="tnum w-24 rounded-lg px-2 py-2 text-right outline-none"
+                  style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  className="tap flex h-8 w-8 items-center justify-center rounded-full"
+                  style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
+                  aria-label="삭제"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <IconCircle size={28} background={c ? `${c.color}1f` : 'var(--color-gray-150)'} fontSize={14}>
+                  {c?.emoji ?? '💰'}
+                </IconCircle>
+                <input
+                  value={s.memo ?? ''}
+                  onChange={(e) => update(i, { memo: e.target.value })}
+                  placeholder="메모 (선택)"
+                  className="flex-1 rounded-lg px-2 py-1.5 outline-none"
+                  style={{ background: 'var(--color-card)', color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={add}
+        className="tap mt-2 w-full rounded-xl border-2 border-dashed py-3"
+        style={{
+          borderColor: 'var(--color-gray-300)',
+          color: 'var(--color-text-2)',
+          fontSize: 'var(--text-xs)',
+          fontWeight: 700,
+        }}
+      >
+        + 분할 항목 추가
+      </button>
+
+      {splits.length > 0 && !valid && (
+        <p className="mt-2" style={{ color: 'var(--color-danger)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+          분할 합계가 거래 총액과 정확히 일치해야 저장돼요
+        </p>
+      )}
+    </>
   );
 }
 

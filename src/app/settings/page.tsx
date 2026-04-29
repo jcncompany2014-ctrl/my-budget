@@ -175,6 +175,7 @@ export default function SettingsPage() {
         <Row label="대출 관리" subtitle="원리금·이자율·만기" onClick={() => router.push('/settings/loans')} />
         <Row label="투자 관리" subtitle="주식·펀드·암호화폐" onClick={() => router.push('/settings/investments')} />
         <Row label="카테고리" subtitle="커스텀 카테고리 추가/편집" onClick={() => router.push('/settings/categories')} />
+        <Row label="자동 분류 규칙" subtitle="가게 → 카테고리 자동 적용" onClick={() => router.push('/settings/category-rules')} />
         <Row label="즐겨찾기 거래" subtitle="자주 쓰는 거래" onClick={() => router.push('/settings/favorites')} />
         <Row label="챌린지" subtitle="지출 한도 챌린지" onClick={() => router.push('/settings/challenges')} />
       </Section>
@@ -263,7 +264,8 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="앱 정보">
-        <Row label="버전" subtitle="0.2.0 · 로컬 저장소" />
+        <Row label="활동 로그" subtitle="최근 50개 동작" onClick={() => router.push('/settings/audit')} />
+        <Row label="버전" subtitle="0.3.0 · 로컬 저장소" />
         <Row
           label="저장 공간 사용"
           subtitle={`${(storageBytes / 1024).toFixed(1)} KB / ${(STORAGE_LIMIT_BYTES / 1024 / 1024).toFixed(0)} MB`}
