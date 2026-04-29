@@ -26,9 +26,24 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const router = useRouter();
   const toast = useToast();
-  const { tx, ready, remove, update, restore } = useAllTransactions();
+  const { tx, ready, remove, update, restore, add } = useAllTransactions();
   const { accounts } = useAccounts();
   const [confirming, setConfirming] = useState(false);
+
+  const onCopy = () => {
+    if (!item) return;
+    const copy = {
+      ...item,
+      id: 'tn' + Date.now().toString(36),
+      date: new Date().toISOString(),
+      transferPairId: undefined,
+      transferTo: undefined,
+      transferCrossMode: undefined,
+    };
+    add(copy);
+    toast.show('거래 복사됨 (오늘 날짜로)', 'success');
+    router.replace(`/tx/${copy.id}`);
+  };
 
   const item = tx.find((t) => t.id === id);
 
@@ -106,6 +121,15 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
           </svg>
         </button>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onCopy}
+            className="tap rounded-full px-3 py-2 text-sm font-semibold"
+            style={{ color: 'var(--color-text-2)' }}
+            title="이 거래를 오늘 날짜로 복제"
+          >
+            복사
+          </button>
           <button
             type="button"
             onClick={() => router.push(`/tx/${item.id}/edit`)}

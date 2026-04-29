@@ -57,6 +57,7 @@ function AddPage() {
   const [cat, setCat] = useState<string>(expenseList[0]?.id ?? 'food');
   const [merchant, setMerchant] = useState('');
   const [memo, setMemo] = useState('');
+  const [memoTouched, setMemoTouched] = useState(false);
   const [accId, setAccId] = useState<string>('');
   const [step, setStep] = useState<1 | 2>(1);
   const [catTouched, setCatTouched] = useState(false);
@@ -64,6 +65,35 @@ function AddPage() {
   const [locationId, setLocationId] = useState<string>('');
   const [outstanding, setOutstanding] = useState<boolean>(false);
   const [hasReceipt, setHasReceipt] = useState<boolean>(false);
+  const [continueAfterSave, setContinueAfterSave] = useState(false);
+  const [dateOffset, setDateOffset] = useState<0 | 1 | 2>(0); // 0=today, 1=어제, 2=그제
+
+  // Recent merchant suggestions for autocomplete
+  const recentMerchants = useMemo(() => {
+    const seen = new Map<string, number>();
+    history
+      .filter((t) => (t.scope ?? 'personal') === mode)
+      .forEach((t) => {
+        if (t.merchant) seen.set(t.merchant, (seen.get(t.merchant) ?? 0) + 1);
+      });
+    return Array.from(seen.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30)
+      .map(([m]) => m);
+  }, [history, mode]);
+
+  // Auto-fill memo from previous tx with same merchant (when user hasn't edited memo)
+  useEffect(() => {
+    if (memoTouched || !merchant.trim()) return;
+    const m = merchant.toLowerCase();
+    const prev = history.find(
+      (t) =>
+        (t.scope ?? 'personal') === mode &&
+        t.merchant.toLowerCase() === m &&
+        (t.memo ?? '').trim().length > 0,
+    );
+    if (prev) setMemo(prev.memo ?? '');
+  }, [merchant, mode, history, memoTouched]);
 
   // Smart category suggestion: user rules → history → heuristic
   useEffect(() => {
@@ -105,9 +135,11 @@ function AddPage() {
   const submit = (saveAsFavorite = false, force = false) => {
     if (!valid) return;
     const numericAmount = Number(amount);
+    const txDate = new Date();
+    if (dateOffset > 0) txDate.setDate(txDate.getDate() - dateOffset);
     const tx: Transaction = {
       id: 'tn' + Date.now().toString(36),
-      date: new Date().toISOString(),
+      date: txDate.toISOString(),
       amount: type === 'expense' ? -numericAmount : numericAmount,
       cat,
       merchant: merchant.trim() || CATEGORIES[cat]?.name || '거래',
@@ -164,7 +196,18 @@ function AddPage() {
       });
     }
     toast.show(saveAsFavorite ? '저장 + 즐겨찾기 등록' : '저장 완료', 'success');
-    router.replace('/');
+    if (continueAfterSave) {
+      // Reset only volatile fields, keep cat/account/type for fast repeat entry
+      setAmount('0');
+      setMerchant('');
+      setMemo('');
+      setMemoTouched(false);
+      setOutstanding(false);
+      setHasReceipt(false);
+      setStep(1);
+    } else {
+      router.replace('/');
+    }
   };
 
   const addQuick = (n: number) => {
@@ -372,9 +415,36 @@ function AddPage() {
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
               placeholder={mode === 'business' ? '거래처 이름 (선택)' : '가게 이름 (선택)'}
+              list="recent-merchants-add"
+              autoComplete="off"
               className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
               style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
             />
+            <datalist id="recent-merchants-add">
+              {recentMerchants.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
+            {!merchant && recentMerchants.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {recentMerchants.slice(0, 6).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMerchant(m)}
+                    className="tap rounded-full px-3 py-1"
+                    style={{
+                      background: 'var(--color-gray-100)',
+                      color: 'var(--color-text-2)',
+                      fontSize: 'var(--text-xxs)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="px-4 pb-3">
@@ -395,7 +465,10 @@ function AddPage() {
             </div>
             <input
               value={memo}
-              onChange={(e) => setMemo(e.target.value.slice(0, 100))}
+              onChange={(e) => {
+                setMemo(e.target.value.slice(0, 100));
+                setMemoTouched(true);
+              }}
               placeholder="짧은 메모 (선택)"
               maxLength={100}
               className="h-12 w-full rounded-xl px-4 outline-none"
@@ -406,6 +479,63 @@ function AddPage() {
                 fontWeight: 500,
               }}
             />
+          </section>
+
+          <section className="px-4 pb-3">
+            <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+              날짜
+            </label>
+            <div className="flex gap-2">
+              {([[0, '오늘'], [1, '어제'], [2, '그제']] as const).map(([d, label]) => {
+                const sel = dateOffset === d;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDateOffset(d)}
+                    className="tap flex-1 rounded-xl py-2.5"
+                    style={{
+                      background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                      color: sel ? '#fff' : 'var(--color-text-2)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+              더 이전 날짜는 저장 후 거래 편집에서 변경
+            </p>
+          </section>
+
+          <section className="px-4 pb-3">
+            <button
+              type="button"
+              onClick={() => setContinueAfterSave(!continueAfterSave)}
+              className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
+              style={{ background: 'var(--color-gray-100)' }}
+            >
+              <div>
+                <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                  저장하고 계속 입력
+                </p>
+                <p className="mt-0.5" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+                  여러 거래 빠르게 입력할 때
+                </p>
+              </div>
+              <span
+                className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+                style={{ background: continueAfterSave ? 'var(--color-primary)' : 'var(--color-gray-300)' }}
+              >
+                <span
+                  className="absolute h-5 w-5 rounded-full bg-white shadow transition-transform"
+                  style={{ transform: continueAfterSave ? 'translateX(22px)' : 'translateX(2px)' }}
+                />
+              </span>
+            </button>
           </section>
 
           {mode === 'business' && (

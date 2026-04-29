@@ -1,17 +1,47 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import { useMode } from '@/components/ModeProvider';
+import { useToast } from '@/components/Toast';
+import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
+import { fmt } from '@/lib/format';
 import { useLoans } from '@/lib/loans';
-import type { Account } from '@/lib/types';
+import { useAllTransactions } from '@/lib/storage';
+import type { Account, Transaction } from '@/lib/types';
 
 export default function WalletPage() {
   const { accounts, ready } = useAccounts();
   const { items: loans, ready: loansReady } = useLoans();
+  const { add: addTx } = useAllTransactions();
   const { mode } = useMode();
+  const toast = useToast();
+  const [correctingAcc, setCorrectingAcc] = useState<Account | null>(null);
+
+  const applyCorrection = (account: Account, actualBalance: number) => {
+    const diff = actualBalance - account.balance;
+    if (diff === 0) {
+      toast.show('이미 잔액이 일치해요', 'info');
+      setCorrectingAcc(null);
+      return;
+    }
+    const correctionTx: Transaction = {
+      id: 'corr-' + Date.now().toString(36),
+      date: new Date().toISOString(),
+      amount: diff,
+      cat: diff > 0 ? (mode === 'business' ? 'biz_other' : 'income') : mode === 'business' ? 'biz_etc' : 'living',
+      merchant: '잔액 보정',
+      memo: `${fmt(account.balance)} → ${fmt(actualBalance)}`,
+      acc: account.id,
+      scope: account.scope,
+    };
+    addTx(correctionTx);
+    toast.show(`보정 완료 (${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))}원)`, 'success');
+    setCorrectingAcc(null);
+  };
 
   if (!ready || !loansReady) {
     return (
@@ -90,7 +120,7 @@ export default function WalletPage() {
       {banks.length > 0 && (
         <Section title="은행">
           {banks.map((a) => (
-            <AccountCard key={a.id} account={a} />
+            <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
           ))}
         </Section>
       )}
@@ -98,7 +128,7 @@ export default function WalletPage() {
       {cash.length > 0 && (
         <Section title="현금">
           {cash.map((a) => (
-            <AccountCard key={a.id} account={a} />
+            <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
           ))}
         </Section>
       )}
@@ -106,7 +136,7 @@ export default function WalletPage() {
       {investments.length > 0 && (
         <Section title="투자">
           {investments.map((a) => (
-            <AccountCard key={a.id} account={a} />
+            <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
           ))}
         </Section>
       )}
@@ -114,7 +144,7 @@ export default function WalletPage() {
       {cards.length > 0 && (
         <Section title="카드">
           {cards.map((a) => (
-            <AccountCard key={a.id} account={a} />
+            <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
           ))}
         </Section>
       )}
@@ -166,7 +196,117 @@ export default function WalletPage() {
       )}
 
       <div className="h-6" />
+
+      {correctingAcc && (
+        <BalanceCorrectionSheet
+          account={correctingAcc}
+          onApply={(actual) => applyCorrection(correctingAcc, actual)}
+          onClose={() => setCorrectingAcc(null)}
+        />
+      )}
     </>
+  );
+}
+
+function BalanceCorrectionSheet({
+  account,
+  onApply,
+  onClose,
+}: {
+  account: Account;
+  onApply: (actualBalance: number) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState(String(Math.abs(account.balance)));
+  const actual = Number(text) || 0;
+  const signedActual = account.type === 'card' ? -actual : actual;
+  const diff = signedActual - account.balance;
+
+  return (
+    <Sheet open={true} onClose={onClose} title="잔액 보정">
+      <p className="mb-3" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+        {account.name}의 실제 잔액을 입력하면, 차액만큼 보정 거래를 자동 생성해서 잔액을 맞춰요.
+      </p>
+      <div className="rounded-xl px-4 py-3" style={{ background: 'var(--color-gray-100)' }}>
+        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+          현재 잔액
+        </p>
+        <p
+          className="tnum mt-0.5"
+          style={{
+            color: account.type === 'card' ? 'var(--color-danger)' : 'var(--color-text-1)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 700,
+          }}
+        >
+          {account.type === 'card' ? '−' : ''}
+          {fmt(Math.abs(account.balance))}원
+        </p>
+      </div>
+      <div className="mt-3">
+        <label
+          className="mb-1.5 block"
+          style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 600 }}
+        >
+          실제 잔액 ({account.type === 'card' ? '사용액' : '잔액'})
+        </label>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          autoFocus
+          className="tnum h-12 w-full rounded-xl px-4 outline-none"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-lg)',
+            fontWeight: 700,
+          }}
+        />
+      </div>
+      {actual > 0 && (
+        <div className="mt-3 rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-soft)' }}>
+          <p style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+            보정 거래 미리보기
+          </p>
+          <p
+            className="tnum mt-1"
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+          >
+            {diff === 0 ? '변경 없음' : `${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))}원`}
+          </p>
+        </div>
+      )}
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={() => onApply(signedActual)}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: 'var(--color-primary)',
+            color: '#fff',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          보정하기
+        </button>
+      </div>
+    </Sheet>
   );
 }
 
@@ -224,10 +364,16 @@ function SummaryRow({
   );
 }
 
-function AccountCard({ account }: { account: Account }) {
+function AccountCard({ account, onCorrect }: { account: Account; onCorrect?: (a: Account) => void }) {
   const isCard = account.type === 'card';
+  const Wrapper = onCorrect ? 'button' : 'div';
   return (
-    <div className="flex items-center gap-3 rounded-2xl px-4 py-4" style={{ background: 'var(--color-card)' }}>
+    <Wrapper
+      type={onCorrect ? 'button' : undefined}
+      onClick={onCorrect ? () => onCorrect(account) : undefined}
+      className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
+      style={{ background: 'var(--color-card)' }}
+    >
       <div
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
         style={{ background: account.color, fontSize: 'var(--text-base)' }}
@@ -259,6 +405,6 @@ function AccountCard({ account }: { account: Account }) {
           color: isCard ? 'var(--color-danger)' : 'var(--color-text-1)',
         }}
       />
-    </div>
+    </Wrapper>
   );
 }
