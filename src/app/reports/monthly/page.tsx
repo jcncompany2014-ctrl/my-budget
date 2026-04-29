@@ -8,7 +8,7 @@ import { useToast } from '@/components/Toast';
 import { useAllAccounts } from '@/lib/accounts';
 import { CATEGORIES } from '@/lib/categories';
 import { transactionsToCSV, downloadCSV } from '@/lib/csv';
-import { fmt, isExpense } from '@/lib/format';
+import { fmt, isExpense, isIncome } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 
 export default function MonthlyReportPage() {
@@ -28,7 +28,7 @@ export default function MonthlyReportPage() {
       return d.getFullYear() === year && d.getMonth() === month && (t.scope ?? 'personal') === mode;
     });
     const expense = monthTx.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
-    const income = monthTx.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+    const income = monthTx.filter(isIncome).reduce((s, t) => s + t.amount, 0);
     const byCat = new Map<string, number>();
     monthTx.filter(isExpense).forEach((t) => byCat.set(t.cat, (byCat.get(t.cat) ?? 0) + Math.abs(t.amount)));
     const sorted = Array.from(byCat.entries()).sort((a, b) => b[1] - a[1]);

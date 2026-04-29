@@ -5,6 +5,7 @@ import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import { fmt } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
+import { estimateVAT, useTaxpayerType } from '@/lib/taxpayer';
 
 type Quarter = 1 | 2 | 3 | 4;
 
@@ -15,8 +16,25 @@ const QUARTER_RANGES: Record<Quarter, [number, number]> = {
   4: [9, 11],
 };
 
+const REVENUE_CATS = new Set([
+  'biz_sales_card',
+  'biz_sales_cash',
+  'biz_sales_xfer',
+  'biz_sales_app',
+  'biz_other',
+]);
+const PURCHASE_CATS = new Set([
+  'biz_purchase',
+  'biz_supplies',
+  'biz_marketing',
+  'biz_meal',
+  'biz_travel',
+  'biz_etc',
+]);
+
 export default function VATPage() {
   const { tx, ready } = useTransactions();
+  const { value: taxType } = useTaxpayerType();
   const today = new Date();
   const currentQuarter = (Math.floor(today.getMonth() / 3) + 1) as Quarter;
   const [year, setYear] = useState(today.getFullYear());
@@ -32,14 +50,15 @@ export default function VATPage() {
       if (d.getFullYear() !== year) return;
       const m = d.getMonth();
       if (m < from || m > to) return;
-      if (t.amount > 0) revenue += t.amount;
-      else purchase += Math.abs(t.amount);
+      // Only operational sales/purchases — exclude transfers, owner draws, payroll, rent, utilities, taxes
+      if (t.amount > 0 && REVENUE_CATS.has(t.cat)) revenue += t.amount;
+      else if (t.amount < 0 && PURCHASE_CATS.has(t.cat)) purchase += Math.abs(t.amount);
     });
-    const output = Math.round(revenue / 11); // 매출세액 (매출의 1/11)
-    const input = Math.round(purchase / 11); // 매입세액 (매입의 1/11, 가정)
-    const payable = Math.max(0, output - input);
+    const payable = estimateVAT(revenue, purchase, taxType);
+    const output = Math.round(revenue / 11);
+    const input = Math.round(purchase / 11);
     return { revenue, purchase, output, input, payable };
-  }, [tx, year, quarter, ready]);
+  }, [tx, year, quarter, ready, taxType]);
 
   return (
     <>

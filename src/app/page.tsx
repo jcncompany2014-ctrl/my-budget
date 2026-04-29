@@ -13,7 +13,7 @@ import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
-import { fmt, fmtKRW, fmtShort } from '@/lib/format';
+import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
 import { budgetAlerts, detectAnomalies, forecastMonthEnd, weeklyDigest } from '@/lib/insights';
 import { useLoans } from '@/lib/loans';
@@ -21,14 +21,8 @@ import { useProfile } from '@/lib/profile';
 import { useTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
-const isExpenseTx = (t: Transaction) =>
-  t.amount < 0 &&
-  t.cat !== 'saving' &&
-  t.cat !== 'transfer' &&
-  t.cat !== 'biz_transfer' &&
-  t.cat !== 'biz_owner_draw';
-const isIncomeTx = (t: Transaction) =>
-  t.amount > 0 && t.cat !== 'transfer' && t.cat !== 'biz_transfer' && t.cat !== 'biz_capital' && t.cat !== 'owner_pay';
+const isExpenseTx = isExpense;
+const isIncomeTx = isIncome;
 
 export default function HomePage() {
   const { tx, ready } = useTransactions();

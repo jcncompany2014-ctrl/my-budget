@@ -11,5 +11,24 @@ export const fmtShort = (n: number) => {
   return fmt(n);
 };
 
-export const isExpense = (t: { amount: number; cat: string }) =>
-  t.amount < 0 && t.cat !== 'saving' && t.cat !== 'transfer';
+const TRANSFER_LIKE_CATS = new Set([
+  'transfer',
+  'biz_transfer',
+  'biz_owner_draw',
+  'biz_capital',
+  'owner_pay',
+  'saving',
+]);
+
+/**
+ * Returns true when the transaction represents real spending (operating expense).
+ * Excludes transfers, owner draws/contributions, and saving moves.
+ */
+export const isExpense = (t: { amount: number; cat: string; transferPairId?: string }) =>
+  t.amount < 0 && !TRANSFER_LIKE_CATS.has(t.cat) && !t.transferPairId;
+
+/**
+ * Returns true when the transaction represents real income (operating revenue).
+ */
+export const isIncome = (t: { amount: number; cat: string; transferPairId?: string }) =>
+  t.amount > 0 && !TRANSFER_LIKE_CATS.has(t.cat) && !t.transferPairId;

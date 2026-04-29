@@ -1,6 +1,7 @@
 'use client';
 
 import { exportAll } from '@/lib/backup';
+import { KEYS } from '@/lib/storage-keys';
 
 const KEY = 'asset/auto-backup/v1';
 const META_KEY = 'asset/auto-backup-meta/v1';
@@ -41,26 +42,38 @@ export function lastAutoBackupAt(): Date | null {
   }
 }
 
+const RESTORE_MAP: Array<[string, string]> = [
+  ['transactions', KEYS.transactions],
+  ['accounts', KEYS.accounts],
+  ['budgets', KEYS.budgets],
+  ['goals', KEYS.goals],
+  ['recurring', KEYS.recurring],
+  ['loans', KEYS.loans],
+  ['vendors', KEYS.vendors],
+  ['employees', KEYS.employees],
+  ['locations', KEYS.locations],
+  ['investments', KEYS.investments],
+  ['favorites', KEYS.favorites],
+  ['challenges', KEYS.challenges],
+  ['customCategories', KEYS.customCategories],
+  ['profile', KEYS.profile],
+  ['businessProfile', KEYS.businessProfile],
+];
+
 export function restoreLastAutoBackup(): boolean {
   if (typeof window === 'undefined') return false;
   const raw = window.localStorage.getItem(KEY);
   if (!raw) return false;
   try {
-    const data = JSON.parse(raw);
-    if (data?.transactions) {
-      window.localStorage.setItem('asset/transactions/v2', JSON.stringify(data.transactions));
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    for (const [bodyKey, storageKey] of RESTORE_MAP) {
+      const v = data?.[bodyKey];
+      if (v !== undefined && v !== null) {
+        window.localStorage.setItem(storageKey, JSON.stringify(v));
+      }
     }
-    if (data?.accounts) {
-      window.localStorage.setItem('asset/accounts/v2', JSON.stringify(data.accounts));
-    }
-    if (data?.budgets) {
-      window.localStorage.setItem('asset/budgets/v1', JSON.stringify(data.budgets));
-    }
-    if (data?.goals) {
-      window.localStorage.setItem('asset/goals/v1', JSON.stringify(data.goals));
-    }
-    if (data?.recurring) {
-      window.localStorage.setItem('asset/recurring/v1', JSON.stringify(data.recurring));
+    if (Array.isArray(data.categoryRules)) {
+      window.localStorage.setItem('asset/category-rules/v1', JSON.stringify(data.categoryRules));
     }
     return true;
   } catch {

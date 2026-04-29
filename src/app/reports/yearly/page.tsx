@@ -5,7 +5,7 @@ import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { CATEGORIES } from '@/lib/categories';
-import { fmt, isExpense } from '@/lib/format';
+import { fmt, isExpense, isIncome } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 
 export default function YearlyReportPage() {
@@ -25,7 +25,7 @@ export default function YearlyReportPage() {
     yearTx.forEach((t) => {
       const m = new Date(t.date).getMonth();
       if (isExpense(t)) monthly[m].expense += Math.abs(t.amount);
-      if (t.amount > 0) monthly[m].income += t.amount;
+      if (isIncome(t)) monthly[m].income += t.amount;
     });
     const totalIncome = monthly.reduce((s, m) => s + m.income, 0);
     const totalExpense = monthly.reduce((s, m) => s + m.expense, 0);

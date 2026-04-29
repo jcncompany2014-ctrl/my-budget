@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
-import { fmt, fmtKRW, fmtShort, isExpense } from '@/lib/format';
+import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -53,7 +53,7 @@ export default function CalendarPage() {
       if (!map.has(k)) map.set(k, { expense: 0, income: 0, count: 0 });
       const v = map.get(k)!;
       if (isExpense(t)) v.expense += Math.abs(t.amount);
-      else if (t.amount > 0) v.income += t.amount;
+      else if (isIncome(t)) v.income += t.amount;
       v.count += 1;
     });
     return map;
@@ -75,7 +75,7 @@ export default function CalendarPage() {
         const d = new Date(t.date);
         return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
       })
-      .filter((t) => t.amount > 0)
+      .filter(isIncome)
       .reduce((s, t) => s + t.amount, 0);
   }, [tx, month]);
 
