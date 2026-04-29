@@ -103,17 +103,16 @@ export default function BottomNav() {
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          className="tap -mt-7 flex h-14 w-14 items-center justify-center rounded-full shadow-lg"
-          style={{ background: 'var(--color-primary)' }}
+          className="tap relative -mt-7 flex h-14 w-14 items-center justify-center rounded-full"
+          style={{
+            background: 'linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))',
+            boxShadow:
+              '0 4px 14px rgba(0, 0, 0, 0.18), 0 8px 24px var(--color-primary-soft), inset 0 1px 0 rgba(255,255,255,0.18)',
+          }}
           aria-label="추가"
         >
           <svg viewBox="0 0 24 24" fill="none" width={26} height={26}>
-            <path
-              d="M12 5v14M5 12h14"
-              stroke="#fff"
-              strokeWidth={2.6}
-              strokeLinecap="round"
-            />
+            <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" />
           </svg>
         </button>
 
@@ -139,14 +138,38 @@ function NavItem({ tab, active }: { tab: Tab; active: boolean }) {
   return (
     <Link
       href={tab.href}
-      className="tap flex flex-1 flex-col items-center justify-center gap-0.5"
+      className="tap relative flex flex-1 flex-col items-center justify-center gap-0.5"
     >
-      {tab.icon(active)}
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 4,
+          width: 4,
+          height: 4,
+          borderRadius: 999,
+          background: 'var(--color-primary)',
+          opacity: active ? 1 : 0,
+          transform: active ? 'scale(1)' : 'scale(0.4)',
+          transition: 'opacity 240ms var(--ease-out), transform 320ms var(--ease-spring)',
+        }}
+      />
+      <span
+        style={{
+          display: 'inline-flex',
+          transition: 'transform 280ms var(--ease-spring)',
+          transform: active ? 'translateY(-1px) scale(1.06)' : 'translateY(0) scale(1)',
+        }}
+      >
+        {tab.icon(active)}
+      </span>
       <span
         style={{
           fontSize: 'var(--text-xxs)',
-          fontWeight: 600,
+          fontWeight: active ? 800 : 600,
           color: active ? 'var(--color-primary)' : 'var(--color-text-3)',
+          letterSpacing: active ? '-0.02em' : '0',
+          transition: 'color 240ms var(--ease-out)',
         }}
       >
         {tab.label}
