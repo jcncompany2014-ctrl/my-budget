@@ -195,7 +195,7 @@ function ActionMenu({
         style={{
           background: 'var(--color-card)',
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
-          animation: 'slide-up 280ms var(--ease-out)',
+          animation: 'slide-up 180ms var(--ease-out)',
         }}
         onClick={(e) => e.stopPropagation()}
       >

@@ -90,10 +90,10 @@
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 
-  /* Motion */
-  --motion-fast: 120ms;
-  --motion-base: 200ms;
-  --motion-slow: 320ms;
+  /* Motion — tightened for snappy mobile feel */
+  --motion-fast: 90ms;
+  --motion-base: 140ms;
+  --motion-slow: 220ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -192,7 +192,7 @@ textarea {
 
 /* Page route transition */
 .page-fade {
-  animation: page-fade 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: page-fade 100ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ─── Animations ─── */

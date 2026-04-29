@@ -79,11 +79,11 @@ export default function Sheet({ open, onClose, children, title, full }: Props) {
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
           transform: closing ? 'translateY(100%)' : `translateY(${dragY}px)`,
           transition: closing
-            ? 'transform 240ms var(--ease-out)'
+            ? 'transform 160ms var(--ease-out)'
             : startY.current !== null
               ? 'none'
-              : 'transform 280ms var(--ease-spring)',
-          animation: dragY === 0 && !closing ? 'slide-up 280ms var(--ease-out)' : undefined,
+              : 'transform 180ms var(--ease-spring)',
+          animation: dragY === 0 && !closing ? 'slide-up 180ms var(--ease-out)' : undefined,
         }}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={onTouchStart}
