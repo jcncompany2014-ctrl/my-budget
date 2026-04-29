@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import BottomNav from './BottomNav';
 import { ensureAutoBackup } from '@/lib/auto-backup';
 import { ensureAutoPayroll } from '@/lib/auto-payroll';
+import { ensureAutoRecurring } from '@/lib/auto-recurring';
 
 const HIDE_NAV_PREFIXES = ['/add', '/tx/', '/transfer', '/quick-add'];
 
@@ -16,6 +17,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     // Run idempotent maintenance once per app load
     ensureAutoBackup();
     ensureAutoPayroll();
+    ensureAutoRecurring();
   }, []);
 
   return (

@@ -40,7 +40,7 @@ function AddPage() {
   const search = useSearchParams();
   const initialType = (search.get('type') === 'income' ? 'income' : 'expense') as TxType;
   const { mode } = useMode();
-  const { add, tx: history } = useAllTransactions();
+  const { add, remove, tx: history } = useAllTransactions();
   const { accounts } = useAccounts();
   const { add: addFav } = useFavorites();
   const { items: rules } = useCategoryRules();
@@ -195,9 +195,18 @@ function AddPage() {
         type,
       });
     }
-    toast.show(saveAsFavorite ? '저장 + 즐겨찾기 등록' : '저장 완료', 'success');
+    toast.show(saveAsFavorite ? '저장 + 즐겨찾기 등록' : '저장 완료', {
+      variant: 'success',
+      durationMs: 4500,
+      action: {
+        label: '되돌리기',
+        onClick: () => {
+          remove(tx.id);
+          toast.show('취소됨', 'info');
+        },
+      },
+    });
     if (continueAfterSave) {
-      // Reset only volatile fields, keep cat/account/type for fast repeat entry
       setAmount('0');
       setMerchant('');
       setMemo('');

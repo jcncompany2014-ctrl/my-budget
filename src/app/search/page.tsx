@@ -1,16 +1,18 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import Highlight from '@/components/Highlight';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
+import IconCircle from '@/components/ui/IconCircle';
 import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
 import TopBar from '@/components/TopBar';
-import TxRow from '@/components/TxRow';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
-import { fmt, isExpense } from '@/lib/format';
+import { fmt, fmtSigned, isExpense } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 
 export default function SearchPage() {
@@ -189,9 +191,63 @@ export default function SearchPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
-              {results.slice(0, 100).map((t, i, arr) => (
-                <TxRow key={t.id} tx={t} showTime showAccount borderBottom={i < arr.length - 1} />
-              ))}
+              {results.slice(0, 100).map((t, i, arr) => {
+                const c = CATEGORIES[t.cat];
+                const acc = accounts.find((a) => a.id === t.acc);
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/tx/${t.id}`}
+                    className="tap flex items-center gap-3 px-4 py-3"
+                    style={{
+                      borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                    }}
+                  >
+                    <IconCircle
+                      size={40}
+                      background={c?.color ? `${c.color}1a` : 'var(--color-gray-150)'}
+                      fontSize={20}
+                    >
+                      {c?.emoji ?? '💰'}
+                    </IconCircle>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="truncate"
+                        style={{
+                          color: 'var(--color-text-1)',
+                          fontSize: 'var(--text-base)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        <Highlight text={t.merchant} query={query} />
+                      </p>
+                      <p
+                        className="truncate"
+                        style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+                      >
+                        {new Date(t.date).toLocaleDateString('ko-KR', {
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                        {acc ? ` · ${acc.bank || acc.name}` : ''}
+                        {t.memo ? ' · ' : ''}
+                        {t.memo ? <Highlight text={t.memo} query={query} /> : null}
+                      </p>
+                    </div>
+                    <span
+                      className="tnum"
+                      style={{
+                        color: t.amount > 0 ? 'var(--color-primary)' : 'var(--color-text-1)',
+                        fontSize: 'var(--text-base)',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {fmtSigned(t.amount)}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </Section>

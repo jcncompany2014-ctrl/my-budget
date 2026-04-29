@@ -32,3 +32,18 @@ export const isExpense = (t: { amount: number; cat: string; transferPairId?: str
  */
 export const isIncome = (t: { amount: number; cat: string; transferPairId?: string }) =>
   t.amount > 0 && !TRANSFER_LIKE_CATS.has(t.cat) && !t.transferPairId;
+
+/**
+ * Expand a transaction into category-amount pairs, honoring splits if present.
+ * If splits exist, each split is its own (cat, amount). Otherwise the whole tx.
+ */
+export function expandByCategory(t: {
+  cat: string;
+  amount: number;
+  splits?: { cat: string; amount: number }[];
+}): { cat: string; amount: number }[] {
+  if (t.splits && t.splits.length > 0) {
+    return t.splits.map((s) => ({ cat: s.cat, amount: t.amount < 0 ? -Math.abs(s.amount) : Math.abs(s.amount) }));
+  }
+  return [{ cat: t.cat, amount: t.amount }];
+}

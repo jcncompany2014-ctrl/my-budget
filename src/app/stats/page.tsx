@@ -8,7 +8,7 @@ import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import YearHeatmap from '@/components/YearHeatmap';
 import { CATEGORIES } from '@/lib/categories';
-import { fmt, isExpense } from '@/lib/format';
+import { expandByCategory, fmt, isExpense } from '@/lib/format';
 import { detectAnomalies } from '@/lib/insights';
 import { useTransactions } from '@/lib/storage';
 
@@ -110,7 +110,10 @@ export default function StatsPage() {
   const byCat = useMemo(() => {
     const map = new Map<string, number>();
     expenses.forEach((t) => {
-      map.set(t.cat, (map.get(t.cat) ?? 0) + Math.abs(t.amount));
+      // Honor splits: distribute amount across split categories
+      expandByCategory(t).forEach((s) => {
+        map.set(s.cat, (map.get(s.cat) ?? 0) + Math.abs(s.amount));
+      });
     });
     return Array.from(map.entries())
       .map(([cat, value]) => ({
