@@ -1,9 +1,9 @@
 import { ImageResponse } from 'next/og';
 
-export const size = { width: 512, height: 512 };
+export const size = { width: 180, height: 180 };
 export const contentType = 'image/png';
 
-export default function Icon() {
+export default function AppleIcon() {
   return new ImageResponse(
     (
       <div
@@ -14,13 +14,10 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: 110,
         }}
       >
-        {/* Stylized ₩ — two Vs (W) with two crossbars */}
-        <svg viewBox="0 0 100 100" width={340} height={340}>
-          {/* drop shadow */}
-          <g style={{ filter: 'drop-shadow(0 2px 0 rgba(0,0,0,0.18))' }}>
+        <svg viewBox="0 0 100 100" width={120} height={120}>
+          <g style={{ filter: 'drop-shadow(0 1.5px 0 rgba(0,0,0,0.18))' }}>
             <path
               d="M16 26 L36 76 L50 38 L64 76 L84 26"
               fill="none"
