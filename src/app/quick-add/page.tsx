@@ -298,7 +298,7 @@ export default function QuickAddPage() {
           style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
         >
           힌트: <code>억/만/천</code> 단위, <code>오늘/어제/그제</code>, <code>수입</code>·<code>급여</code> 키워드 인식 ·
-          가게명으로 카테고리 자동 추정 (현재 모드: <span style={{ color: 'var(--color-primary)' }}>{mode === 'business' ? '사업' : '개인'}</span>)
+          소비처명으로 카테고리 자동 추정 (현재 모드: <span style={{ color: 'var(--color-primary)' }}>{mode === 'business' ? '사업' : '개인'}</span>)
           {incomeCats.length === 0 || expenseCats.length === 0 ? null : ''}
         </p>
       </section>

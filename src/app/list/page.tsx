@@ -224,7 +224,7 @@ export default function ListPage() {
             <path d="M16 16l4 4" stroke="var(--color-text-3)" strokeWidth={1.8} strokeLinecap="round" />
           </svg>
           <input value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="가게, 메모 검색"
+            placeholder="소비처, 메모 검색"
             className="flex-1 bg-transparent outline-none"
             style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)' }} />
           {query && (

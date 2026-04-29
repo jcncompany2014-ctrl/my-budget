@@ -83,7 +83,7 @@ export default function SearchPage() {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="가게, 카테고리, 메모"
+            placeholder="소비처, 카테고리, 메모"
             className="flex-1 bg-transparent outline-none"
             style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)' }}
           />
@@ -157,7 +157,7 @@ export default function SearchPage() {
       )}
 
       {!query && !minAmount && !maxAmount && !catFilter && !accFilter && (
-        <Section title="최근 검색한 가게">
+        <Section title="최근 검색한 소비처">
           <div className="flex flex-wrap gap-2">
             {recentMerchants.map((m) => (
               <Pill key={m} tone="neutral" onClick={() => setQuery(m)}>

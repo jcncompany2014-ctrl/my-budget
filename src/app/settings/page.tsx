@@ -175,7 +175,7 @@ export default function SettingsPage() {
         <Row label="대출 관리" subtitle="원리금·이자율·만기" onClick={() => router.push('/settings/loans')} />
         <Row label="투자 관리" subtitle="주식·펀드·암호화폐" onClick={() => router.push('/settings/investments')} />
         <Row label="카테고리" subtitle="커스텀 카테고리 추가/편집" onClick={() => router.push('/settings/categories')} />
-        <Row label="자동 분류 규칙" subtitle="가게 → 카테고리 자동 적용" onClick={() => router.push('/settings/category-rules')} />
+        <Row label="자동 분류 규칙" subtitle="소비처 → 카테고리 자동 적용" onClick={() => router.push('/settings/category-rules')} />
         <Row label="즐겨찾기 거래" subtitle="자주 쓰는 거래" onClick={() => router.push('/settings/favorites')} />
         <Row label="챌린지" subtitle="지출 한도 챌린지" onClick={() => router.push('/settings/challenges')} />
       </Section>
@@ -196,7 +196,7 @@ export default function SettingsPage() {
 
       <Section title="리포트">
         <Row label="이번 달 리포트" subtitle="카테고리별 분석 + CSV/PDF" onClick={() => router.push('/reports/monthly')} />
-        <Row label="연간 리포트" subtitle="올해의 가게 TOP 5" onClick={() => router.push('/reports/yearly')} />
+        <Row label="연간 리포트" subtitle="올해의 소비처 TOP 5" onClick={() => router.push('/reports/yearly')} />
         <Row label="연말정산 도우미" subtitle="공제 가능 사용액 추정" onClick={() => router.push('/reports/year-end-tax')} />
         <Row label="검색" subtitle="전체 기간 검색 + 고급 필터" onClick={() => router.push('/search')} />
       </Section>

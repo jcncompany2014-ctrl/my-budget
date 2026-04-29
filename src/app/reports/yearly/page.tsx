@@ -149,7 +149,7 @@ export default function YearlyReportPage() {
       {data.topMerchants.length > 0 && (
         <section className="px-5 pb-10 pt-2">
           <p className="mb-2 px-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            올해의 가게 TOP 5
+            올해의 소비처 TOP 5
           </p>
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {data.topMerchants.map(([m, val], i, arr) => (

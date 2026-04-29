@@ -197,7 +197,7 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
         </div>
       </Field>
 
-      <Field label="가게/거래처">
+      <Field label="소비처/거래처">
         <input
           value={merchant}
           onChange={(e) => setMerchant(e.target.value)}

@@ -61,7 +61,7 @@ export default function CategoryRulesPage() {
 
       <section className="px-5 pb-3 pt-1">
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          가게 이름에 특정 단어가 들어가면 자동으로 카테고리를 적용합니다.
+          소비처 이름에 특정 단어가 들어가면 자동으로 카테고리를 적용합니다.
           예) <span style={{ color: 'var(--color-text-2)', fontWeight: 700 }}>이마트 → 쇼핑</span>
         </p>
       </section>
@@ -75,7 +75,7 @@ export default function CategoryRulesPage() {
             <input
               value={matchInput}
               onChange={(e) => setMatchInput(e.target.value)}
-              placeholder='가게에 포함될 단어 (예: "이마트")'
+              placeholder='소비처에 포함될 단어 (예: "이마트")'
               className="h-12 w-full rounded-xl px-4 outline-none"
               style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }}
             />

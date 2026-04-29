@@ -414,7 +414,7 @@ function AddPage() {
             <input
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
-              placeholder={mode === 'business' ? '거래처 이름 (선택)' : '가게 이름 (선택)'}
+              placeholder={mode === 'business' ? '거래처 이름 (선택)' : '소비처 이름 (선택)'}
               list="recent-merchants-add"
               autoComplete="off"
               className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"

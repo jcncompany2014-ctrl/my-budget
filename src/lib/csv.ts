@@ -3,7 +3,7 @@
 import { CATEGORIES } from '@/lib/categories';
 import type { Transaction } from '@/lib/types';
 
-const HEADERS = ['일자', '시간', '구분', '카테고리', '가게/거래처', '메모', '금액', '계좌'];
+const HEADERS = ['일자', '시간', '구분', '카테고리', '소비처/거래처', '메모', '금액', '계좌'];
 
 export function transactionsToCSV(
   txs: Transaction[],

@@ -5,7 +5,7 @@ import type { Transaction } from '@/lib/types';
 /**
  * Parses a CSV text and returns Transaction-shaped rows.
  * Expected columns (header row):
- *   일자, 시간, 구분, 카테고리, 가게/거래처, 메모, 금액, 계좌
+ *   일자, 시간, 구분, 카테고리, 소비처/거래처, 메모, 금액, 계좌
  * Or tolerant English: date, time, type, category, merchant, memo, amount, account
  */
 export function parseTransactionsCSV(text: string): Transaction[] {
@@ -25,7 +25,7 @@ export function parseTransactionsCSV(text: string): Transaction[] {
   const timeI = idx('시간', 'time');
   const typeI = idx('구분', 'type');
   const catI = idx('카테고리', 'cat');
-  const merchantI = idx('가게', '거래처', 'merchant');
+  const merchantI = idx('소비처', '거래처', 'merchant');
   const memoI = idx('메모', 'memo');
   const amountI = idx('금액', 'amount');
   const accI = idx('계좌', 'account');
