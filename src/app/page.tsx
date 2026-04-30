@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   type LucideIcon,
   Minus,
-  Sparkles,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
@@ -26,7 +25,7 @@ import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
-import { budgetAlerts, detectAnomalies, forecastMonthEnd, weeklyDigest } from '@/lib/insights';
+import { budgetAlerts, detectAnomalies, weeklyDigest } from '@/lib/insights';
 import { useLoans } from '@/lib/loans';
 import { useProfile } from '@/lib/profile';
 import { useTransactions } from '@/lib/storage';
@@ -195,7 +194,6 @@ function PersonalHome({
   const budgetUsed = budgetEntries.reduce((s, [k]) => s + (spentByCat.get(k) ?? 0), 0);
 
   const anomalies = useMemo(() => detectAnomalies(tx), [tx]);
-  const forecast = useMemo(() => forecastMonthEnd(tx), [tx]);
   const alerts = useMemo(() => budgetAlerts(tx, budgets), [tx, budgets]);
   const weekly = useMemo(() => weeklyDigest(tx), [tx]);
 
@@ -244,13 +242,11 @@ function PersonalHome({
       {/* Live investment P&L — only if user has investments */}
       <LiveInvestmentPnL />
 
-      {/* Insights — anomaly, forecast, alerts */}
+      {/* Insights — anomalies, budget alerts, weekly */}
       <InsightsRow
         anomalies={anomalies}
-        forecast={forecast}
         alerts={alerts}
         weekly={weekly}
-        budgetTotal={budgetTotal}
         currentExpense={expense}
       />
 
@@ -792,31 +788,17 @@ function RecentTransactions({ tx, businessLabel }: { tx: Transaction[]; business
 
 function InsightsRow({
   anomalies,
-  forecast,
   alerts,
   weekly,
-  budgetTotal,
   currentExpense,
 }: {
   anomalies: ReturnType<typeof detectAnomalies>;
-  forecast: ReturnType<typeof forecastMonthEnd>;
   alerts: ReturnType<typeof budgetAlerts>;
   weekly: ReturnType<typeof weeklyDigest>;
-  budgetTotal: number;
   currentExpense: number;
 }) {
   type Card = { tone: 'primary' | 'danger' | 'warn'; Icon: LucideIcon; title: string; body: string };
   const cards: Card[] = [];
-
-  // Forecast
-  if (forecast.day >= 5 && forecast.projection > 0) {
-    cards.push({
-      tone: budgetTotal > 0 && forecast.projection > budgetTotal ? 'warn' : 'primary',
-      Icon: Sparkles,
-      title: '월말 예상',
-      body: `이대로 가면 ${fmtKRW(forecast.projection)}`,
-    });
-  }
 
   // Alerts
   alerts.slice(0, 1).forEach((a) => {
