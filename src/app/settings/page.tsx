@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '@/components/TopBar';
-import { useTheme } from '@/components/ThemeProvider';
 import { useToast } from '@/components/Toast';
 import { ensureAutoBackup, lastAutoBackupAt, restoreLastAutoBackup } from '@/lib/auto-backup';
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
@@ -15,7 +14,6 @@ import { useTaxpayerType } from '@/lib/taxpayer';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { theme, mode: themeMode, setMode: setThemeMode } = useTheme();
   const toast = useToast();
   const { profile, setName } = useProfile();
   const { value: currency, set: setCurrency } = useCurrency();
@@ -103,23 +101,6 @@ export default function SettingsPage() {
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
           />
         </div>
-      </Section>
-
-      {/* Appearance */}
-      <Section title="외관">
-        <Row
-          label="테마"
-          subtitle={themeMode === 'system' ? `시스템 따라가기 (현재: ${theme === 'dark' ? '다크' : '라이트'})` : themeMode === 'dark' ? '다크' : '라이트'}
-          onClick={() => {
-            const next = themeMode === 'system' ? 'light' : themeMode === 'light' ? 'dark' : 'system';
-            setThemeMode(next);
-          }}
-          right={
-            <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
-              {themeMode === 'system' ? '⚙️' : themeMode === 'dark' ? '🌙' : '☀️'}
-            </span>
-          }
-        />
       </Section>
 
       <Section title="언어 · 통화">

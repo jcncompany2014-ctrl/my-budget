@@ -107,26 +107,6 @@ html[data-mode="business"] {
   --color-primary-grad-to: #1450AE;
 }
 
-/* ─── Dark theme ─── */
-html[data-theme="dark"] {
-  --color-bg: #0E1218;
-  --color-card: #161B22;
-  --color-elev: #1C2230;
-  --color-divider: #232A35;
-
-  --color-text-1: #F0F2F5;
-  --color-text-2: #C7CCD3;
-  --color-text-3: #8B95A1;
-  --color-text-4: #6B7684;
-
-  --color-primary-soft: rgba(0, 185, 86, 0.14);
-  --color-danger-soft: rgba(240, 68, 82, 0.14);
-}
-
-html[data-theme="dark"][data-mode="business"] {
-  --color-primary-soft: rgba(49, 130, 246, 0.14);
-}
-
 /* ─── Base ─── */
 @layer base {
   html,
@@ -284,9 +264,8 @@ textarea {
   50% { background-position: -200% 0; }
 }
 
-/* Smooth color transitions when mode/theme changes */
-[data-mode],
-[data-theme] {
+/* Smooth color transitions when mode changes */
+[data-mode] {
   transition: background-color 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
