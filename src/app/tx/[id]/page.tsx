@@ -5,6 +5,7 @@ import { use, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, isTransferCategory } from '@/lib/categories';
 import { fmt } from '@/lib/format';
@@ -188,39 +189,18 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
 
       <div className="flex-1" />
 
-      {confirming && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 px-4 pb-6">
-          <div
-            className="w-full max-w-[380px] rounded-3xl p-6"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="mb-1 text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
-              이 거래를 삭제할까요?
-            </p>
-            <p className="mb-5 text-sm" style={{ color: 'var(--color-text-3)' }}>
-              삭제하면 되돌릴 수 없어요.
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirming(false)}
-                className="tap h-12 flex-1 rounded-2xl text-sm font-bold"
-                style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                className="tap h-12 flex-1 rounded-2xl text-sm font-bold"
-                style={{ background: 'var(--color-danger)', color: '#fff' }}
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title="이 거래를 삭제할까요?"
+        description="삭제하면 되돌릴 수 없어요. 30초 안에 토스트의 '되돌리기'를 누르면 복원할 수 있습니다."
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          onDelete();
+        }}
+      />
     </div>
   );
 }

@@ -1,10 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { BarChart3 } from 'lucide-react';
 import CategoryDonut from '@/components/CategoryDonut';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LineChart from '@/components/LineChart';
 import { SkeletonHome } from '@/components/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
@@ -176,11 +178,13 @@ export default function StatsPage() {
       </section>
 
       {total === 0 ? (
-        <div className="mx-5 rounded-2xl px-6 py-16 text-center" style={{ background: 'var(--color-card)' }}>
-          <p className="text-3xl">📊</p>
-          <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-            {mode === 'business' ? '아직 분석할 비용이 없어요' : '아직 분석할 지출이 없어요'}
-          </p>
+        <div className="px-5">
+          <EmptyState
+            icon={BarChart3}
+            iconColor="#3182F6"
+            title={mode === 'business' ? '아직 분석할 비용이 없어요' : '아직 분석할 지출이 없어요'}
+            hint="거래를 몇 건 추가하면 카테고리별 분포 + 추세가 나타납니다"
+          />
         </div>
       ) : (
         <>

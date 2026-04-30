@@ -1,5 +1,6 @@
 'use client';
 
+import { Search, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -7,6 +8,7 @@ import Highlight from '@/components/Highlight';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
+import EmptyState from '@/components/ui/EmptyState';
 import IconCircle from '@/components/ui/IconCircle';
 import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
@@ -111,7 +113,8 @@ export default function SearchPage() {
             fontSize: 'var(--text-xs)',
             fontWeight: 700,
           }}>
-          🔍 고급 필터
+          <SlidersHorizontal size={13} strokeWidth={2.6} />
+          고급 필터
           {(minAmount || maxAmount || catFilter || accFilter) && (
             <span className="rounded-full px-1.5"
               style={{ background: 'var(--color-primary)', color: '#fff', fontSize: 10, fontWeight: 800 }}>
@@ -141,7 +144,7 @@ export default function SearchPage() {
               <Pill tone="dark" active={!catFilter} onClick={() => setCatFilter(null)}>전체</Pill>
               {cats.slice(0, 12).map((c) => (
                 <Pill key={c.id} tone="dark" active={catFilter === c.id} onClick={() => setCatFilter(c.id)}>
-                  {c.emoji} {c.name}
+                  {c.name}
                 </Pill>
               ))}
             </div>
@@ -184,12 +187,12 @@ export default function SearchPage() {
             )}
           </div>
           {results.length === 0 ? (
-            <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-              <p style={{ fontSize: 32, lineHeight: 1 }}>🔍</p>
-              <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-                검색 결과가 없어요
-              </p>
-            </div>
+            <EmptyState
+              icon={Search}
+              iconColor="#94A3B8"
+              title="검색 결과가 없어요"
+              hint="다른 키워드를 시도하거나 필터를 풀어보세요"
+            />
           ) : (
             <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
               {results.slice(0, 100).map((t, i, arr) => {

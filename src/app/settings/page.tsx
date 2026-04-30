@@ -52,6 +52,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { ensureAutoBackup, lastAutoBackupAt, restoreLastAutoBackup } from '@/lib/auto-backup';
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
 import { parseTransactionsCSV } from '@/lib/csv-import';
@@ -333,21 +334,20 @@ export default function SettingsPage() {
         />
       </Section>
 
-      {confirming === 'reset' && (
-        <ConfirmSheet
-          title="모든 데이터를 초기화할까요?"
-          description="저장된 모든 거래가 사라져요. 백업 파일이 있으면 복원할 수 있어요."
-          confirmLabel="초기화"
-          danger
-          onCancel={() => setConfirming(null)}
-          onConfirm={() => {
-            clearAll();
-            toast.show('초기화 완료', 'info');
-            setConfirming(null);
-            window.location.replace('/');
-          }}
-        />
-      )}
+      <ConfirmDialog
+        open={confirming === 'reset'}
+        title="모든 데이터를 초기화할까요?"
+        description="저장된 모든 거래·계좌·예산이 사라져요. 백업 파일이 있으면 복원할 수 있습니다."
+        confirmLabel="초기화"
+        danger
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          clearAll();
+          toast.show('초기화 완료', 'info');
+          setConfirming(null);
+          window.location.replace('/');
+        }}
+      />
     </>
   );
 }
@@ -431,69 +431,3 @@ function Row({
   );
 }
 
-function Switch({ on }: { on: boolean }) {
-  return (
-    <span
-      className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors"
-      style={{ background: on ? 'var(--color-primary)' : 'var(--color-gray-300)' }}
-    >
-      <span
-        className="absolute h-6 w-6 rounded-full bg-white shadow transition-transform"
-        style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)' }}
-      />
-    </span>
-  );
-}
-
-function ConfirmSheet({
-  title,
-  description,
-  confirmLabel,
-  danger,
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  danger?: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 px-4 pb-6">
-      <div
-        className="w-full max-w-[380px] rounded-3xl p-6"
-        style={{ background: 'var(--color-card)' }}
-      >
-        <p className="mb-1 text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
-          {title}
-        </p>
-        <p className="mb-5 text-sm" style={{ color: 'var(--color-text-3)' }}>
-          {description}
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="tap h-12 flex-1 rounded-2xl text-sm font-bold"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="tap h-12 flex-1 rounded-2xl text-sm font-bold"
-            style={{
-              background: danger ? 'var(--color-danger)' : 'var(--color-primary)',
-              color: '#fff',
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
