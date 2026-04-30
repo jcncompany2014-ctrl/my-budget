@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
@@ -108,10 +109,7 @@ export default function MonthlyReportPage() {
               return (
                 <div key={cat} className="flex items-center gap-3 px-4 py-3"
                   style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full text-base"
-                    style={{ background: c ? `${c.color}1f` : 'var(--color-gray-150)' }}>
-                    {c?.emoji ?? '💰'}
-                  </div>
+                  <CategoryIcon catId={cat} size={36} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between">
                       <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>

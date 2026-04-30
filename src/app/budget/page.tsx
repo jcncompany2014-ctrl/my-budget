@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useBudgets } from '@/lib/budgets';
@@ -110,12 +111,7 @@ export default function BudgetPage() {
                           : 'none',
                     }}
                   >
-                    <div
-                      className="flex h-10 w-10 items-center justify-center rounded-full text-lg"
-                      style={{ background: i.info ? `${i.info.color}1f` : 'var(--color-gray-150)' }}
-                    >
-                      {i.info?.emoji ?? '💰'}
-                    </div>
+                    <CategoryIcon catId={i.cat} size={40} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between">
                         <p className="text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
@@ -254,12 +250,7 @@ function BudgetCard({ item }: { item: Item }) {
     <div className="rounded-2xl px-4 py-4" style={{ background: 'var(--color-card)' }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full text-lg"
-            style={{ background: item.info ? `${item.info.color}1f` : 'var(--color-gray-150)' }}
-          >
-            {item.info?.emoji ?? '💰'}
-          </div>
+          <CategoryIcon catId={item.cat} size={40} />
           <div>
             <p className="text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
               {item.info?.name ?? item.cat}

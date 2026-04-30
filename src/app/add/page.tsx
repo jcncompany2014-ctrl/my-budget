@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Keypad from '@/components/Keypad';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
@@ -448,16 +449,16 @@ function AddPage() {
                       setCat(c.id);
                       setCatTouched(true);
                     }}
-                    className="tap flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5"
+                    className="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
                     style={{
-                      background: sel ? `${c.color}22` : 'var(--color-gray-100)',
+                      background: sel ? `${c.color}1f` : 'var(--color-gray-100)',
                       outline: sel ? `2px solid ${c.color}` : 'none',
                     }}
                   >
-                    <span className="text-xl">{c.emoji}</span>
+                    <CategoryIcon catId={c.id} size={32} />
                     <span
                       className="text-[11px] font-semibold"
-                      style={{ color: 'var(--color-text-2)' }}
+                      style={{ color: sel ? c.color : 'var(--color-text-2)' }}
                     >
                       {c.name}
                     </span>

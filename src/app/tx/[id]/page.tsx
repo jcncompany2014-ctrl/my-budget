@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES } from '@/lib/categories';
@@ -150,14 +151,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
       </header>
 
       <section className="px-6 pb-8 pt-6 text-center">
-        <div
-          className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full text-3xl"
-          style={{
-            background: cat?.color ? `${cat.color}1f` : 'var(--color-gray-150)',
-          }}
-        >
-          {cat?.emoji ?? '💰'}
-        </div>
+        <CategoryIcon catId={item.cat} size={64} style={{ margin: '0 auto 16px' }} />
         <p className="text-sm" style={{ color: 'var(--color-text-3)' }}>
           {cat?.name ?? '기타'}
         </p>

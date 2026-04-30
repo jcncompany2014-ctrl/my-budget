@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import Card from '@/components/ui/Card';
 import Section from '@/components/ui/Section';
@@ -87,7 +88,7 @@ export default function YearEndTaxPage() {
             return (
               <div key={cat} className="flex items-center gap-3 px-4 py-3"
                 style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
-                <span style={{ fontSize: 18, lineHeight: 1 }}>{c?.emoji ?? '💰'}</span>
+                <CategoryIcon catId={cat} size={28} />
                 <span className="flex-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                   {label}
                 </span>

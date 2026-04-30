@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { use, useEffect, useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useToast } from '@/components/Toast';
 import IconCircle from '@/components/ui/IconCircle';
 import Sheet from '@/components/ui/Sheet';
@@ -181,14 +182,14 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
                 key={c.id}
                 type="button"
                 onClick={() => setCat(c.id)}
-                className="tap flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5"
+                className="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
                 style={{
-                  background: sel ? `${c.color}22` : 'var(--color-gray-100)',
+                  background: sel ? `${c.color}1f` : 'var(--color-gray-100)',
                   outline: sel ? `2px solid ${c.color}` : 'none',
                 }}
               >
-                <span className="text-xl">{c.emoji}</span>
-                <span className="text-[11px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
+                <CategoryIcon catId={c.id} size={28} />
+                <span className="text-[11px] font-semibold" style={{ color: sel ? c.color : 'var(--color-text-2)' }}>
                   {c.name}
                 </span>
               </button>
@@ -428,9 +429,7 @@ function SplitsEditor({
                 </button>
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <IconCircle size={28} background={c ? `${c.color}1f` : 'var(--color-gray-150)'} fontSize={14}>
-                  {c?.emoji ?? '💰'}
-                </IconCircle>
+                <CategoryIcon catId={s.cat} size={28} />
                 <input
                   value={s.memo ?? ''}
                   onChange={(e) => update(i, { memo: e.target.value })}

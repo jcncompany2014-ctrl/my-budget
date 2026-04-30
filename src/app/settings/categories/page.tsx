@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
@@ -126,10 +127,10 @@ export default function CategoriesPage() {
         <div className="grid grid-cols-4 gap-2">
           {visible.builtin.map((c) => (
             <div key={c.id}
-              className="flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5"
+              className="flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
               style={{ background: 'var(--color-gray-100)' }}
             >
-              <span style={{ fontSize: 22 }}>{c.emoji}</span>
+              <CategoryIcon catId={c.id} size={32} />
               <span style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
                 {c.name}
               </span>

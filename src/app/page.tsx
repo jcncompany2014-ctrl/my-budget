@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 import CountUp from '@/components/CountUp';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import LiveInvestmentPnL from '@/components/LiveInvestmentPnL';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
@@ -313,13 +314,7 @@ function PersonalHome({
                 const sparkValues = lastNDaysCategory(tx, catId, 14);
                 return (
                   <div key={catId} className="flex items-center gap-3">
-                    <IconCircle
-                      size={36}
-                      background={c ? `${c.color}1f` : 'var(--color-gray-150)'}
-                      fontSize={18}
-                    >
-                      {c?.emoji ?? '💰'}
-                    </IconCircle>
+                    <CategoryIcon catId={catId} size={36} />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-baseline justify-between">
                         <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>

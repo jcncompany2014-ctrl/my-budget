@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
@@ -199,12 +200,15 @@ export default function QuickAddPage() {
             >
               해석 미리보기
             </p>
-            <p
-              className="mt-1 truncate"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
-            >
-              {CATEGORIES[parsed.cat]?.emoji ?? '💰'} {parsed.merchant}
-            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <CategoryIcon catId={parsed.cat} size={28} />
+              <p
+                className="truncate"
+                style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+              >
+                {parsed.merchant}
+              </p>
+            </div>
             <div className="mt-1 flex items-baseline justify-between">
               <span style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}>
                 {parsed.date.toLocaleDateString('ko-KR', {
@@ -264,7 +268,7 @@ export default function QuickAddPage() {
                 className="tap flex items-center gap-3 rounded-2xl px-4 py-3 text-left"
                 style={{ background: 'var(--color-card)' }}
               >
-                <span style={{ fontSize: 22 }}>{f.emoji}</span>
+                <CategoryIcon catId={f.cat} size={32} />
                 <div className="min-w-0 flex-1">
                   <p
                     className="truncate"

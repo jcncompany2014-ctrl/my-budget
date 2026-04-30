@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import IconCircle from '@/components/ui/IconCircle';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, isTransferCategory } from '@/lib/categories';
@@ -46,13 +46,7 @@ export default function TxRow({
       className={`tap flex items-center gap-3 px-4 ${compact ? 'py-2.5' : 'py-3'}`}
       style={{ borderBottom: borderBottom ? '1px solid var(--color-divider)' : 'none' }}
     >
-      <IconCircle
-        size={40}
-        background={cat?.color ? `${cat.color}1a` : 'var(--color-gray-150)'}
-        fontSize={20}
-      >
-        {cat?.emoji ?? '💰'}
-      </IconCircle>
+      <CategoryIcon catId={tx.cat} size={40} />
       <div className="min-w-0 flex-1">
         <p
           className="truncate"

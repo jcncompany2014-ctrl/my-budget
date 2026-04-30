@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
@@ -287,10 +288,7 @@ export default function ListPage() {
                           </svg>
                         )}
                       </div>
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
-                        style={{ background: CATEGORIES[t.cat]?.color ? `${CATEGORIES[t.cat]!.color}1a` : 'var(--color-gray-150)' }}>
-                        {CATEGORIES[t.cat]?.emoji ?? '💰'}
-                      </div>
+                      <CategoryIcon catId={t.cat} size={36} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                           {t.merchant}
@@ -350,9 +348,9 @@ export default function ListPage() {
             <div className="grid grid-cols-4 gap-2">
               {cats.map((c) => (
                 <button key={c.id} type="button" onClick={() => bulkChangeCategory(c.id)}
-                  className="tap flex flex-col items-center gap-1 rounded-2xl px-1 py-3"
+                  className="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
                   style={{ background: 'var(--color-gray-100)' }}>
-                  <span style={{ fontSize: 22 }}>{c.emoji}</span>
+                  <CategoryIcon catId={c.id} size={28} />
                   <span style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
                     {c.name}
                   </span>

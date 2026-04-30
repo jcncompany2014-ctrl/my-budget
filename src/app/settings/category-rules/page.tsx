@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
@@ -160,9 +161,7 @@ export default function CategoryRulesPage() {
                       </option>
                     ))}
                   </select>
-                  <IconCircle size={28} background={c ? `${c.color}1f` : 'var(--color-gray-150)'} fontSize={14}>
-                    {c?.emoji ?? '💰'}
-                  </IconCircle>
+                  <CategoryIcon catId={r.cat} size={28} />
                   <button
                     type="button"
                     onClick={() => {

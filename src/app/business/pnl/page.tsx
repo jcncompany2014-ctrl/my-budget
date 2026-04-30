@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import LineChart from '@/components/LineChart';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
@@ -231,9 +232,7 @@ export default function PnLPage() {
                 return (
                   <div key={cat} className="flex items-center gap-3 px-4 py-3"
                     style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
-                    <IconCircle size={36} background={c ? `${c.color}1f` : 'var(--color-gray-150)'} fontSize={16}>
-                      {c?.emoji ?? '💰'}
-                    </IconCircle>
+                    <CategoryIcon catId={cat} size={36} />
                     <span className="flex-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                       {c?.name ?? cat}
                     </span>

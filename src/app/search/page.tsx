@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import Highlight from '@/components/Highlight';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import IconCircle from '@/components/ui/IconCircle';
@@ -203,13 +204,7 @@ export default function SearchPage() {
                       borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
                     }}
                   >
-                    <IconCircle
-                      size={40}
-                      background={c?.color ? `${c.color}1a` : 'var(--color-gray-150)'}
-                      fontSize={20}
-                    >
-                      {c?.emoji ?? '💰'}
-                    </IconCircle>
+                    <CategoryIcon catId={t.cat} size={40} />
                     <div className="min-w-0 flex-1">
                       <p
                         className="truncate"

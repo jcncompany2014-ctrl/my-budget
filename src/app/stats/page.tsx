@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import CategoryDonut from '@/components/CategoryDonut';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import LineChart from '@/components/LineChart';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
@@ -209,10 +210,13 @@ export default function StatsPage() {
                   {anomalies.map((a) => {
                     const c = CATEGORIES[a.cat];
                     return (
-                      <p key={a.cat} style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)' }}>
-                        {c?.emoji} <span style={{ fontWeight: 700 }}>{c?.name ?? a.cat}</span>{' '}
-                        평소 대비 <span className="tnum" style={{ color: '#B45309', fontWeight: 700 }}>+{a.deltaPct}%</span>
-                      </p>
+                      <div key={a.cat} className="flex items-center gap-2">
+                        <CategoryIcon catId={a.cat} size={20} />
+                        <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)' }}>
+                          <span style={{ fontWeight: 700 }}>{c?.name ?? a.cat}</span>{' '}
+                          평소 대비 <span className="tnum" style={{ color: '#B45309', fontWeight: 700 }}>+{a.deltaPct}%</span>
+                        </span>
+                      </div>
                     );
                   })}
                 </div>

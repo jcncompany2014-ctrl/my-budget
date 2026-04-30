@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
@@ -62,12 +63,7 @@ export default function BudgetsSettingsPage() {
                 className="tap flex w-full items-center gap-3 px-4 py-3 text-left"
                 style={{ borderBottom: i < cats.length - 1 ? '1px solid var(--color-divider)' : 'none' }}
               >
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-lg"
-                  style={{ background: `${c.color}1f` }}
-                >
-                  {c.emoji}
-                </div>
+                <CategoryIcon catId={c.id} size={40} />
                 <div className="flex-1">
                   <p className="text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
                     {c.name}
@@ -132,12 +128,7 @@ function BudgetEditor({
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'var(--color-gray-200)' }} />
         <div className="mb-4 flex items-center gap-3">
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl"
-            style={{ background: `${category.color}1f` }}
-          >
-            {category.emoji}
-          </div>
+          <CategoryIcon catId={category.id} size={48} style={{ borderRadius: 16 }} />
           <div>
             <p className="text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
               {category.name}

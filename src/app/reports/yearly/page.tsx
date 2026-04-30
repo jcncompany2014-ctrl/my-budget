@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
@@ -134,7 +135,7 @@ export default function YearlyReportPage() {
                       color: i === 0 ? '#fff' : 'var(--color-text-2)',
                       fontSize: 'var(--text-xxs)',
                     }}>{i + 1}</div>
-                  <span style={{ fontSize: 18 }}>{c?.emoji ?? '💰'}</span>
+                  <CategoryIcon catId={cat} size={28} />
                   <span className="flex-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                     {c?.name ?? cat}
                   </span>

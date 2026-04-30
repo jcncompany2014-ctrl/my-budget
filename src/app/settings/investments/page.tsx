@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import AssetIcon from '@/components/icons/AssetIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
@@ -192,8 +193,7 @@ export default function InvestmentsPage() {
                   style={{ background: 'var(--color-card)' }}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold text-white"
-                        style={{ background: i.color }}>{KIND_LABEL[i.kind][0]}</div>
+                      <AssetIcon investment={i} size={40} />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
