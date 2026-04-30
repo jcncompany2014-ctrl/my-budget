@@ -389,6 +389,53 @@ function Editor({
       : null;
 
   const lev = draft.leverage ?? 1;
+  const isCrypto = draft.kind === 'crypto';
+
+  // For crypto, the user enters notional in product currency (e.g. USDT) instead
+  // of coin count. shares stays the schema-of-record and is derived as
+  //   shares = notional / avgPrice
+  // avgPrice changes preserve the typed notional and re-derive shares.
+  const [notionalInput, setNotionalInput] = useState(() => {
+    const s = i.shares ?? 0;
+    const a = i.avgPrice ?? 0;
+    return s > 0 && a > 0 ? String(s * a) : '';
+  });
+
+  // If the user flips kind to/from crypto, resync notional to the current
+  // shares × avgPrice so the field stays consistent.
+  useEffect(() => {
+    if (isCrypto) {
+      const s = draft.shares ?? 0;
+      const a = draft.avgPrice ?? 0;
+      setNotionalInput(s > 0 && a > 0 ? String(s * a) : '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.kind]);
+
+  const handleAvgPriceChange = (raw: string) => {
+    const newAvg = Number(raw) || 0;
+    if (isCrypto) {
+      const usdt = parseFloat(notionalInput) || 0;
+      setDraft({
+        ...draft,
+        avgPrice: newAvg,
+        shares: newAvg > 0 ? usdt / newAvg : draft.shares,
+      });
+    } else {
+      setDraft({ ...draft, avgPrice: newAvg });
+    }
+  };
+
+  const handleNotionalChange = (raw: string) => {
+    setNotionalInput(raw);
+    const usdt = parseFloat(raw) || 0;
+    const avg = draft.avgPrice ?? 0;
+    if (avg > 0) {
+      setDraft({ ...draft, shares: usdt / avg });
+    } else if (raw === '' || usdt === 0) {
+      setDraft({ ...draft, shares: 0 });
+    }
+  };
 
   const valid =
     draft.name.trim().length > 0 &&
@@ -554,16 +601,30 @@ function Editor({
         <div className="grid grid-cols-2 gap-2">
           <Field label={`평균 매수가 (${productCcy})`}>
             <input type="number" inputMode="decimal" step="any"
-              value={draft.avgPrice ?? ''} onChange={(e) => setDraft({ ...draft, avgPrice: Number(e.target.value) || 0 })} placeholder="0"
+              value={draft.avgPrice ?? ''} onChange={(e) => handleAvgPriceChange(e.target.value)} placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
           </Field>
-          <Field label={draft.kind === 'crypto' ? '수량 (coin)' : '수량 (주)'}>
-            <input type="number" inputMode="decimal" step="any"
-              value={draft.shares ?? ''} onChange={(e) => setDraft({ ...draft, shares: Number(e.target.value) || 0 })} placeholder="0"
-              className="tnum h-12 w-full rounded-xl px-4 outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
-          </Field>
+          {isCrypto ? (
+            <Field label={`매수 총액 (${productCcy})`}>
+              <input type="number" inputMode="decimal" step="any"
+                value={notionalInput} onChange={(e) => handleNotionalChange(e.target.value)} placeholder="0"
+                className="tnum h-12 w-full rounded-xl px-4 outline-none"
+                style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
+              {(draft.shares ?? 0) > 0 && (
+                <p className="tnum mt-1" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+                  ≈ {(draft.shares ?? 0).toFixed(4)} coin
+                </p>
+              )}
+            </Field>
+          ) : (
+            <Field label="수량 (주)">
+              <input type="number" inputMode="decimal" step="any"
+                value={draft.shares ?? ''} onChange={(e) => setDraft({ ...draft, shares: Number(e.target.value) || 0 })} placeholder="0"
+                className="tnum h-12 w-full rounded-xl px-4 outline-none"
+                style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
+            </Field>
+          )}
         </div>
 
         {accounts.length > 0 && (
@@ -608,26 +669,38 @@ function Editor({
           </Field>
         )}
 
-        {draft.autoQuote && liveValueKRW != null && (
-          <div className="mb-3 rounded-xl px-4 py-3" style={{ background: 'var(--color-gray-100)' }}>
-            <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
-              자동 평가액
-            </p>
-            <p className="tnum mt-0.5" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 800 }}>
-              {Math.round(liveValueKRW).toLocaleString('ko-KR')}원
-            </p>
-            {productCcy !== 'KRW' && liveValueProduct != null && (
-              <p className="tnum mt-0.5" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-                = {formatNative(liveValueProduct, productCcy)}
+        {draft.autoQuote && liveValueKRW != null && (() => {
+          const hasPosition = (draft.shares ?? 0) > 0 && (draft.avgPrice ?? 0) > 0;
+          const costProduct = hasPosition ? (draft.shares ?? 0) * (draft.avgPrice ?? 0) : 0;
+          const costKRW = hasPosition ? toKRW(costProduct, productCcy) : 0;
+          const marginKRW = lev > 1 ? costKRW / lev : costKRW;
+          const p = hasPosition ? liveValueKRW - costKRW : 0;
+          const equityKRW = hasPosition ? marginKRW + p : liveValueKRW;
+          const pp =
+            hasPosition && costProduct > 0
+              ? (((liveValueProduct ?? 0) - costProduct) / costProduct) * 100
+              : 0;
+          const ppLev = pp * lev;
+          const isLeveraged = lev > 1 && hasPosition;
+          return (
+            <div className="mb-3 rounded-xl px-4 py-3" style={{ background: 'var(--color-gray-100)' }}>
+              <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                {isLeveraged ? '현재 자본' : '자동 평가액'}
               </p>
-            )}
-            {(draft.shares ?? 0) > 0 && (draft.avgPrice ?? 0) > 0 && (() => {
-              const costProduct = (draft.shares ?? 0) * (draft.avgPrice ?? 0);
-              const costKRW = toKRW(costProduct, productCcy);
-              const p = liveValueKRW - costKRW;
-              const pp = costProduct > 0 ? (((liveValueProduct ?? 0) - costProduct) / costProduct) * 100 : 0;
-              const ppLev = pp * lev;
-              return (
+              <p className="tnum mt-0.5" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 800 }}>
+                {Math.round(equityKRW).toLocaleString('ko-KR')}원
+              </p>
+              {productCcy !== 'KRW' && liveValueProduct != null && (
+                <p className="tnum mt-0.5" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+                  = {formatNative(liveValueProduct, productCcy)}
+                </p>
+              )}
+              {isLeveraged && (
+                <p className="tnum mt-0.5" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+                  포지션 {Math.round(liveValueKRW).toLocaleString('ko-KR')}원
+                </p>
+              )}
+              {hasPosition && (
                 <p className="tnum mt-1" style={{
                   color: p >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
                   fontSize: 'var(--text-xs)', fontWeight: 700,
@@ -637,10 +710,10 @@ function Editor({
                   {lev > 1 ? ` · ${lev}x` : ''}
                   )
                 </p>
-              );
-            })()}
-          </div>
-        )}
+              )}
+            </div>
+          );
+        })()}
 
         <div className="flex gap-2">
           {onDelete && (
