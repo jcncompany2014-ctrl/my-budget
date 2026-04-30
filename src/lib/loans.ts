@@ -28,6 +28,22 @@ export function computeMonthlyPayment(principal: number, annualRate: number, mon
   return Math.round((principal * r) / (1 - Math.pow(1 + r, -months)));
 }
 
+/**
+ * Split a single monthly payment into interest and principal portions for an
+ * amortized loan, given the remaining balance and annual rate. Caps principal
+ * at remaining so the final installment doesn't underflow when monthlyPayment
+ * is slightly larger than what's left to amortize.
+ */
+export function splitMonthlyPayment(
+  remaining: number,
+  annualRate: number,
+  monthlyPayment: number,
+) {
+  const interest = Math.max(0, Math.round(remaining * (annualRate / 100 / 12)));
+  const principal = Math.max(0, Math.min(remaining, monthlyPayment - interest));
+  return { interest, principal };
+}
+
 export function useLoans() {
   const [items, setItems] = useState<Loan[]>([]);
   const [ready, setReady] = useState(false);

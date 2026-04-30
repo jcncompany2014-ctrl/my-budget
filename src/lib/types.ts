@@ -104,6 +104,12 @@ export type Loan = {
   startDate: string;
   dueDate: string;
   color: string;
+  /** Account the monthly payment is debited from. */
+  linkedAccountId?: string;
+  /** Day of month (1-31) the payment posts. Falls back to last day if month is shorter. */
+  paymentDay?: number;
+  /** When true, auto-loan-payment generates the monthly debit and decrements remaining. */
+  autoPayment?: boolean;
 };
 
 export type Vendor = {

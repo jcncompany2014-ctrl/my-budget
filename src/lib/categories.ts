@@ -16,6 +16,7 @@ export const CATEGORIES: Record<string, Category> = {
   subs:      { id: 'subs',      name: '구독',          emoji: '🔁', color: '#0EA5E9', scope: 'personal' },
   transfer:  { id: 'transfer',  name: '이체',          emoji: '↔️', color: '#94A3B8', scope: 'personal' },
   saving:    { id: 'saving',    name: '저축',          emoji: '🌱', color: '#1FBA6E', scope: 'personal' },
+  loan_payment: { id: 'loan_payment', name: '대출 상환', emoji: '🏛️', color: '#64748B', scope: 'personal' },
 
   // ─── Personal income ───
   salary:    { id: 'salary',    name: '급여',          emoji: '💼', color: '#00B956', kind: 'income', scope: 'personal' },
