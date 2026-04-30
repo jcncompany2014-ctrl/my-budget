@@ -21,7 +21,6 @@ import SmartPrompts from '@/components/SmartPrompts';
 import Sparkline from '@/components/Sparkline';
 import TxRow from '@/components/TxRow';
 import UpcomingRecurring from '@/components/UpcomingRecurring';
-import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';

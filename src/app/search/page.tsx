@@ -9,7 +9,6 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import EmptyState from '@/components/ui/EmptyState';
-import IconCircle from '@/components/ui/IconCircle';
 import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
 import TopBar from '@/components/TopBar';
@@ -29,6 +28,9 @@ export default function SearchPage() {
   const [maxAmount, setMaxAmount] = useState('');
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [accFilter, setAccFilter] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [datePreset, setDatePreset] = useState<'all' | '7d' | '30d' | '3m' | 'custom'>('all');
   const [showFilters, setShowFilters] = useState(false);
 
   const cats = useMemo(() => expenseCategoriesByScope(mode), [mode]);
@@ -38,6 +40,36 @@ export default function SearchPage() {
     tx.slice(0, 100).forEach((t) => s.add(t.merchant));
     return Array.from(s).slice(0, 8);
   }, [tx]);
+
+  // Resolve preset → effective from/to range as YYYY-MM-DD day keys.
+  // Comparing day strings (slice 0..10 of ISO date) avoids the UTC vs KST
+  // timezone mismatch that would otherwise drop early-morning transactions
+  // when filtering "from today".
+  const effectiveDateRange = useMemo(() => {
+    const ymd = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const today = new Date();
+    if (datePreset === '7d') {
+      const from = new Date(today); from.setDate(today.getDate() - 6);
+      return { from: ymd(from), to: ymd(today) };
+    }
+    if (datePreset === '30d') {
+      const from = new Date(today); from.setDate(today.getDate() - 29);
+      return { from: ymd(from), to: ymd(today) };
+    }
+    if (datePreset === '3m') {
+      const from = new Date(today); from.setMonth(today.getMonth() - 3);
+      return { from: ymd(from), to: ymd(today) };
+    }
+    if (datePreset === 'custom') {
+      return { from: dateFrom, to: dateTo };
+    }
+    return { from: '', to: '' };
+  }, [datePreset, dateFrom, dateTo]);
 
   const results = useMemo(() => {
     if (!ready) return [];
@@ -61,8 +93,22 @@ export default function SearchPage() {
     }
     if (catFilter) r = r.filter((t) => t.cat === catFilter);
     if (accFilter) r = r.filter((t) => t.acc === accFilter);
+    if (effectiveDateRange.from || effectiveDateRange.to) {
+      // Convert each tx's stored ISO (UTC) to a local-day key so KST early-morning
+      // transactions match the user's intuitive "calendar day" expectation.
+      const localDay = (iso: string) => {
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+      r = r.filter((t) => {
+        const day = localDay(t.date);
+        if (effectiveDateRange.from && day < effectiveDateRange.from) return false;
+        if (effectiveDateRange.to && day > effectiveDateRange.to) return false;
+        return true;
+      });
+    }
     return r.sort((a, b) => b.date.localeCompare(a.date));
-  }, [tx, query, minAmount, maxAmount, catFilter, accFilter, ready]);
+  }, [tx, query, minAmount, maxAmount, catFilter, accFilter, effectiveDateRange, ready]);
 
   const totalFound = results.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
 
@@ -108,17 +154,17 @@ export default function SearchPage() {
         <button type="button" onClick={() => setShowFilters(!showFilters)}
           className="tap inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
           style={{
-            background: showFilters || minAmount || maxAmount || catFilter || accFilter ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-            color: showFilters || minAmount || maxAmount || catFilter || accFilter ? 'var(--color-primary)' : 'var(--color-text-2)',
+            background: showFilters || minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all' ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+            color: showFilters || minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all' ? 'var(--color-primary)' : 'var(--color-text-2)',
             fontSize: 'var(--text-xs)',
             fontWeight: 700,
           }}>
           <SlidersHorizontal size={13} strokeWidth={2.6} />
           고급 필터
-          {(minAmount || maxAmount || catFilter || accFilter) && (
+          {(minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all') && (
             <span className="rounded-full px-1.5"
               style={{ background: 'var(--color-primary)', color: '#fff', fontSize: 10, fontWeight: 800 }}>
-              {[minAmount, maxAmount, catFilter, accFilter].filter(Boolean).length}
+              {[minAmount, maxAmount, catFilter, accFilter, datePreset !== 'all' ? 'date' : null].filter(Boolean).length}
             </span>
           )}
         </button>
@@ -127,7 +173,32 @@ export default function SearchPage() {
       {showFilters && (
         <Section topGap={4} bottomGap={4}>
           <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-            <p className="mb-2" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>금액 범위</p>
+            <p className="mb-2" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>기간</p>
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                ['all', '전체'],
+                ['7d', '최근 7일'],
+                ['30d', '최근 30일'],
+                ['3m', '최근 3개월'],
+                ['custom', '직접 선택'],
+              ] as const).map(([k, label]) => (
+                <Pill key={k} tone="dark" active={datePreset === k} onClick={() => setDatePreset(k)}>
+                  {label}
+                </Pill>
+              ))}
+            </div>
+            {datePreset === 'custom' && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-11 w-full rounded-xl px-3 outline-none"
+                  style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 13 }} />
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  className="h-11 w-full rounded-xl px-3 outline-none"
+                  style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 13 }} />
+              </div>
+            )}
+
+            <p className="mb-2 mt-3" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>금액 범위</p>
             <div className="grid grid-cols-2 gap-2">
               <input type="number" inputMode="numeric" value={minAmount}
                 onChange={(e) => setMinAmount(e.target.value)} placeholder="최소"
@@ -162,7 +233,7 @@ export default function SearchPage() {
         </Section>
       )}
 
-      {!query && !minAmount && !maxAmount && !catFilter && !accFilter && (
+      {!query && !minAmount && !maxAmount && !catFilter && !accFilter && datePreset === 'all' && (
         <Section title="최근 검색한 소비처">
           <div className="flex flex-wrap gap-2">
             {recentMerchants.map((m) => (
@@ -174,7 +245,7 @@ export default function SearchPage() {
         </Section>
       )}
 
-      {(query || minAmount || maxAmount || catFilter || accFilter) && (
+      {(query || minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all') && (
         <Section bottomGap={40}>
           <div className="mb-2 flex items-baseline justify-between">
             <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>

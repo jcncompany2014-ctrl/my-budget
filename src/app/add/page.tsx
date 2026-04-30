@@ -7,7 +7,6 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import Keypad from '@/components/Keypad';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
-import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
 import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categorize';
 import { buildTransferLegs } from '@/lib/transfers';

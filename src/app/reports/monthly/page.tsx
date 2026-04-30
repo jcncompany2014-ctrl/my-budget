@@ -202,17 +202,3 @@ export default function MonthlyReportPage() {
   );
 }
 
-function Card({ label, value, tone }: { label: string; value: number; tone: 'primary' | 'danger' }) {
-  return (
-    <div className="rounded-2xl p-3" style={{ background: 'var(--color-card)' }}>
-      <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 500 }}>{label}</p>
-      <Money value={value} sign={tone === 'primary' ? 'positive' : 'negative'}
-        className="mt-1 block"
-        style={{
-          fontSize: 'var(--text-base)',
-          fontWeight: 800,
-          color: tone === 'primary' ? 'var(--color-primary)' : 'var(--color-danger)',
-        }} />
-    </div>
-  );
-}
