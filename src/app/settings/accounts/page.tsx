@@ -283,8 +283,7 @@ function AccountEditor({
                   className="tap h-10 w-10 rounded-full"
                   style={{
                     background: c,
-                    outline: sel ? `3px solid ${c}33` : 'none',
-                    outlineOffset: 2,
+                    boxShadow: sel ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
                   }}
                   aria-label={c}
                 />

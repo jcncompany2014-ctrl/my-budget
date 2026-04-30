@@ -61,7 +61,7 @@ export default function LocationsPage() {
               className="tap flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left"
               style={{
                 background: !activeId ? 'var(--color-primary-soft)' : 'var(--color-card)',
-                outline: !activeId ? '2px solid var(--color-primary)' : 'none',
+                border: `2px solid ${!activeId ? 'var(--color-primary)' : 'transparent'}`,
               }}
             >
               <div className="flex items-center gap-3">
@@ -82,7 +82,7 @@ export default function LocationsPage() {
                 className="tap flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left"
                 style={{
                   background: activeId === l.id ? `${l.color}1f` : 'var(--color-card)',
-                  outline: activeId === l.id ? `2px solid ${l.color}` : 'none',
+                  border: `2px solid ${activeId === l.id ? l.color : 'transparent'}`,
                 }}
               >
                 <div className="flex items-center gap-3">
@@ -157,7 +157,7 @@ function Editor({ l, isNew, onSave, onDelete, onCancel }: {
                 className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
                 style={{
                   background: draft.emoji === e ? `${draft.color}33` : 'var(--color-gray-100)',
-                  outline: draft.emoji === e ? `2px solid ${draft.color}` : 'none',
+                  border: `2px solid ${draft.emoji === e ? draft.color : 'transparent'}`,
                 }}>{e}</button>
             ))}
           </div>
@@ -179,8 +179,7 @@ function Editor({ l, isNew, onSave, onDelete, onCancel }: {
                 className="tap h-9 w-9 rounded-full"
                 style={{
                   background: c,
-                  outline: draft.color === c ? `3px solid ${c}33` : 'none',
-                  outlineOffset: 2,
+                  boxShadow: draft.color === c ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
                 }}
                 aria-label={c} />
             ))}

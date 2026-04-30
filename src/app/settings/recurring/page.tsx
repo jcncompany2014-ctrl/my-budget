@@ -221,7 +221,7 @@ function RecurringEditor({
                   className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
                   style={{
                     background: sel ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                    outline: sel ? '2px solid var(--color-primary)' : 'none',
+                    border: `2px solid ${sel ? 'var(--color-primary)' : 'transparent'}`,
                   }}
                 >
                   {e}
@@ -293,7 +293,7 @@ function RecurringEditor({
                   className="tap flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5"
                   style={{
                     background: sel ? `${c.color}22` : 'var(--color-gray-100)',
-                    outline: sel ? `2px solid ${c.color}` : 'none',
+                    border: `2px solid ${sel ? c.color : 'transparent'}`,
                   }}
                 >
                   <span className="text-base">{c.emoji}</span>

@@ -292,7 +292,7 @@ function Group({
               className="tap flex w-full items-center justify-between rounded-xl px-4 py-3 disabled:opacity-30"
               style={{
                 background: sel ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                outline: sel ? '2px solid var(--color-primary)' : 'none',
+                border: `2px solid ${sel ? 'var(--color-primary)' : 'transparent'}`,
               }}
             >
               <div className="flex items-center gap-3">

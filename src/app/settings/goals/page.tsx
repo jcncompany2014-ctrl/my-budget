@@ -256,7 +256,7 @@ function GoalEditor({
                   className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
                   style={{
                     background: sel ? `${draft.color}33` : 'var(--color-gray-100)',
-                    outline: sel ? `2px solid ${draft.color}` : 'none',
+                    border: `2px solid ${sel ? draft.color : 'transparent'}`,
                   }}
                 >
                   {e}
@@ -338,8 +338,7 @@ function GoalEditor({
                   className="tap h-10 w-10 rounded-full"
                   style={{
                     background: c,
-                    outline: sel ? `3px solid ${c}33` : 'none',
-                    outlineOffset: 2,
+                    boxShadow: sel ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
                   }}
                   aria-label={c}
                 />

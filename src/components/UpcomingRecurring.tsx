@@ -44,8 +44,7 @@ export default function UpcomingRecurring() {
                 className="flex w-[150px] shrink-0 flex-col gap-2 rounded-2xl p-3.5"
                 style={{
                   background: 'var(--color-gray-50)',
-                  outline: urgent ? '1.5px solid var(--color-danger)' : 'none',
-                  outlineOffset: -1.5,
+                  boxShadow: urgent ? 'inset 0 0 0 1.5px var(--color-danger)' : 'none',
                 }}
               >
                 <div className="flex items-center justify-between">

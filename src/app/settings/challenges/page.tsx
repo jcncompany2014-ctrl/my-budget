@@ -180,7 +180,7 @@ function Editor({ c, mode, isNew, onSave, onDelete, onCancel }: {
                 className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
                 style={{
                   background: draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                  outline: draft.emoji === e ? '2px solid var(--color-primary)' : 'none',
+                  border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
                 }}>{e}</button>
             ))}
           </div>

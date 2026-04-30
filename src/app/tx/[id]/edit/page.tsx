@@ -182,7 +182,7 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
                 className="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
                 style={{
                   background: sel ? `${c.color}1f` : 'var(--color-gray-100)',
-                  outline: sel ? `2px solid ${c.color}` : 'none',
+                  border: `2px solid ${sel ? c.color : 'transparent'}`,
                 }}
               >
                 <CategoryIcon catId={c.id} size={28} />
@@ -228,7 +228,7 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
                 style={{
                   background: sel ? `${a.color}22` : 'var(--color-gray-100)',
                   color: sel ? a.color : 'var(--color-text-2)',
-                  outline: sel ? `1.5px solid ${a.color}` : 'none',
+                  border: `1.5px solid ${sel ? a.color : 'transparent'}`,
                 }}
               >
                 {a.name}

@@ -197,7 +197,7 @@ function CategoryEditor({ c, parents, isNew, onSave, onDelete, onCancel }: {
                 className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
                 style={{
                   background: draft.emoji === e ? `${draft.color}33` : 'var(--color-gray-100)',
-                  outline: draft.emoji === e ? `2px solid ${draft.color}` : 'none',
+                  border: `2px solid ${draft.emoji === e ? draft.color : 'transparent'}`,
                 }}
               >
                 {e}
@@ -268,8 +268,7 @@ function CategoryEditor({ c, parents, isNew, onSave, onDelete, onCancel }: {
                 className="tap h-9 w-9 rounded-full"
                 style={{
                   background: cc,
-                  outline: draft.color === cc ? `3px solid ${cc}33` : 'none',
-                  outlineOffset: 2,
+                  boxShadow: draft.color === cc ? `0 0 0 2px var(--color-card), 0 0 0 5px ${cc}33` : 'none',
                 }}
                 aria-label={cc}
               />

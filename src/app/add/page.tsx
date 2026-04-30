@@ -466,7 +466,7 @@ function AddPage() {
                     className="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
                     style={{
                       background: sel ? `${c.color}1f` : 'var(--color-gray-100)',
-                      outline: sel ? `2px solid ${c.color}` : 'none',
+                      border: `2px solid ${sel ? c.color : 'transparent'}`,
                     }}
                   >
                     <CategoryIcon catId={c.id} size={32} />
@@ -617,7 +617,7 @@ function AddPage() {
                           style={{
                             background: sel ? `${v.color}22` : 'var(--color-gray-100)',
                             color: sel ? v.color : 'var(--color-text-2)',
-                            outline: sel ? `1.5px solid ${v.color}` : 'none',
+                            border: `1.5px solid ${sel ? v.color : 'transparent'}`,
                             fontSize: 'var(--text-xs)',
                             fontWeight: 700,
                           }}
@@ -660,7 +660,7 @@ function AddPage() {
                           style={{
                             background: sel ? `${l.color}22` : 'var(--color-gray-100)',
                             color: sel ? l.color : 'var(--color-text-2)',
-                            outline: sel ? `1.5px solid ${l.color}` : 'none',
+                            border: `1.5px solid ${sel ? l.color : 'transparent'}`,
                             fontSize: 'var(--text-xs)',
                             fontWeight: 700,
                           }}
