@@ -84,6 +84,12 @@ export default function GoalsSettingsPage() {
           <div className="space-y-2">
             {goals.map((g) => {
               const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+              const completed = pct >= 100;
+              const remaining = Math.max(0, g.target - g.current);
+              const dueDate = g.due ? new Date(g.due) : null;
+              const daysUntil = dueDate
+                ? Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                : null;
               return (
                 <button
                   key={g.id}
@@ -92,32 +98,82 @@ export default function GoalsSettingsPage() {
                     setEditing(g);
                     setCreating(false);
                   }}
-                  className="tap w-full rounded-2xl p-4 text-left"
-                  style={{ background: 'var(--color-card)' }}
+                  className="tap w-full overflow-hidden rounded-2xl p-4 text-left"
+                  style={{
+                    background: 'var(--color-card)',
+                    position: 'relative',
+                  }}
                 >
-                  <div className="flex items-center gap-3">
+                  {completed && (
+                    <div aria-hidden style={{
+                      position: 'absolute', inset: 0,
+                      background: `radial-gradient(120% 80% at 100% 0%, ${g.color}1a 0%, transparent 70%)`,
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                  <div className="relative flex items-center gap-3">
                     <div
                       className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl"
                       style={{ background: `${g.color}1f` }}
                     >
                       {g.emoji}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
-                        {g.name}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
+                          {g.name}
+                        </p>
+                        {completed && (
+                          <span style={{
+                            background: g.color,
+                            color: '#fff',
+                            fontSize: 9, fontWeight: 800, letterSpacing: '0.02em',
+                            padding: '2px 6px', borderRadius: 999,
+                          }}>
+                            달성
+                          </span>
+                        )}
+                      </div>
+                      <p className="tnum mt-0.5 text-xs" style={{ color: 'var(--color-text-3)' }}>
+                        <span style={{ color: g.color, fontWeight: 800 }}>{fmt(g.current)}</span>
+                        {' / '}
+                        {fmt(g.target)}원
+                        {!completed && daysUntil != null && daysUntil > 0 && (
+                          <span> · D-{daysUntil}</span>
+                        )}
+                        {!completed && daysUntil != null && daysUntil <= 0 && (
+                          <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}> · 기한 지남</span>
+                        )}
                       </p>
-                      <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-                        {fmt(g.current)} / {fmt(g.target)}원 · {pct}%
+                    </div>
+                    <div className="text-right">
+                      <p className="tnum tracking-tight" style={{
+                        color: g.color, fontSize: 22, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1,
+                      }}>
+                        {pct}<span style={{ fontSize: 12, marginLeft: 1 }}>%</span>
                       </p>
+                      {!completed && remaining > 0 && (
+                        <p className="tnum mt-0.5" style={{
+                          color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600,
+                        }}>
+                          {fmt(remaining)} 남음
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div
-                    className="mt-3 h-1.5 overflow-hidden rounded-full"
+                    className="relative mt-3 h-2 overflow-hidden rounded-full"
                     style={{ background: 'var(--color-gray-150)' }}
                   >
                     <div
                       className="h-full rounded-full"
-                      style={{ width: `${pct}%`, background: g.color }}
+                      style={{
+                        width: `${pct}%`,
+                        background: completed
+                          ? `linear-gradient(90deg, ${g.color}, ${g.color}dd)`
+                          : g.color,
+                        transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+                      }}
                     />
                   </div>
                 </button>

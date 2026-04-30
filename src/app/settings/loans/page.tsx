@@ -96,7 +96,9 @@ export default function LoansPage() {
         ) : (
           <div className="space-y-2">
             {list.map((l) => {
-              const pct = l.principal > 0 ? Math.round(((l.principal - l.remaining) / l.principal) * 100) : 0;
+              const paid = Math.max(0, l.principal - l.remaining);
+              const pct = l.principal > 0 ? Math.round((paid / l.principal) * 100) : 0;
+              const monthlyInterest = (l.remaining * (l.rate / 100)) / 12;
               return (
                 <button
                   key={l.id}
@@ -116,51 +118,59 @@ export default function LoansPage() {
                       {l.emoji}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p
-                        className="truncate"
-                        style={{
-                          color: 'var(--color-text-1)',
-                          fontSize: 'var(--text-base)',
-                          fontWeight: 700,
-                        }}
-                      >
+                      <p className="truncate" style={{
+                        color: 'var(--color-text-1)',
+                        fontSize: 'var(--text-base)',
+                        fontWeight: 700,
+                      }}>
                         {l.name}
                       </p>
-                      <p
-                        className="truncate"
-                        style={{
-                          color: 'var(--color-text-3)',
-                          fontSize: 'var(--text-xs)',
-                        }}
-                      >
+                      <p className="truncate" style={{
+                        color: 'var(--color-text-3)',
+                        fontSize: 11,
+                      }}>
                         {l.lender} · 연 {l.rate}% · {l.termMonths}개월
                       </p>
                     </div>
-                    <Money
-                      value={-l.remaining}
-                      sign="negative"
-                      style={{
+                    <div className="text-right">
+                      <p className="tnum tracking-tight" style={{
                         color: 'var(--color-danger)',
-                        fontSize: 'var(--text-base)',
-                        fontWeight: 700,
-                      }}
-                    />
+                        fontSize: 18, fontWeight: 900, letterSpacing: '-0.025em',
+                        lineHeight: 1.1,
+                      }}>
+                        −{fmt(l.remaining)}
+                      </p>
+                      <p className="tnum mt-0.5" style={{
+                        color: 'var(--color-text-3)',
+                        fontSize: 10, fontWeight: 600,
+                      }}>
+                        월 이자 약 {fmt(Math.round(monthlyInterest))}원
+                      </p>
+                    </div>
                   </div>
                   <div
-                    className="mt-3 h-1.5 overflow-hidden rounded-full"
+                    className="mt-3 h-2 overflow-hidden rounded-full"
                     style={{ background: 'var(--color-gray-150)' }}
                   >
                     <div
                       className="h-full rounded-full"
-                      style={{ width: `${pct}%`, background: l.color }}
+                      style={{
+                        width: `${pct}%`,
+                        background: l.color,
+                        transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+                      }}
                     />
                   </div>
                   <div
-                    className="mt-1.5 flex items-baseline justify-between"
-                    style={{ fontSize: 'var(--text-xxs)', color: 'var(--color-text-3)' }}
+                    className="mt-1.5 flex items-baseline justify-between tnum"
+                    style={{ fontSize: 11, color: 'var(--color-text-3)' }}
                   >
-                    <span>원금 {fmt(l.principal)}원</span>
-                    <span>{pct}% 상환</span>
+                    <span>
+                      <span style={{ color: l.color, fontWeight: 800 }}>{fmt(paid)}</span>
+                      {' / '}
+                      {fmt(l.principal)}원
+                    </span>
+                    <span style={{ color: l.color, fontWeight: 800 }}>{pct}% 상환</span>
                   </div>
                 </button>
               );

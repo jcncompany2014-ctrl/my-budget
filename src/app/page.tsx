@@ -2,6 +2,15 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  type LucideIcon,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import CountUp from '@/components/CountUp';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LiveInvestmentPnL from '@/components/LiveInvestmentPnL';
@@ -770,13 +779,14 @@ function InsightsRow({
   budgetTotal: number;
   currentExpense: number;
 }) {
-  const cards: { tone: 'primary' | 'danger' | 'warn'; emoji: string; title: string; body: string }[] = [];
+  type Card = { tone: 'primary' | 'danger' | 'warn'; Icon: LucideIcon; title: string; body: string };
+  const cards: Card[] = [];
 
   // Forecast
   if (forecast.day >= 5 && forecast.projection > 0) {
     cards.push({
       tone: budgetTotal > 0 && forecast.projection > budgetTotal ? 'warn' : 'primary',
-      emoji: '🔮',
+      Icon: Sparkles,
       title: '월말 예상',
       body: `이대로 가면 ${fmtKRW(forecast.projection)}`,
     });
@@ -787,7 +797,7 @@ function InsightsRow({
     const cat = CATEGORIES[a.cat];
     cards.push({
       tone: a.level === 'over' ? 'danger' : 'warn',
-      emoji: a.level === 'over' ? '🚨' : '⚠️',
+      Icon: a.level === 'over' ? AlertCircle : AlertTriangle,
       title: `${cat?.name ?? a.cat} ${a.level === 'over' ? '예산 초과' : '곧 한도'}`,
       body: `${a.pct}% 사용`,
     });
@@ -798,7 +808,7 @@ function InsightsRow({
     const cat = CATEGORIES[a.cat];
     cards.push({
       tone: 'warn',
-      emoji: '📈',
+      Icon: TrendingUp,
       title: `${cat?.name ?? a.cat} 이상 지출`,
       body: `평소보다 +${a.deltaPct}%`,
     });
@@ -808,7 +818,7 @@ function InsightsRow({
   if (weekly.thisWeek > 0 && weekly.lastWeek > 0) {
     cards.push({
       tone: weekly.delta < 0 ? 'primary' : weekly.delta > 20 ? 'warn' : 'primary',
-      emoji: weekly.delta < 0 ? '📉' : '📊',
+      Icon: weekly.delta < 0 ? TrendingDown : Activity,
       title: '이번 주',
       body: `${fmtKRW(weekly.thisWeek)} (${weekly.delta >= 0 ? '+' : ''}${weekly.delta}% vs 지난주)`,
     });
@@ -820,30 +830,63 @@ function InsightsRow({
     <section className="px-5 pb-3 pt-1">
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
         {cards.map((c, i) => {
-          const bg =
-            c.tone === 'danger'
-              ? 'var(--color-danger-soft)'
-              : c.tone === 'warn'
-                ? '#FFF6E5'
-                : 'var(--color-primary-soft)';
           const fg =
             c.tone === 'danger'
               ? 'var(--color-danger)'
               : c.tone === 'warn'
                 ? '#B45309'
                 : 'var(--color-primary)';
+          const tintBg =
+            c.tone === 'danger'
+              ? 'rgba(240, 68, 82, 0.10)'
+              : c.tone === 'warn'
+                ? 'rgba(180, 83, 9, 0.10)'
+                : 'rgba(0, 185, 86, 0.10)';
           return (
-            <div key={i} className="shrink-0 rounded-2xl p-3.5"
-              style={{ background: bg, minWidth: 200 }}>
-              <div className="flex items-center gap-2">
-                <span style={{ fontSize: 16 }}>{c.emoji}</span>
-                <p style={{ color: fg, fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
-                  {c.title}
+            <div key={i}
+              className="relative shrink-0 overflow-hidden rounded-2xl p-3.5"
+              style={{
+                background: 'var(--color-card)',
+                minWidth: 220,
+                boxShadow: '0 1px 2px rgba(20, 28, 40, 0.04)',
+              }}>
+              {/* Aurora wash from top-right, color-coded */}
+              <div aria-hidden style={{
+                position: 'absolute', inset: 0,
+                background: `radial-gradient(120% 80% at 100% 0%, ${tintBg} 0%, transparent 70%)`,
+                pointerEvents: 'none',
+              }} />
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 24, height: 24,
+                    borderRadius: 6,
+                    background: tintBg,
+                    color: fg,
+                    flexShrink: 0,
+                  }}>
+                    <c.Icon size={14} strokeWidth={2.4} />
+                  </span>
+                  <p style={{
+                    color: fg,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {c.title}
+                  </p>
+                </div>
+                <p className="mt-2 leading-snug" style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}>
+                  {c.body}
                 </p>
               </div>
-              <p className="mt-1.5" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-                {c.body}
-              </p>
             </div>
           );
         })}

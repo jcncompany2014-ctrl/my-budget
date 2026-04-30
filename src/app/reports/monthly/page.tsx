@@ -1,9 +1,11 @@
 'use client';
 
+import { ChevronLeft, ChevronRight, Download, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
+import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import { useAllAccounts } from '@/lib/accounts';
@@ -36,7 +38,8 @@ export default function MonthlyReportPage() {
     return { monthTx, expense, income, sorted };
   }, [tx, year, month, mode, ready]);
 
-  if (!data) return null;
+  if (!ready || !data) return <SkeletonHome />;
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
 
   const accById: Record<string, { name: string }> = {};
   accounts.forEach((a) => { accById[a.id] = { name: a.name }; });
@@ -61,39 +64,79 @@ export default function MonthlyReportPage() {
         <button type="button" onClick={() => {
           const d = new Date(year, month - 1, 1);
           setYear(d.getFullYear()); setMonth(d.getMonth());
-        }} className="tap rounded-full px-3 py-2"
-          style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-          ← 이전
+        }} className="tap flex h-10 w-10 items-center justify-center rounded-full"
+          style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
+          aria-label="이전 달">
+          <ChevronLeft size={20} strokeWidth={2.4} />
         </button>
+        <p style={{ color: 'var(--color-text-2)', fontSize: 12, fontWeight: 700 }}>
+          {data.monthTx.length}건의 거래
+        </p>
         <button type="button" onClick={() => {
           const d = new Date(year, month + 1, 1);
           if (d > today) return;
           setYear(d.getFullYear()); setMonth(d.getMonth());
-        }} className="tap rounded-full px-3 py-2"
-          style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-          다음 →
+        }} disabled={isCurrentMonth}
+          className="tap flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-30"
+          style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
+          aria-label="다음 달">
+          <ChevronRight size={20} strokeWidth={2.4} />
         </button>
       </section>
 
-      <section className="px-5 pb-3 pt-1">
-        <div className="grid grid-cols-2 gap-2">
-          <Card label={mode === 'business' ? '매출' : '수입'} value={data.income} tone="primary" />
-          <Card label={mode === 'business' ? '비용' : '지출'} value={data.expense} tone="danger" />
-        </div>
-      </section>
-
-      <section className="px-5 pb-3 pt-2">
-        <div className="rounded-2xl p-5" style={{ background: 'var(--color-card)' }}>
-          <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
-            {mode === 'business' ? '영업이익' : '순수익'}
-          </p>
-          <Money value={data.income - data.expense} sign="auto"
-            className="mt-1 block tracking-tight"
-            style={{
-              fontSize: 'var(--text-2xl)',
-              fontWeight: 800,
-              color: data.income - data.expense >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
-            }} />
+      {/* Hero — net + income/expense bar */}
+      <section className="px-5 pb-3 pt-1 print:hidden">
+        <div
+          className="relative overflow-hidden rounded-2xl px-5 py-5"
+          style={{
+            background: data.income - data.expense >= 0
+              ? 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)'
+              : 'linear-gradient(135deg, #F04452 0%, #C71F2D 100%)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
+          }}
+        >
+          <div aria-hidden style={{
+            position: 'absolute', top: -40, right: -40,
+            width: 180, height: 180, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }} />
+          <div className="relative">
+            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: 800, letterSpacing: '0.04em' }}>
+              {mode === 'business' ? '영업이익' : '순수익'}
+            </p>
+            <p className="tnum mt-1 tracking-tight" style={{
+              color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.025em',
+            }}>
+              {data.income - data.expense >= 0 ? '+' : '−'}{fmt(data.income - data.expense)}원
+            </p>
+            {data.income + data.expense > 0 && (
+              <div className="mt-3 flex h-[4px] overflow-hidden rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                <div style={{
+                  width: `${(data.income / (data.income + data.expense)) * 100}%`,
+                  background: 'rgba(255,255,255,0.95)',
+                }} />
+              </div>
+            )}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-white">
+              <div>
+                <p style={{ opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em' }}>
+                  {mode === 'business' ? '매출' : '수입'}
+                </p>
+                <p className="tnum mt-0.5" style={{ fontSize: 14, fontWeight: 800 }}>
+                  +{fmt(data.income)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p style={{ opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em' }}>
+                  {mode === 'business' ? '비용' : '지출'}
+                </p>
+                <p className="tnum mt-0.5" style={{ fontSize: 14, fontWeight: 800 }}>
+                  −{fmt(data.expense)}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -134,12 +177,16 @@ export default function MonthlyReportPage() {
       )}
 
       <section className="grid grid-cols-2 gap-2 px-5 pb-10 pt-2 print:hidden">
-        <button type="button" onClick={exportCsv} className="tap h-12 rounded-xl"
+        <button type="button" onClick={exportCsv}
+          className="tap flex h-12 items-center justify-center gap-1.5 rounded-xl"
           style={{ background: 'var(--color-primary)', color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <Download size={16} strokeWidth={2.4} />
           CSV 내보내기
         </button>
-        <button type="button" onClick={printReport} className="tap h-12 rounded-xl"
+        <button type="button" onClick={printReport}
+          className="tap flex h-12 items-center justify-center gap-1.5 rounded-xl"
           style={{ background: 'var(--color-text-1)', color: 'var(--color-card)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <Printer size={16} strokeWidth={2.4} />
           PDF 인쇄
         </button>
       </section>
