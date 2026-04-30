@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import BankIcon from '@/components/icons/BankIcon';
+import CardIcon from '@/components/icons/CardIcon';
 import Keypad from '@/components/Keypad';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
@@ -296,10 +298,11 @@ function Group({
               }}
             >
               <div className="flex items-center gap-3">
-                <div
-                  className="h-9 w-9 shrink-0 rounded-full"
-                  style={{ background: a.color }}
-                />
+                {a.type === 'card' ? (
+                  <CardIcon name={a.bank || a.name} size={36} />
+                ) : (
+                  <BankIcon name={a.bank || a.name} size={36} />
+                )}
                 <span
                   style={{
                     color: 'var(--color-text-1)',
