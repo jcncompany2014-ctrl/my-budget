@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { use, useEffect, useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import IconCircle from '@/components/ui/IconCircle';
 import Sheet from '@/components/ui/Sheet';
@@ -56,11 +57,7 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
   const cats = type === 'expense' ? expenseList : incomeList;
 
   if (!ready) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
-      </div>
-    );
+    return <SkeletonHome />;
   }
 
   if (!item) {

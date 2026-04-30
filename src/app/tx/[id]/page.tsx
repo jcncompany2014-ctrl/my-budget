@@ -3,9 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
-import { CATEGORIES } from '@/lib/categories';
+import { CATEGORIES, isTransferCategory } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 
@@ -49,11 +50,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   const item = tx.find((t) => t.id === id);
 
   if (!ready) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
-      </div>
-    );
+    return <SkeletonHome />;
   }
 
   if (!item) {
@@ -151,18 +148,25 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
       </header>
 
       <section className="px-6 pb-8 pt-6 text-center">
-        <CategoryIcon catId={item.cat} size={64} style={{ margin: '0 auto 16px' }} />
-        <p className="text-sm" style={{ color: 'var(--color-text-3)' }}>
-          {cat?.name ?? '기타'}
+        <CategoryIcon catId={item.cat} size={72} style={{ margin: '0 auto 16px' }} />
+        <p style={{
+          color: 'var(--color-text-3)',
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+        }}>
+          {(cat?.name ?? '기타').toUpperCase()}
+          {(isTransferCategory(item.cat) || item.transferPairId) && ' · 이체'}
         </p>
         <p
-          className="tnum mt-1 text-3xl font-extrabold tracking-tight"
-          style={{ color: isIncome ? 'var(--color-primary)' : 'var(--color-text-1)' }}
+          className="tnum mt-1.5 tracking-tight"
+          style={{
+            color: isIncome ? 'var(--color-primary)' : 'var(--color-text-1)',
+            fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em',
+            lineHeight: 1.1,
+          }}
         >
-          {isIncome ? '+' : '-'}
-          {fmt(item.amount)}원
+          {isIncome ? '+' : '−'}{fmt(item.amount)}<span style={{ fontSize: 18, marginLeft: 2, color: 'var(--color-text-3)' }}>원</span>
         </p>
-        <p className="mt-1 text-base font-semibold" style={{ color: 'var(--color-text-1)' }}>
+        <p className="mt-2 text-base font-semibold" style={{ color: 'var(--color-text-1)' }}>
           {item.merchant}
         </p>
       </section>

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import CategoryDonut from '@/components/CategoryDonut';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LineChart from '@/components/LineChart';
+import { SkeletonHome } from '@/components/Skeleton';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
@@ -146,7 +147,7 @@ export default function StatsPage() {
   }, [tx, period]);
 
   if (!ready) {
-    return <div className="flex h-[calc(100dvh-72px)] items-center justify-center"><span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span></div>;
+    return <SkeletonHome />;
   }
 
   return (

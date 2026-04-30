@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
+import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
 import { useToast } from '@/components/Toast';
@@ -131,11 +132,7 @@ export default function ListPage() {
   };
 
   if (!ready) {
-    return (
-      <div className="flex h-[calc(100dvh-72px)] items-center justify-center">
-        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
-      </div>
-    );
+    return <SkeletonHome />;
   }
 
   return (

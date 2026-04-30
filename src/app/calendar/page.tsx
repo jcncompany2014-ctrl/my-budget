@@ -1,9 +1,12 @@
 'use client';
 
+import { Inbox } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
+import EmptyState from '@/components/ui/EmptyState';
 import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 
@@ -84,12 +87,12 @@ export default function CalendarPage() {
     : [];
 
   if (!ready) {
-    return (
-      <div className="flex h-[calc(100dvh-68px)] items-center justify-center">
-        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
-      </div>
-    );
+    return <SkeletonHome />;
   }
+
+  // Today's spend for the bottom hint
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayTotal = totalsByDay.get(todayKey)?.expense ?? 0;
 
   return (
     <>
@@ -287,15 +290,11 @@ export default function CalendarPage() {
             </span>
           </div>
           {dayTx.length === 0 ? (
-            <div
-              className="rounded-2xl px-6 py-12 text-center"
-              style={{ background: 'var(--color-card)' }}
-            >
-              <p className="text-3xl">📭</p>
-              <p className="mt-2 text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
-                이 날 거래가 없어요
-              </p>
-            </div>
+            <EmptyState
+              icon={Inbox}
+              iconColor="#94A3B8"
+              title="이 날 거래가 없어요"
+            />
           ) : (
             <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
               {dayTx.map((t, i) => (
@@ -315,7 +314,12 @@ export default function CalendarPage() {
       {!selectedDay && (
         <p className="px-5 pb-10 text-center text-xs" style={{ color: 'var(--color-text-3)' }}>
           날짜를 누르면 그 날 거래가 보여요 · 오늘은{' '}
-          <span style={{ color: 'var(--color-primary)' }}>{fmtKRW(0)}</span>
+          <span style={{
+            color: todayTotal > 0 ? 'var(--color-danger)' : 'var(--color-text-2)',
+            fontWeight: 700,
+          }} className="tnum">
+            {todayTotal > 0 ? `-${fmtKRW(todayTotal)}` : fmtKRW(0)}
+          </span>
         </p>
       )}
     </>
