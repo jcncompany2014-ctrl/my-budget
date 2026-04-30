@@ -13,6 +13,7 @@ import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { fmt } from '@/lib/format';
 import { useInvestments } from '@/lib/investments';
+import { useCreditLines } from '@/lib/credit-lines';
 import { useLoans } from '@/lib/loans';
 import { type Currency, FX_IDS, type QuoteId, toKRW, useQuotes } from '@/lib/quotes';
 import { useAllTransactions } from '@/lib/storage';
@@ -22,6 +23,7 @@ import { SkeletonHome } from '@/components/Skeleton';
 export default function WalletPage() {
   const { accounts, ready } = useAccounts();
   const { items: loans, ready: loansReady } = useLoans();
+  const { items: creditLines } = useCreditLines();
   const { items: investmentItems, ready: invReady } = useInvestments();
   const { add: addTx } = useAllTransactions();
   const { mode } = useMode();
@@ -122,7 +124,10 @@ export default function WalletPage() {
 
   const debtTotal = cards.reduce((s, a) => s + a.balance, 0); // negative
   const loanDebt = modeLoans.reduce((s, l) => s + l.remaining, 0);
-  const net = cashTotal + investmentTotal + debtTotal - loanDebt;
+  const modeCreditLines = creditLines.filter((l) => l.scope === mode);
+  const locUsedTotal = modeCreditLines.reduce((s, l) => s + l.used, 0);
+  const locLimitTotal = modeCreditLines.reduce((s, l) => s + l.limit, 0);
+  const net = cashTotal + investmentTotal + debtTotal - loanDebt - locUsedTotal;
 
   return (
     <>
@@ -161,6 +166,14 @@ export default function WalletPage() {
         <SummaryRow label="투자" value={investmentTotal} tone="text" />
         <SummaryRow label="카드 사용" value={Math.abs(debtTotal)} tone="danger" prefix="−" />
         <SummaryRow label="대출 잔액" value={loanDebt} tone="danger" prefix="−" />
+        {locUsedTotal > 0 && (
+          <SummaryRow
+            label={`마이너스 사용 (한도 ${fmt(locLimitTotal)})`}
+            value={locUsedTotal}
+            tone="danger"
+            prefix="−"
+          />
+        )}
       </section>
 
       {investmentCostTotal > 0 && (

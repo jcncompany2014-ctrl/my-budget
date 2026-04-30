@@ -11,6 +11,7 @@ import {
   CalendarRange,
   CircleDollarSign,
   Coins,
+  CreditCard,
   DoorOpen,
   FileBarChart,
   FileSpreadsheet,
@@ -199,6 +200,7 @@ export default function SettingsPage() {
         <Row icon={Target} iconBg="#1FBA6E" label="저축 목표" subtitle="목표 만들고 추적" onClick={() => router.push('/settings/goals')} />
         <Row icon={Repeat} iconBg="#0EA5E9" label="정기결제" subtitle="구독·통신비·멤버십" onClick={() => router.push('/settings/recurring')} />
         <Row icon={Banknote} iconBg="#EF4444" label="대출 관리" subtitle="원리금·이자율·만기" onClick={() => router.push('/settings/loans')} />
+        <Row icon={CreditCard} iconBg="#BE185D" label="마이너스 통장" subtitle="한도·사용액·자동 이자 차감" onClick={() => router.push('/settings/credit-line')} />
         <Row icon={TrendingUp} iconBg="#00B956" label="투자 관리" subtitle="주식·펀드·암호화폐" onClick={() => router.push('/settings/investments')} />
         <Row icon={LayoutGrid} iconBg="#8B5CF6" label="카테고리" subtitle="커스텀 카테고리 추가/편집" onClick={() => router.push('/settings/categories')} />
         <Row icon={Sparkles} iconBg="#EC4899" label="자동 분류 규칙" subtitle="소비처 → 카테고리 자동 적용" onClick={() => router.push('/settings/category-rules')} />
