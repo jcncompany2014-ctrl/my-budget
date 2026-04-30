@@ -9,6 +9,7 @@ export const KEYS = {
   goals: 'asset/goals/v1',
   recurring: 'asset/recurring/v1',
   loans: 'asset/loans/v1',
+  creditLines: 'asset/credit-lines/v1',
   vendors: 'asset/vendors/v1',
   employees: 'asset/employees/v1',
   locations: 'asset/locations/v1',

@@ -112,6 +112,27 @@ export type Loan = {
   autoPayment?: boolean;
 };
 
+/**
+ * Revolving line of credit (마이너스 통장). Limit is the upper bound on draw,
+ * used is the current outstanding balance (= negative net-worth contribution).
+ * Interest accrues monthly on `used` at `rate`; v1 deducts it from a linked
+ * account on `interestDay` rather than rolling it into `used`.
+ */
+export type LineOfCredit = {
+  id: string;
+  name: string;
+  emoji: string;
+  scope: Scope;
+  bank: string;
+  limit: number;
+  used: number;
+  rate: number;
+  interestDay?: number;
+  linkedAccountId?: string;
+  autoInterest?: boolean;
+  color: string;
+};
+
 export type Vendor = {
   id: string;
   name: string;
