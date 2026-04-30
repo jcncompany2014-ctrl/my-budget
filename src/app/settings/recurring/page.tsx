@@ -3,6 +3,7 @@
 import { Repeat } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
@@ -102,6 +103,7 @@ export default function RecurringSettingsPage() {
           <div className="space-y-2">
             {sorted.map((r) => {
               const daysUntil = daysUntilDay(r.day);
+              const urgent = daysUntil <= 3;
               return (
                 <button
                   key={r.id}
@@ -113,19 +115,26 @@ export default function RecurringSettingsPage() {
                   className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
                   style={{ background: 'var(--color-card)' }}
                 >
-                  <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl"
-                    style={{ background: 'var(--color-gray-100)' }}
-                  >
-                    {r.emoji}
-                  </div>
+                  <CategoryIcon catId={r.cat} size={44} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
                       {r.name}
                     </p>
-                    <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-                      매월 {r.day}일 · {daysUntil === 0 ? '오늘' : `D-${daysUntil}`}
-                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+                        매월 {r.day}일
+                      </span>
+                      <span
+                        className="tnum rounded-full px-1.5 py-0.5"
+                        style={{
+                          background: urgent ? 'var(--color-danger)' : 'var(--color-gray-100)',
+                          color: urgent ? '#fff' : 'var(--color-text-3)',
+                          fontSize: 10, fontWeight: 800,
+                        }}
+                      >
+                        {daysUntil === 0 ? '오늘' : `D-${daysUntil}`}
+                      </span>
+                    </div>
                   </div>
                   <p className="tnum text-[15px] font-bold" style={{ color: 'var(--color-text-1)' }}>
                     {fmt(r.amount)}원

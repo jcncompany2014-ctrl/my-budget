@@ -1,5 +1,6 @@
 'use client';
 
+import { Briefcase, Repeat } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import IconCircle from '@/components/ui/IconCircle';
 import { useToast } from '@/components/Toast';
@@ -84,9 +85,21 @@ export default function SmartPrompts() {
               className="flex items-start gap-3 rounded-2xl px-4 py-3"
               style={{ background: 'var(--color-primary-soft)' }}
             >
-              <IconCircle size={32} background="var(--color-primary)" color="#fff" fontSize={16}>
-                <span style={{ fontFamily: 'inherit' }}>🔁</span>
-              </IconCircle>
+              <span
+                aria-hidden
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32, height: 32,
+                  borderRadius: '50%',
+                  background: 'var(--color-primary)',
+                  color: '#fff',
+                  flexShrink: 0,
+                }}
+              >
+                <Repeat size={16} strokeWidth={2.4} />
+              </span>
               <div className="min-w-0 flex-1">
                 <p
                   style={{
@@ -158,9 +171,21 @@ export default function SmartPrompts() {
               className="flex items-start gap-3 rounded-2xl px-4 py-3"
               style={{ background: '#FFF6E5' }}
             >
-              <IconCircle size={32} background="#B45309" color="#fff" fontSize={16}>
-                <span style={{ fontFamily: 'inherit' }}>💼</span>
-              </IconCircle>
+              <span
+                aria-hidden
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32, height: 32,
+                  borderRadius: '50%',
+                  background: '#B45309',
+                  color: '#fff',
+                  flexShrink: 0,
+                }}
+              >
+                <Briefcase size={16} strokeWidth={2.4} />
+              </span>
               <div className="min-w-0 flex-1">
                 <p style={{ color: '#B45309', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
                   급여로 보이는 거래

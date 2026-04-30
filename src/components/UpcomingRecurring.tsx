@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { fmt } from '@/lib/format';
 import { daysUntilDay, useRecurring } from '@/lib/recurring';
 
@@ -35,32 +36,40 @@ export default function UpcomingRecurring() {
           </svg>
         </Link>
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {upcoming.map((r) => (
-            <div
-              key={r.id}
-              className="flex w-[150px] shrink-0 flex-col gap-2 rounded-2xl p-3.5"
-              style={{ background: 'var(--color-gray-50)' }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-lg">{r.emoji}</span>
-                <span
-                  className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                  style={{
-                    background: r.daysUntil <= 3 ? 'var(--color-danger-soft)' : 'var(--color-gray-100)',
-                    color: r.daysUntil <= 3 ? 'var(--color-danger)' : 'var(--color-text-2)',
-                  }}
-                >
-                  {r.daysUntil === 0 ? '오늘' : `D-${r.daysUntil}`}
-                </span>
+          {upcoming.map((r) => {
+            const urgent = r.daysUntil <= 3;
+            return (
+              <div
+                key={r.id}
+                className="flex w-[150px] shrink-0 flex-col gap-2 rounded-2xl p-3.5"
+                style={{
+                  background: 'var(--color-gray-50)',
+                  outline: urgent ? '1.5px solid var(--color-danger)' : 'none',
+                  outlineOffset: -1.5,
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <CategoryIcon catId={r.cat} size={32} />
+                  <span
+                    className="tnum rounded-full px-2 py-0.5"
+                    style={{
+                      background: urgent ? 'var(--color-danger)' : 'var(--color-gray-100)',
+                      color: urgent ? '#fff' : 'var(--color-text-2)',
+                      fontSize: 10, fontWeight: 800, letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {r.daysUntil === 0 ? '오늘' : `D-${r.daysUntil}`}
+                  </span>
+                </div>
+                <p className="truncate text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
+                  {r.name}
+                </p>
+                <p className="tnum text-sm font-semibold" style={{ color: 'var(--color-text-2)' }}>
+                  {fmt(r.amount)}원
+                </p>
               </div>
-              <p className="truncate text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
-                {r.name}
-              </p>
-              <p className="tnum text-sm font-semibold" style={{ color: 'var(--color-text-2)' }}>
-                {fmt(r.amount)}원
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
