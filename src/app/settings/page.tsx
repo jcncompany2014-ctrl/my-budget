@@ -1,5 +1,53 @@
 'use client';
 
+import {
+  Activity,
+  AlertTriangle,
+  ArrowDownLeft,
+  ArrowUpRight,
+  BadgeCheck,
+  Banknote,
+  BarChart3,
+  Bike,
+  Building2,
+  Calendar,
+  CalendarDays,
+  CalendarRange,
+  CircleDollarSign,
+  Coins,
+  Database,
+  DoorOpen,
+  Factory,
+  FileBarChart,
+  FileSpreadsheet,
+  FileText,
+  Flag,
+  Globe,
+  HardDrive,
+  Heart,
+  Info,
+  Languages,
+  LayoutGrid,
+  type LucideIcon,
+  Package,
+  PiggyBank,
+  Receipt,
+  RefreshCw,
+  Repeat,
+  Search,
+  Settings,
+  Shield,
+  Sparkles,
+  Star,
+  Store,
+  Target,
+  TrendingUp,
+  Trophy,
+  Upload,
+  Users,
+  User as UserIcon,
+  Wallet,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import TopBar from '@/components/TopBar';
@@ -105,6 +153,8 @@ export default function SettingsPage() {
 
       <Section title="언어 · 통화">
         <Row
+          icon={Languages}
+          iconBg="#3182F6"
           label="언어"
           subtitle={language === 'ko' ? '한국어' : 'English'}
           onClick={() => setLanguage(language === 'ko' ? 'en' : 'ko')}
@@ -115,6 +165,8 @@ export default function SettingsPage() {
           }
         />
         <Row
+          icon={Globe}
+          iconBg="#0EA5E9"
           label="기본 통화"
           subtitle={
             currency === 'KRW' ? '대한민국 원 (KRW)'
@@ -137,6 +189,8 @@ export default function SettingsPage() {
 
       <Section title="세무">
         <Row
+          icon={Receipt}
+          iconBg="#EF4444"
           label="과세자 구분"
           subtitle={taxType === 'general' ? '일반과세자 (매출세액 1/11)' : '간이과세자 (업종별 부가가치율)'}
           onClick={() => setTaxType(taxType === 'general' ? 'simplified' : 'general')}
@@ -149,41 +203,43 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="관리">
-        <Row label="계좌 관리" subtitle="은행, 카드, 현금, 투자 계좌" onClick={() => router.push('/settings/accounts')} />
-        <Row label="예산 설정" subtitle="카테고리별 한 달 한도" onClick={() => router.push('/settings/budgets')} />
-        <Row label="저축 목표" subtitle="목표 만들고 추적" onClick={() => router.push('/settings/goals')} />
-        <Row label="정기결제" subtitle="구독·통신비·멤버십" onClick={() => router.push('/settings/recurring')} />
-        <Row label="대출 관리" subtitle="원리금·이자율·만기" onClick={() => router.push('/settings/loans')} />
-        <Row label="투자 관리" subtitle="주식·펀드·암호화폐" onClick={() => router.push('/settings/investments')} />
-        <Row label="카테고리" subtitle="커스텀 카테고리 추가/편집" onClick={() => router.push('/settings/categories')} />
-        <Row label="자동 분류 규칙" subtitle="소비처 → 카테고리 자동 적용" onClick={() => router.push('/settings/category-rules')} />
-        <Row label="즐겨찾기 거래" subtitle="자주 쓰는 거래" onClick={() => router.push('/settings/favorites')} />
-        <Row label="챌린지" subtitle="지출 한도 챌린지" onClick={() => router.push('/settings/challenges')} />
+        <Row icon={Wallet} iconBg="#3182F6" label="계좌 관리" subtitle="은행, 카드, 현금, 투자 계좌" onClick={() => router.push('/settings/accounts')} />
+        <Row icon={BarChart3} iconBg="#FF8A1F" label="예산 설정" subtitle="카테고리별 한 달 한도" onClick={() => router.push('/settings/budgets')} />
+        <Row icon={Target} iconBg="#1FBA6E" label="저축 목표" subtitle="목표 만들고 추적" onClick={() => router.push('/settings/goals')} />
+        <Row icon={Repeat} iconBg="#0EA5E9" label="정기결제" subtitle="구독·통신비·멤버십" onClick={() => router.push('/settings/recurring')} />
+        <Row icon={Banknote} iconBg="#EF4444" label="대출 관리" subtitle="원리금·이자율·만기" onClick={() => router.push('/settings/loans')} />
+        <Row icon={TrendingUp} iconBg="#00B956" label="투자 관리" subtitle="주식·펀드·암호화폐" onClick={() => router.push('/settings/investments')} />
+        <Row icon={LayoutGrid} iconBg="#8B5CF6" label="카테고리" subtitle="커스텀 카테고리 추가/편집" onClick={() => router.push('/settings/categories')} />
+        <Row icon={Sparkles} iconBg="#EC4899" label="자동 분류 규칙" subtitle="소비처 → 카테고리 자동 적용" onClick={() => router.push('/settings/category-rules')} />
+        <Row icon={Star} iconBg="#F59E0B" label="즐겨찾기 거래" subtitle="자주 쓰는 거래" onClick={() => router.push('/settings/favorites')} />
+        <Row icon={Trophy} iconBg="#A47148" label="챌린지" subtitle="지출 한도 챌린지" onClick={() => router.push('/settings/challenges')} />
       </Section>
 
       <Section title="사업자 (사업 모드)">
-        <Row label="사업자 정보" subtitle="상호·등록번호·수수료율·자동 인건비" onClick={() => router.push('/business/profile')} />
-        <Row label="거래처" subtitle="매출처·매입처 등록" onClick={() => router.push('/settings/vendors')} />
-        <Row label="직원·인건비" subtitle="월 기본급 자동 집계" onClick={() => router.push('/settings/employees')} />
-        <Row label="사업장" subtitle="매장 A/B 분리 관리" onClick={() => router.push('/settings/locations')} />
-        <Row label="일일 마감" subtitle="매장별 일별 매출 정리" onClick={() => router.push('/business/daily-close')} />
-        <Row label="세무 일정" subtitle="부가세·종합소득세 D-day" onClick={() => router.push('/business/tax-calendar')} />
-        <Row label="부가세 도우미" subtitle="분기별 매출/매입 정리" onClick={() => router.push('/business/vat')} />
-        <Row label="종합소득세 / 원천세" subtitle="누적 영업이익 기반 + 3.3% 계산기" onClick={() => router.push('/business/income-tax')} />
-        <Row label="손익계산서" subtitle="매출·비용·영업이익 + 매장별" onClick={() => router.push('/business/pnl')} />
-        <Row label="현금흐름표" subtitle="기간별 유입/유출" onClick={() => router.push('/business/cashflow')} />
-        <Row label="재고 추정" subtitle="매입 − 매출 기반" onClick={() => router.push('/business/inventory')} />
+        <Row icon={BadgeCheck} iconBg="#3182F6" label="사업자 정보" subtitle="상호·등록번호·수수료율·자동 인건비" onClick={() => router.push('/business/profile')} />
+        <Row icon={Users} iconBg="#0EA5E9" label="거래처" subtitle="매출처·매입처 등록" onClick={() => router.push('/settings/vendors')} />
+        <Row icon={UserIcon} iconBg="#3182F6" label="직원·인건비" subtitle="월 기본급 자동 집계" onClick={() => router.push('/settings/employees')} />
+        <Row icon={Store} iconBg="#FF8A1F" label="사업장" subtitle="매장 A/B 분리 관리" onClick={() => router.push('/settings/locations')} />
+        <Row icon={DoorOpen} iconBg="#6B7684" label="일일 마감" subtitle="매장별 일별 매출 정리" onClick={() => router.push('/business/daily-close')} />
+        <Row icon={CalendarDays} iconBg="#EF4444" label="세무 일정" subtitle="부가세·종합소득세 D-day" onClick={() => router.push('/business/tax-calendar')} />
+        <Row icon={Receipt} iconBg="#EF4444" label="부가세 도우미" subtitle="분기별 매출/매입 정리" onClick={() => router.push('/business/vat')} />
+        <Row icon={CircleDollarSign} iconBg="#00B956" label="종합소득세 / 원천세" subtitle="누적 영업이익 기반 + 3.3% 계산기" onClick={() => router.push('/business/income-tax')} />
+        <Row icon={FileBarChart} iconBg="#8B5CF6" label="손익계산서" subtitle="매출·비용·영업이익 + 매장별" onClick={() => router.push('/business/pnl')} />
+        <Row icon={Coins} iconBg="#10B981" label="현금흐름표" subtitle="기간별 유입/유출" onClick={() => router.push('/business/cashflow')} />
+        <Row icon={Package} iconBg="#F97316" label="재고 추정" subtitle="매입 − 매출 기반" onClick={() => router.push('/business/inventory')} />
       </Section>
 
       <Section title="리포트">
-        <Row label="이번 달 리포트" subtitle="카테고리별 분석 + CSV/PDF" onClick={() => router.push('/reports/monthly')} />
-        <Row label="연간 리포트" subtitle="올해의 소비처 TOP 5" onClick={() => router.push('/reports/yearly')} />
-        <Row label="연말정산 도우미" subtitle="공제 가능 사용액 추정" onClick={() => router.push('/reports/year-end-tax')} />
-        <Row label="검색" subtitle="전체 기간 검색 + 고급 필터" onClick={() => router.push('/search')} />
+        <Row icon={CalendarRange} iconBg="#3182F6" label="이번 달 리포트" subtitle="카테고리별 분석 + CSV/PDF" onClick={() => router.push('/reports/monthly')} />
+        <Row icon={FileSpreadsheet} iconBg="#8B5CF6" label="연간 리포트" subtitle="올해의 소비처 TOP 5" onClick={() => router.push('/reports/yearly')} />
+        <Row icon={Shield} iconBg="#14B8A6" label="연말정산 도우미" subtitle="공제 가능 사용액 추정" onClick={() => router.push('/reports/year-end-tax')} />
+        <Row icon={Search} iconBg="#94A3B8" label="검색" subtitle="전체 기간 검색 + 고급 필터" onClick={() => router.push('/search')} />
       </Section>
 
       <Section title="데이터">
         <Row
+          icon={Upload}
+          iconBg="#3182F6"
           label="백업 내보내기"
           subtitle="JSON 파일로 저장"
           onClick={() => {
@@ -192,6 +248,8 @@ export default function SettingsPage() {
           }}
         />
         <Row
+          icon={ArrowDownLeft}
+          iconBg="#0EA5E9"
           label="백업 복원하기"
           subtitle="JSON 파일에서 가져오기"
           onClick={() => fileInput.current?.click()}
@@ -208,6 +266,8 @@ export default function SettingsPage() {
           }}
         />
         <Row
+          icon={FileText}
+          iconBg="#94A3B8"
           label="CSV 가져오기"
           subtitle="다른 가계부에서 내보낸 CSV"
           onClick={() => csvInput.current?.click()}
@@ -224,6 +284,8 @@ export default function SettingsPage() {
           }}
         />
         <Row
+          icon={RefreshCw}
+          iconBg="#00B956"
           label="자동 백업"
           subtitle={lastAutoBackupAt() ? `최근 ${lastAutoBackupAt()!.toLocaleDateString('ko-KR')}` : '아직 없음'}
           right={
@@ -241,6 +303,7 @@ export default function SettingsPage() {
           }}
         />
         <Row
+          icon={AlertTriangle}
           label="모든 데이터 초기화"
           subtitle="되돌릴 수 없어요"
           danger
@@ -249,9 +312,11 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="앱 정보">
-        <Row label="활동 로그" subtitle="최근 50개 동작" onClick={() => router.push('/settings/audit')} />
-        <Row label="버전" subtitle="0.3.0 · 로컬 저장소" />
+        <Row icon={Activity} iconBg="#94A3B8" label="활동 로그" subtitle="최근 50개 동작" onClick={() => router.push('/settings/audit')} />
+        <Row icon={Info} iconBg="#3182F6" label="버전" subtitle="0.3.0 · 로컬 저장소" />
         <Row
+          icon={HardDrive}
+          iconBg="#8B95A1"
           label="저장 공간 사용"
           subtitle={`${(storageBytes / 1024).toFixed(1)} KB / ${(STORAGE_LIMIT_BYTES / 1024 / 1024).toFixed(0)} MB`}
           right={
@@ -306,22 +371,45 @@ function Row({
   onClick,
   right,
   danger,
+  icon: Icon,
+  iconBg,
 }: {
   label: string;
   subtitle?: string;
   onClick?: () => void;
   right?: React.ReactNode;
   danger?: boolean;
+  icon?: LucideIcon;
+  iconBg?: string;
 }) {
   const Component = onClick ? 'button' : 'div';
+  const tint = iconBg ?? (danger ? 'var(--color-danger)' : 'var(--color-text-2)');
   return (
     <Component
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className="tap flex w-full items-center justify-between px-4 py-4 text-left"
+      className="tap flex w-full items-center gap-3 px-4 py-3.5 text-left"
       style={{ borderBottom: '1px solid var(--color-divider)' }}
     >
-      <div>
+      {Icon && (
+        <span
+          aria-hidden
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: `${tint}1f`,
+            color: tint,
+            flexShrink: 0,
+          }}
+        >
+          <Icon size={18} strokeWidth={2.2} />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
         <p
           className="text-[15px] font-semibold"
           style={{ color: danger ? 'var(--color-danger)' : 'var(--color-text-1)' }}
@@ -329,7 +417,7 @@ function Row({
           {label}
         </p>
         {subtitle && (
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-3)' }}>
+          <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--color-text-3)' }}>
             {subtitle}
           </p>
         )}
