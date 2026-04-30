@@ -9,6 +9,7 @@ import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
+import { useAccounts } from '@/lib/accounts';
 import { fmt } from '@/lib/format';
 import { computeMonthlyPayment, useLoans } from '@/lib/loans';
 import type { Loan } from '@/lib/types';
@@ -240,6 +241,7 @@ function LoanEditor({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(loan);
+  const { accounts } = useAccounts();
   const valid = draft.name.trim().length > 0 && draft.principal > 0 && draft.termMonths > 0;
   const monthly = draft.monthlyPayment ?? computeMonthlyPayment(draft.principal, draft.rate, draft.termMonths);
 
@@ -343,6 +345,85 @@ function LoanEditor({
           />
         </div>
 
+        <Field label="자동 상환">
+          <button
+            type="button"
+            onClick={() => setDraft({ ...draft, autoPayment: !draft.autoPayment })}
+            className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
+            style={{ background: 'var(--color-gray-100)' }}
+          >
+            <div className="text-left">
+              <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>
+                매월 자동 상환
+              </p>
+              <p style={{ color: 'var(--color-text-3)', fontSize: 11, marginTop: 2 }}>
+                결제일에 출금 계좌에서 차감 + 잔액 자동 갱신
+              </p>
+            </div>
+            <SmallSwitch on={!!draft.autoPayment} />
+          </button>
+        </Field>
+
+        {draft.autoPayment && (
+          <>
+            <Field label="결제일 (1-31)">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={31}
+                value={draft.paymentDay ?? ''}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    paymentDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
+                  })
+                }
+                placeholder="예) 25"
+                className="tnum h-12 w-full rounded-xl px-4 outline-none"
+                style={{
+                  background: 'var(--color-gray-100)',
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 500,
+                }}
+              />
+              <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+                그 달에 해당 날짜가 없으면 (예: 31일) 그 달의 마지막 날에 처리
+              </p>
+            </Field>
+
+            <Field label="출금 계좌">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {accounts.length === 0 ? (
+                  <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>
+                    먼저 계좌를 추가하세요
+                  </p>
+                ) : (
+                  accounts.map((a) => {
+                    const sel = draft.linkedAccountId === a.id;
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setDraft({ ...draft, linkedAccountId: a.id })}
+                        className="tap shrink-0 rounded-2xl px-4 py-2 text-[13px] font-semibold"
+                        style={{
+                          background: sel ? `${a.color}22` : 'var(--color-gray-100)',
+                          color: sel ? a.color : 'var(--color-text-2)',
+                          border: `1.5px solid ${sel ? a.color : 'transparent'}`,
+                        }}
+                      >
+                        {a.name}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </Field>
+          </>
+        )}
+
         <div className="mt-4 flex gap-2">
           {onDelete && (
             <button
@@ -406,6 +487,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </label>
       {children}
     </div>
+  );
+}
+
+function SmallSwitch({ on }: { on: boolean }) {
+  return (
+    <span
+      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+      style={{ background: on ? 'var(--color-primary)' : 'var(--color-gray-300)' }}
+    >
+      <span
+        className="absolute h-5 w-5 rounded-full bg-white shadow transition-transform"
+        style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)' }}
+      />
+    </span>
   );
 }
 
