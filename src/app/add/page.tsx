@@ -68,7 +68,8 @@ function AddPage() {
   const [outstanding, setOutstanding] = useState<boolean>(false);
   const [hasReceipt, setHasReceipt] = useState<boolean>(false);
   const [continueAfterSave, setContinueAfterSave] = useState(false);
-  const [dateOffset, setDateOffset] = useState<0 | 1 | 2>(0); // 0=today, 1=어제, 2=그제
+  // Pickable date — defaults to today, can be any past/future date.
+  const [txDate, setTxDate] = useState<Date>(() => new Date());
 
   // Recent merchant suggestions for autocomplete
   const recentMerchants = useMemo(() => {
@@ -137,8 +138,7 @@ function AddPage() {
   const submit = (saveAsFavorite = false, force = false) => {
     if (!valid) return;
     const numericAmount = Number(amount);
-    const txDate = new Date();
-    if (dateOffset > 0) txDate.setDate(txDate.getDate() - dateOffset);
+    // txDate already a state — use as-is (may be today / yesterday / custom)
     const tx: Transaction = {
       id: 'tn' + Date.now().toString(36),
       date: txDate.toISOString(),
@@ -542,35 +542,7 @@ function AddPage() {
             />
           </section>
 
-          <section className="px-4 pb-3">
-            <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
-              날짜
-            </label>
-            <div className="flex gap-2">
-              {([[0, '오늘'], [1, '어제'], [2, '그제']] as const).map(([d, label]) => {
-                const sel = dateOffset === d;
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDateOffset(d)}
-                    className="tap flex-1 rounded-xl py-2.5"
-                    style={{
-                      background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
-                      color: sel ? '#fff' : 'var(--color-text-2)',
-                      fontSize: 'var(--text-xs)',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-              더 이전 날짜는 저장 후 거래 편집에서 변경
-            </p>
-          </section>
+          <DatePickerSection date={txDate} onChange={setTxDate} />
 
           <section className="px-4 pb-3">
             <button
@@ -819,5 +791,97 @@ function AddPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ─── Date picker section ───────────────────────────────────────────── */
+
+function DatePickerSection({
+  date,
+  onChange,
+}: {
+  date: Date;
+  onChange: (d: Date) => void;
+}) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const twoDays = new Date(today); twoDays.setDate(today.getDate() - 2);
+
+  const ymd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const dayKey = ymd(date);
+  const isToday = dayKey === ymd(today);
+  const isYesterday = dayKey === ymd(yesterday);
+  const isTwoDays = dayKey === ymd(twoDays);
+  const isCustom = !isToday && !isYesterday && !isTwoDays;
+
+  const formatCustomLabel = () => {
+    const now = new Date();
+    const sameYear = date.getFullYear() === now.getFullYear();
+    const opts: Intl.DateTimeFormatOptions = sameYear
+      ? { month: 'long', day: 'numeric', weekday: 'short' }
+      : { year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('ko-KR', opts);
+  };
+
+  const presets: Array<{ label: string; sel: boolean; onClick: () => void }> = [
+    { label: '오늘', sel: isToday, onClick: () => onChange(new Date()) },
+    { label: '어제', sel: isYesterday, onClick: () => { const d = new Date(); d.setDate(d.getDate() - 1); onChange(d); } },
+    { label: '그제', sel: isTwoDays, onClick: () => { const d = new Date(); d.setDate(d.getDate() - 2); onChange(d); } },
+  ];
+
+  return (
+    <section className="px-4 pb-3">
+      <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+        날짜
+      </label>
+      <div className="flex gap-2">
+        {presets.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={p.onClick}
+            className="tap flex-1 rounded-xl py-2.5"
+            style={{
+              background: p.sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
+              color: p.sel ? '#fff' : 'var(--color-text-2)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 700,
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+        <label
+          className="tap relative flex flex-1 cursor-pointer items-center justify-center rounded-xl py-2.5"
+          style={{
+            background: isCustom ? 'var(--color-primary)' : 'var(--color-gray-100)',
+            color: isCustom ? '#fff' : 'var(--color-text-2)',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 700,
+          }}
+        >
+          {isCustom ? formatCustomLabel() : '직접 선택'}
+          <input
+            type="date"
+            value={dayKey}
+            max={ymd(new Date(today.getFullYear() + 5, today.getMonth(), today.getDate()))}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) return;
+              const [y, m, d] = v.split('-').map(Number);
+              if (!y || !m || !d) return;
+              const next = new Date(y, m - 1, d);
+              next.setHours(new Date().getHours(), new Date().getMinutes());
+              onChange(next);
+            }}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            style={{ width: '100%', height: '100%' }}
+          />
+        </label>
+      </div>
+    </section>
   );
 }
