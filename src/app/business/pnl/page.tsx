@@ -1,9 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import CountUp from '@/components/CountUp';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LineChart from '@/components/LineChart';
 import Money from '@/components/Money';
+import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import Card from '@/components/ui/Card';
 import IconCircle from '@/components/ui/IconCircle';
@@ -106,7 +108,7 @@ export default function PnLPage() {
     return months;
   }, [tx, employees, ready]);
 
-  if (!data) return null;
+  if (!data) return <SkeletonHome />;
   const margin = data.revenue > 0 ? Math.round((data.operating / data.revenue) * 100) : 0;
   const fixedRatio = data.revenue > 0 ? Math.round(((data.fixedSga + data.employeeCost) / data.revenue) * 100) : 0;
   const variableRatio = data.revenue > 0 ? Math.round((data.variableSga / data.revenue) * 100) : 0;
@@ -127,17 +129,56 @@ export default function PnLPage() {
       </Section>
 
       <Section bottomGap={4}>
-        <Card padding={20} background="linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))">
-          <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-            영업이익
-          </p>
-          <Money value={data.operating} sign="auto"
-            className="mt-1 block tracking-tight"
-            style={{ color: '#fff', fontSize: 'var(--text-3xl)', fontWeight: 800 }} />
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-xxs)', marginTop: 4 }}>
-            마진율 {margin}% · 매출 {fmt(data.revenue)}원
-          </p>
-        </Card>
+        <div
+          className="relative overflow-hidden rounded-2xl px-5 py-5"
+          style={{
+            background: data.operating >= 0
+              ? 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)'
+              : 'linear-gradient(135deg, #F04452 0%, #C71F2D 100%)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
+          }}
+        >
+          <div aria-hidden style={{
+            position: 'absolute', top: -40, right: -40,
+            width: 180, height: 180, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }} />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <p style={{
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
+              }}>
+                영업이익
+              </p>
+              <span
+                className="tnum"
+                style={{
+                  padding: '3px 8px', borderRadius: 999,
+                  background: 'rgba(255,255,255,0.20)',
+                  color: '#fff',
+                  fontSize: 10, fontWeight: 800,
+                }}
+              >
+                마진 {margin}%
+              </span>
+            </div>
+            <CountUp
+              value={data.operating}
+              format={(n) => (n >= 0 ? '+' : '−') + fmt(Math.abs(n)) + '원'}
+              className="mt-1.5 block tracking-tight"
+              style={{
+                color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.025em',
+              }}
+            />
+            <p className="tnum mt-1" style={{
+              color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 600,
+            }}>
+              매출 {fmt(data.revenue)}원
+            </p>
+          </div>
+        </div>
       </Section>
 
       {/* 6-month operating income line chart */}

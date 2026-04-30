@@ -1,7 +1,10 @@
 'use client';
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import CountUp from '@/components/CountUp';
 import Money from '@/components/Money';
+import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import Card from '@/components/ui/Card';
 import Section from '@/components/ui/Section';
@@ -65,7 +68,7 @@ export default function IncomeTaxPage() {
   const withholdingTax = Math.round(grossNum * 0.033);
   const netReceived = grossNum - withholdingTax;
 
-  if (!data) return null;
+  if (!data) return <SkeletonHome />;
 
   return (
     <>
@@ -78,34 +81,76 @@ export default function IncomeTaxPage() {
       </Section>
 
       <Section topGap={4} bottomGap={4}>
-        <div className="flex items-center justify-between">
-          <button type="button" onClick={() => setYear(year - 1)} className="tap rounded-full px-3 py-2"
-            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-            ← {year - 1}
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setYear(year - 1)}
+            className="tap flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
+            aria-label="이전 해">
+            <ChevronLeft size={20} strokeWidth={2.4} />
           </button>
-          <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>{year}년</span>
-          <button type="button" onClick={() => setYear(Math.min(today.getFullYear(), year + 1))} className="tap rounded-full px-3 py-2"
-            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-            {year + 1} →
+          <span className="flex-1 text-center" style={{
+            color: 'var(--color-text-1)', fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em',
+          }}>
+            {year}년 종합소득세
+          </span>
+          <button type="button" onClick={() => setYear(Math.min(today.getFullYear(), year + 1))}
+            disabled={year >= today.getFullYear()}
+            className="tap flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-30"
+            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
+            aria-label="다음 해">
+            <ChevronRight size={20} strokeWidth={2.4} />
           </button>
         </div>
       </Section>
 
       <Section bottomGap={4}>
-        <Card padding={20} background="linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))">
-          <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-            추정 종합소득세 + 지방소득세
-          </p>
-          <Money
-            value={data.total}
-            sign="never"
-            className="mt-1 block tracking-tight"
-            style={{ color: '#fff', fontSize: 'var(--text-2xl)', fontWeight: 800 }}
-          />
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-xxs)', marginTop: 4 }}>
-            과세표준 약 {fmt(data.taxableIncome)}원 · 실효세율 {data.effectiveRate.toFixed(1)}%
-          </p>
-        </Card>
+        <div
+          className="relative overflow-hidden rounded-2xl px-5 py-5"
+          style={{
+            background: 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
+          }}
+        >
+          <div aria-hidden style={{
+            position: 'absolute', top: -40, right: -40,
+            width: 180, height: 180, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }} />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <p style={{
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
+              }}>
+                추정 납부세액 (지방세 포함)
+              </p>
+              {data.taxableIncome > 0 && (
+                <span style={{
+                  padding: '3px 8px', borderRadius: 999,
+                  background: 'rgba(255,255,255,0.20)',
+                  color: '#fff',
+                  fontSize: 10, fontWeight: 800,
+                }}>
+                  실효 {data.effectiveRate.toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <CountUp
+              value={data.total}
+              format={(n) => Math.round(n).toLocaleString('ko-KR') + '원'}
+              className="mt-1.5 block tracking-tight"
+              style={{
+                color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.025em',
+              }}
+            />
+            <p className="tnum mt-1" style={{
+              color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 600,
+            }}>
+              과세표준 {fmt(data.taxableIncome)}원
+            </p>
+          </div>
+        </div>
       </Section>
 
       <Section title="산출 내역">
