@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AssetIcon from '@/components/icons/AssetIcon';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
+import { SkeletonList } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
@@ -76,8 +77,14 @@ export default function InvestmentsPage() {
   }, [list, editing]);
   const { quotes, refresh, loading } = useQuotes(liveIds);
 
-  if (!ready)
-    return <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>로딩 중...</div>;
+  if (!ready) {
+    return (
+      <>
+        <TopBar title="투자" />
+        <SkeletonList rows={4} />
+      </>
+    );
+  }
 
   const enriched = list.map((i) => {
     const live = i.autoQuote && i.quoteId ? quotes[i.quoteId as QuoteId] : undefined;

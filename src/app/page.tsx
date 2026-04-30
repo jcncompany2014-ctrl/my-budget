@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import CountUp from '@/components/CountUp';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LiveInvestmentPnL from '@/components/LiveInvestmentPnL';
+import { SkeletonHome } from '@/components/Skeleton';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
 import SmartPrompts from '@/components/SmartPrompts';
@@ -36,11 +37,7 @@ export default function HomePage() {
   const { mode } = useMode();
 
   if (!ready) {
-    return (
-      <div className="flex h-[calc(100dvh-72px)] items-center justify-center">
-        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
-      </div>
-    );
+    return <SkeletonHome />;
   }
 
   const now = new Date();
@@ -561,26 +558,78 @@ function HeroCard({
   expense: number;
   third: { label: string; value: number; suffix?: string; isPercent?: boolean };
 }) {
+  // Proportional bar: income vs expense (relative to their sum so the bar
+  // always fills, regardless of magnitude). Gives a quick "where my money
+  // went" visual without taking column real-estate.
+  const total = income + expense;
+  const incomePct = total > 0 ? (income / total) * 100 : 50;
+
   return (
     <section className="px-5 pb-3">
       <div
-        className="overflow-hidden rounded-2xl"
+        className="relative overflow-hidden rounded-2xl"
         style={{
           background: 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)',
           boxShadow: '0 4px 18px rgba(0, 0, 0, 0.18)',
         }}
       >
-        <div className="px-5 py-5 text-white">
-          <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, opacity: 0.9 }}>{label}</p>
+        {/* Subtle aurora highlight in the top-right */}
+        <div aria-hidden style={{
+          position: 'absolute',
+          top: -40, right: -40,
+          width: 180, height: 180,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div className="relative px-5 py-5 text-white">
+          <div className="flex items-center justify-between">
+            <p style={{ fontSize: 11, fontWeight: 700, opacity: 0.85, letterSpacing: '0.04em' }}>
+              {label.toUpperCase()}
+            </p>
+            {value !== 0 && (
+              <span
+                className="tnum"
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(255,255,255,0.18)',
+                  fontSize: 10, fontWeight: 800, letterSpacing: '-0.01em',
+                }}
+              >
+                {value >= 0 ? '흑자' : '적자'}
+              </span>
+            )}
+          </div>
           <CountUp
             value={value}
             format={(n) => (n >= 0 ? '+' : '−') + fmt(Math.abs(n)) + '원'}
-            className="mt-1 block tracking-tight"
-            style={{ fontSize: 'var(--text-2xl)', fontWeight: 800 }}
+            className="mt-1.5 block tracking-tight"
+            style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, letterSpacing: '-0.025em' }}
           />
-          <div className="mt-4 grid grid-cols-3 gap-2" style={{ fontSize: 'var(--text-xs)' }}>
-            <Stat label="수입" value={`+${fmtShort(income)}원`} />
-            <Stat label="지출" value={`−${fmtShort(expense)}원`} />
+
+          {/* Proportional income vs expense bar */}
+          {total > 0 && (
+            <div className="mt-4">
+              <div className="flex h-[4px] w-full overflow-hidden rounded-full"
+                style={{ background: 'rgba(255,255,255,0.22)' }}>
+                <div style={{
+                  width: `${incomePct}%`,
+                  background: 'rgba(255,255,255,0.95)',
+                  transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+                }} />
+                <div style={{
+                  width: `${100 - incomePct}%`,
+                  background: 'rgba(255,255,255,0.36)',
+                }} />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 grid grid-cols-3 gap-2" style={{ fontSize: 'var(--text-xs)' }}>
+            <Stat label="수입" value={`+${fmtShort(income)}원`} dotOpacity={0.95} />
+            <Stat label="지출" value={`−${fmtShort(expense)}원`} dotOpacity={0.36} />
             <Stat
               label={third.label}
               value={third.isPercent ? `${third.value}%` : `${fmtShort(third.value)}원`}
@@ -589,7 +638,7 @@ function HeroCard({
         </div>
         <Link
           href="/stats"
-          className="tap flex items-center justify-between px-5 py-3 text-white"
+          className="tap relative flex items-center justify-between px-5 py-3 text-white"
           style={{ background: 'rgba(0,0,0,0.18)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
         >
           <span>자세히 보기</span>
@@ -602,11 +651,29 @@ function HeroCard({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  dotOpacity,
+}: {
+  label: string;
+  value: string;
+  dotOpacity?: number;
+}) {
   return (
-    <div className="min-w-0 border-r last:border-r-0" style={{ borderColor: 'rgba(255,255,255,0.2)', paddingRight: 8 }}>
-      <p style={{ opacity: 0.8 }}>{label}</p>
-      <p className="tnum mt-0.5 truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+    <div className="min-w-0">
+      <div className="flex items-center gap-1">
+        {dotOpacity != null && (
+          <span aria-hidden style={{
+            display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+            background: '#fff', opacity: dotOpacity,
+          }} />
+        )}
+        <span style={{ opacity: 0.8, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em' }}>
+          {label}
+        </span>
+      </div>
+      <p className="tnum mt-0.5 truncate" style={{ fontSize: 13, fontWeight: 800 }}>
         {value}
       </p>
     </div>

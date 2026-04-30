@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import BankIcon from '@/components/icons/BankIcon';
+import CardIcon from '@/components/icons/CardIcon';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import { useMode } from '@/components/ModeProvider';
@@ -14,6 +16,7 @@ import { useLoans } from '@/lib/loans';
 import { type Currency, FX_IDS, type QuoteId, toKRW, useQuotes } from '@/lib/quotes';
 import { useAllTransactions } from '@/lib/storage';
 import type { Account, Transaction } from '@/lib/types';
+import { SkeletonHome } from '@/components/Skeleton';
 
 export default function WalletPage() {
   const { accounts, ready } = useAccounts();
@@ -62,11 +65,7 @@ export default function WalletPage() {
   };
 
   if (!ready || !loansReady || !invReady) {
-    return (
-      <div className="flex h-[calc(100dvh-68px)] items-center justify-center">
-        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
-      </div>
-    );
+    return <SkeletonHome />;
   }
 
   const banks = accounts.filter((a) => a.type === 'bank');
@@ -255,10 +254,7 @@ export default function WalletPage() {
                 <Link key={a.id} href="/settings/investments"
                   className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
                   style={{ background: 'var(--color-card)' }}>
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
-                    style={{ background: a.color, fontSize: 'var(--text-base)' }}>
-                    {(a.bank || a.name).slice(0, 1)}
-                  </div>
+                  <BankIcon name={a.bank || a.name} size={44} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
                       {a.name}
@@ -541,12 +537,11 @@ function AccountCard({ account, onCorrect }: { account: Account; onCorrect?: (a:
       className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
       style={{ background: 'var(--color-card)' }}
     >
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
-        style={{ background: account.color, fontSize: 'var(--text-base)' }}
-      >
-        {(account.bank || account.name).slice(0, 1)}
-      </div>
+      {isCard ? (
+        <CardIcon name={account.bank || account.name} size={36} />
+      ) : (
+        <BankIcon name={account.bank || account.name} size={44} />
+      )}
       <div className="min-w-0 flex-1">
         <p
           className="truncate"
@@ -561,6 +556,7 @@ function AccountCard({ account, onCorrect }: { account: Account; onCorrect?: (a:
           {account.bank}
           {account.last4 ? ` · ****${account.last4}` : ''}
           {account.main ? ' · 주거래' : ''}
+          {account.savingsTarget ? ' · 저축' : ''}
         </p>
       </div>
       <Money

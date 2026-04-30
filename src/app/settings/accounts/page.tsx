@@ -2,7 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import BankIcon from '@/components/icons/BankIcon';
+import CardIcon from '@/components/icons/CardIcon';
 import { useMode } from '@/components/ModeProvider';
+import { SkeletonList } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
@@ -27,9 +30,10 @@ export default function AccountsSettingsPage() {
 
   if (!ready) {
     return (
-      <div className="flex h-[calc(100dvh-68px)] items-center justify-center">
-        <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
-      </div>
+      <>
+        <TopBar title={mode === 'business' ? '사업 계좌' : '개인 계좌'} />
+        <SkeletonList rows={4} />
+      </>
     );
   }
 
@@ -104,12 +108,11 @@ export default function AccountsSettingsPage() {
                 className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
                 style={{ background: 'var(--color-card)' }}
               >
-                <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-bold text-white"
-                  style={{ background: a.color }}
-                >
-                  {(a.bank || a.name).slice(0, 1)}
-                </div>
+                {a.type === 'card' ? (
+                  <CardIcon name={a.bank || a.name} size={36} />
+                ) : (
+                  <BankIcon name={a.bank || a.name} size={44} />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
                     {a.name}
