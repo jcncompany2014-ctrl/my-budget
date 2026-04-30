@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import BottomNav from './BottomNav';
 import { ensureAutoBackup } from '@/lib/auto-backup';
+import { ensureAutoCreditLine } from '@/lib/auto-credit-line';
 import { ensureAutoLoanPayment } from '@/lib/auto-loan-payment';
 import { ensureAutoPayroll } from '@/lib/auto-payroll';
 import { ensureAutoRecurring } from '@/lib/auto-recurring';
@@ -20,6 +21,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     ensureAutoPayroll();
     ensureAutoRecurring();
     ensureAutoLoanPayment();
+    ensureAutoCreditLine();
   }, []);
 
   return (
