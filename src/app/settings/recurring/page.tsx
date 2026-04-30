@@ -1,10 +1,12 @@
 'use client';
 
+import { Repeat } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { daysUntilDay, useRecurring } from '@/lib/recurring';
@@ -90,18 +92,12 @@ export default function RecurringSettingsPage() {
 
       <section className="px-5 pb-3 pt-2">
         {items.length === 0 ? (
-          <div
-            className="rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">🔁</p>
-            <p className="mt-2 text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
-              정기결제를 추가해 보세요
-            </p>
-            <p className="mt-1 text-xs" style={{ color: 'var(--color-text-3)' }}>
-              넷플릭스, 통신비, 멤버십 같은 매달 빠져나가는 항목
-            </p>
-          </div>
+          <EmptyState
+            icon={Repeat}
+            iconColor="#0EA5E9"
+            title="정기결제를 추가해 보세요"
+            hint="넷플릭스, 통신비, 멤버십 — 매달 자동으로 거래가 만들어집니다"
+          />
         ) : (
           <div className="space-y-2">
             {sorted.map((r) => {

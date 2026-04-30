@@ -118,7 +118,9 @@ export default function StatsPage() {
     });
     return Array.from(map.entries())
       .map(([cat, value]) => ({
-        cat, value,
+        cat,
+        catId: cat,
+        value,
         name: CATEGORIES[cat]?.name ?? '기타',
         emoji: CATEGORIES[cat]?.emoji ?? '💰',
         color: CATEGORIES[cat]?.color ?? '#94A3B8',

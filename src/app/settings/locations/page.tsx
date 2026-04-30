@@ -1,9 +1,11 @@
 'use client';
 
+import { Store } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { useLocations } from '@/lib/locations';
 import type { BusinessLocation } from '@/lib/types';
 
@@ -44,15 +46,12 @@ export default function LocationsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {items.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-            <p className="text-3xl">🏪</p>
-            <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              사업장을 추가하면 매장별로 분리할 수 있어요
-            </p>
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              매장 A, 매장 B처럼 등록하고 거래에 태그하세요
-            </p>
-          </div>
+          <EmptyState
+            icon={Store}
+            iconColor="#FF8A1F"
+            title="사업장을 추가하면 매장별로 분리할 수 있어요"
+            hint="매장 A, 매장 B처럼 등록하고 거래에 태그하세요"
+          />
         ) : (
           <div className="space-y-2">
             <button

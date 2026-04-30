@@ -1,11 +1,13 @@
 'use client';
 
+import { Trophy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { useChallenges } from '@/lib/challenges';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { fmt, isExpense } from '@/lib/format';
@@ -56,15 +58,12 @@ export default function ChallengesPage() {
 
       <section className="px-5 pb-3 pt-1">
         {list.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-            <p className="text-3xl">⛳</p>
-            <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              지출 챌린지를 만들어 보세요
-            </p>
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              "이번 주 식비 5만원 안 넘기" 같은 한도 챌린지
-            </p>
-          </div>
+          <EmptyState
+            icon={Trophy}
+            iconColor="#A47148"
+            title="지출 챌린지를 만들어 보세요"
+            hint='"이번 주 식비 5만원 안 넘기" 같은 한도를 정해두면 진행률이 추적됩니다'
+          />
         ) : (
           <div className="space-y-2">
             {list.map((c) => (

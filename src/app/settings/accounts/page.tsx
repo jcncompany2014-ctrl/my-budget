@@ -2,12 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Wallet } from 'lucide-react';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
 import { useMode } from '@/components/ModeProvider';
 import { SkeletonList } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { useAccounts } from '@/lib/accounts';
 import { fmt } from '@/lib/format';
 import type { Account, AccountType } from '@/lib/types';
@@ -86,15 +88,12 @@ export default function AccountsSettingsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {accounts.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-            <p className="text-3xl">🏦</p>
-            <p className="mt-2 text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
-              아직 계좌가 없어요
-            </p>
-            <p className="mt-1 text-xs" style={{ color: 'var(--color-text-3)' }}>
-              아래 + 버튼으로 계좌를 추가하세요
-            </p>
-          </div>
+          <EmptyState
+            icon={Wallet}
+            iconColor="#3182F6"
+            title="아직 계좌가 없어요"
+            hint="은행, 카드, 현금, 투자 계좌까지 — 아래 + 버튼으로 추가"
+          />
         ) : (
           <div className="space-y-2">
             {accounts.map((a) => (

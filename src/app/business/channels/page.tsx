@@ -55,7 +55,7 @@ export default function ChannelsPage() {
       ) : (
         <>
           <section className="flex justify-center px-5 py-6">
-            <CategoryDonut data={data.byChannel.map((c) => ({ name: c.name, emoji: c.emoji, color: c.color, value: c.value }))} total={data.total} />
+            <CategoryDonut data={data.byChannel.map((c) => ({ catId: c.cat, name: c.name, emoji: c.emoji, color: c.color, value: c.value }))} total={data.total} />
           </section>
 
           <section className="px-5 pb-10">

@@ -1,11 +1,13 @@
 'use client';
 
+import { Banknote } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { fmt } from '@/lib/format';
 import { computeMonthlyPayment, useLoans } from '@/lib/loans';
 import type { Loan } from '@/lib/types';
@@ -85,24 +87,12 @@ export default function LoansPage() {
 
       <section className="px-5 pb-3 pt-2">
         {list.length === 0 ? (
-          <div
-            className="rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">🏦</p>
-            <p
-              className="mt-2"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              대출이 없어요
-            </p>
-            <p
-              className="mt-1"
-              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
-            >
-              주택담보·신용대출·할부 등 등록 가능
-            </p>
-          </div>
+          <EmptyState
+            icon={Banknote}
+            iconColor="#EF4444"
+            title="대출이 없어요"
+            hint="주택담보·신용대출·할부까지 — 원리금, 이자율, 만기를 한 번에 추적"
+          />
         ) : (
           <div className="space-y-2">
             {list.map((l) => {

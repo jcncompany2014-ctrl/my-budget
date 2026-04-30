@@ -1,10 +1,12 @@
 'use client';
 
+import { Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { useVendors } from '@/lib/vendors';
 import type { Vendor } from '@/lib/types';
 
@@ -46,15 +48,12 @@ export default function VendorsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {list.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-            <p className="text-3xl">🤝</p>
-            <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              거래처를 추가해 보세요
-            </p>
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              매출처(클라이언트), 매입처(공급자) 등록 가능
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            iconColor="#0EA5E9"
+            title="거래처를 추가해 보세요"
+            hint="매출처(클라이언트), 매입처(공급자) — 카테고리 자동 매칭에도 활용"
+          />
         ) : (
           <div className="space-y-2">
             {list.map((v) => (

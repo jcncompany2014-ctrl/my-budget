@@ -1,10 +1,12 @@
 'use client';
 
+import { Activity } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TopBar from '@/components/TopBar';
 import { clearAudit, readAudit, type AuditEvent } from '@/lib/audit';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleString('ko-KR', {
@@ -47,12 +49,12 @@ export default function AuditPage() {
 
       <section className="px-5 pb-3 pt-1">
         {events.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-            <p style={{ fontSize: 32, lineHeight: 1 }}>📜</p>
-            <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              기록된 활동이 없어요
-            </p>
-          </div>
+          <EmptyState
+            icon={Activity}
+            iconColor="#94A3B8"
+            title="기록된 활동이 없어요"
+            hint="거래 추가/삭제 등 모든 동작이 자동으로 여기 기록됩니다"
+          />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {events.map((e, i) => (

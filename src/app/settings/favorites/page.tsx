@@ -1,9 +1,11 @@
 'use client';
 
+import { Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { useFavorites } from '@/lib/favorites';
 import { fmt } from '@/lib/format';
 
@@ -37,15 +39,12 @@ export default function FavoritesPage() {
 
       <section className="px-5 pb-10 pt-2">
         {list.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-            <p className="text-3xl">⭐</p>
-            <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              즐겨찾기가 없어요
-            </p>
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              자주 쓰는 거래는 ⭐로 등록하세요
-            </p>
-          </div>
+          <EmptyState
+            icon={Star}
+            iconColor="#F59E0B"
+            title="즐겨찾기가 없어요"
+            hint="거래 추가 화면에서 ⭐ 버튼을 누르면 한 번에 등록됩니다"
+          />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {list.map((f, i) => (

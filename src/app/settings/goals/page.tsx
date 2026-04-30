@@ -1,10 +1,12 @@
 'use client';
 
+import { Target } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import EmptyState from '@/components/ui/EmptyState';
 import { useGoals } from '@/lib/goals';
 import { fmt } from '@/lib/format';
 import type { SavingsGoal } from '@/lib/types';
@@ -72,15 +74,12 @@ export default function GoalsSettingsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {goals.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
-            <p className="text-3xl">🎯</p>
-            <p className="mt-2 text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
-              아직 목표가 없어요
-            </p>
-            <p className="mt-1 text-xs" style={{ color: 'var(--color-text-3)' }}>
-              아래 + 버튼으로 첫 목표를 만드세요
-            </p>
-          </div>
+          <EmptyState
+            icon={Target}
+            iconColor="#1FBA6E"
+            title="아직 목표가 없어요"
+            hint="제주도 여행, 비상금, 노트북 같은 목표를 만들고 진행률을 추적해보세요"
+          />
         ) : (
           <div className="space-y-2">
             {goals.map((g) => {
