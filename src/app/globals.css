@@ -274,6 +274,13 @@ textarea {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+/* Buttons & links: box-shadow follows border-radius cleanly across browsers,
+   avoiding the corner-mismatch outline+offset can produce on rounded chips. */
+button:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
 button:focus:not(:focus-visible),
 a:focus:not(:focus-visible),
 input:focus:not(:focus-visible) {

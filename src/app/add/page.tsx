@@ -744,7 +744,7 @@ function AddPage() {
                     style={{
                       background: sel ? `${a.color}22` : 'var(--color-gray-100)',
                       color: sel ? a.color : 'var(--color-text-2)',
-                      outline: sel ? `1.5px solid ${a.color}` : 'none',
+                      border: `1.5px solid ${sel ? a.color : 'transparent'}`,
                     }}
                   >
                     {a.name}
