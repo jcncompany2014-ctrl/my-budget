@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 import CountUp from '@/components/CountUp';
+import LiveInvestmentPnL from '@/components/LiveInvestmentPnL';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
 import SmartPrompts from '@/components/SmartPrompts';
@@ -234,6 +235,9 @@ function PersonalHome({
         </Link>
       </section>
 
+      {/* Live investment P&L — only if user has investments */}
+      <LiveInvestmentPnL />
+
       {/* Insights — anomaly, forecast, alerts */}
       <InsightsRow
         anomalies={anomalies}
@@ -464,6 +468,8 @@ function BusinessHome({
           </p>
         </Link>
       </section>
+
+      <LiveInvestmentPnL />
 
       {/* VAT */}
       <section className="px-5 pb-3">

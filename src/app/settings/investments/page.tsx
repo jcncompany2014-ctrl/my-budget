@@ -6,9 +6,13 @@ import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import { useAccounts } from '@/lib/accounts';
 import { useInvestments } from '@/lib/investments';
 import {
+  type Currency,
+  defaultCurrencyForKind,
   FX_IDS,
+  fxRateToKRW,
   type Quote,
   type QuoteId,
   tickerToQuoteId,
@@ -24,49 +28,99 @@ const KIND_LABEL: Record<Investment['kind'], string> = {
   crypto: '암호화폐',
   other: '기타',
 };
+const CURRENCIES: Currency[] = ['KRW', 'USD', 'JPY', 'USDT', 'EUR', 'CNY', 'HKD'];
+const CURRENCY_LABEL: Record<Currency, string> = {
+  KRW: '원 (KRW)',
+  USD: '달러 (USD)',
+  JPY: '엔 (JPY)',
+  USDT: '테더 (USDT)',
+  EUR: '유로 (EUR)',
+  CNY: '위안 (CNY)',
+  HKD: '홍콩달러 (HKD)',
+};
+const LEVERAGES = [1, 2, 3, 5, 10, 20, 50, 100];
+
+function formatNative(price: number, currency: string): string {
+  const c = currency.toUpperCase();
+  if (c === 'KRW') return Math.round(price).toLocaleString('ko-KR') + '원';
+  if (c === 'JPY') return '¥' + Math.round(price).toLocaleString('ja-JP');
+  if (c === 'USD') return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (c === 'USDT' || c === 'USDC') {
+    return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 4 : 2 }) + ' ' + c;
+  }
+  if (c === 'EUR') return '€' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (c === 'CNY') return '¥' + price.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (c === 'HKD') return 'HK$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return price.toString() + ' ' + c;
+}
 
 export default function InvestmentsPage() {
   const router = useRouter();
   const toast = useToast();
   const { mode } = useMode();
   const { items, ready, add, update, remove } = useInvestments();
+  const { accounts } = useAccounts();
   const [editing, setEditing] = useState<Investment | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // Subscribe to all live quotes for current-mode holdings + FX baselines
   const list = useMemo(() => items.filter((i) => i.scope === mode), [items, mode]);
   const liveIds = useMemo<QuoteId[]>(() => {
     const ids = new Set<QuoteId>();
     for (const i of list) {
       if (i.autoQuote && i.quoteId) ids.add(i.quoteId as QuoteId);
     }
-    // Always include FX so non-KRW prices can be converted
+    if (editing?.autoQuote && editing.quoteId) ids.add(editing.quoteId as QuoteId);
     for (const fx of FX_IDS) ids.add(fx);
     return Array.from(ids);
-  }, [list]);
+  }, [list, editing]);
   const { quotes, refresh, loading } = useQuotes(liveIds);
 
   if (!ready)
     return <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>로딩 중...</div>;
 
-  // Compute live values per holding
   const enriched = list.map((i) => {
     const live = i.autoQuote && i.quoteId ? quotes[i.quoteId as QuoteId] : undefined;
+    const productCcy = (i.currency ?? 'KRW') as Currency;
+    const livePriceProductCcy = live?.price;
     const livePriceKRW = live ? toKRW(live.price, live.currency) : undefined;
-    const currentKRW =
-      live && i.shares != null
-        ? livePriceKRW! * i.shares
-        : i.currentValue;
-    const cost = (i.shares ?? 0) * (i.avgPrice ?? 0);
-    const profit = currentKRW - cost;
-    const profitPct = cost > 0 ? (profit / cost) * 100 : 0;
-    return { i, live, livePriceKRW, currentKRW, cost, profit, profitPct };
+
+    const shares = i.shares ?? 0;
+    const valueProductCcy =
+      livePriceProductCcy != null ? livePriceProductCcy * shares : null;
+    const valueKRW =
+      livePriceKRW != null ? livePriceKRW * shares : i.currentValue;
+
+    const costProductCcy = shares * (i.avgPrice ?? 0);
+    const costKRW = toKRW(costProductCcy, productCcy);
+
+    const lev = i.leverage ?? 1;
+    const pnlProductCcy = valueProductCcy != null ? valueProductCcy - costProductCcy : 0;
+    const pnlKRW = valueKRW - costKRW;
+    const pnlPctSpot = costProductCcy > 0 ? (pnlProductCcy / costProductCcy) * 100 : 0;
+    const pnlPctLeveraged = pnlPctSpot * lev;
+
+    return {
+      i,
+      live,
+      productCcy,
+      livePriceProductCcy,
+      livePriceKRW,
+      valueProductCcy,
+      valueKRW,
+      costProductCcy,
+      costKRW,
+      pnlProductCcy,
+      pnlKRW,
+      pnlPctSpot,
+      pnlPctLeveraged,
+      lev,
+    };
   });
 
-  const total = enriched.reduce((s, e) => s + e.currentKRW, 0);
-  const totalCost = enriched.reduce((s, e) => s + e.cost, 0);
-  const profit = total - totalCost;
-  const profitPct = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+  const totalKRW = enriched.reduce((s, e) => s + e.valueKRW, 0);
+  const totalCostKRW = enriched.reduce((s, e) => s + e.costKRW, 0);
+  const profitKRW = totalKRW - totalCostKRW;
+  const profitPctKRW = totalCostKRW > 0 ? (profitKRW / totalCostKRW) * 100 : 0;
 
   const lastTs = enriched.reduce((m, e) => (e.live?.ts ? Math.max(m, e.live.ts) : m), 0);
 
@@ -79,6 +133,7 @@ export default function InvestmentsPage() {
       currentValue: 0,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       autoQuote: true,
+      currency: 'KRW',
     });
     setCreating(true);
   };
@@ -99,17 +154,17 @@ export default function InvestmentsPage() {
         <div className="rounded-2xl p-5" style={{ background: 'var(--color-card)' }}>
           <div className="flex items-baseline justify-between">
             <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
-              평가액
+              평가액 (KRW 환산)
             </p>
             <LiveBadge ts={lastTs} loading={loading} onRefresh={refresh} />
           </div>
-          <Money value={total} sign="never"
+          <Money value={totalKRW} sign="never"
             className="mt-1 block tracking-tight"
             style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--color-text-1)' }} />
-          {totalCost > 0 && (
-            <p className="tnum mt-1" style={{ fontSize: 'var(--text-xs)', color: profit >= 0 ? 'var(--color-primary)' : 'var(--color-danger)', fontWeight: 700 }}>
-              {profit >= 0 ? '+' : '−'}
-              {Math.abs(Math.round(profit)).toLocaleString('ko-KR')}원 ({profit >= 0 ? '+' : '−'}{Math.abs(profitPct).toFixed(2)}%)
+          {totalCostKRW > 0 && (
+            <p className="tnum mt-1" style={{ fontSize: 'var(--text-xs)', color: profitKRW >= 0 ? 'var(--color-primary)' : 'var(--color-danger)', fontWeight: 700 }}>
+              {profitKRW >= 0 ? '+' : '−'}
+              {Math.abs(Math.round(profitKRW)).toLocaleString('ko-KR')}원 ({profitKRW >= 0 ? '+' : '−'}{Math.abs(profitPctKRW).toFixed(2)}%)
             </p>
           )}
         </div>
@@ -123,51 +178,69 @@ export default function InvestmentsPage() {
               투자 자산을 추가해 보세요
             </p>
             <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-              티커만 입력하면 실시간 시세로 자동 평가됩니다
+              주 통화로 평단을 입력하면 KRW 환산까지 실시간으로
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {enriched.map(({ i, live, currentKRW, cost, profit, profitPct }) => (
-              <button key={i.id} type="button" onClick={() => { setEditing(i); setCreating(false); }}
-                className="tap w-full rounded-2xl px-4 py-4 text-left"
-                style={{ background: 'var(--color-card)' }}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full text-base font-bold text-white"
-                      style={{ background: i.color }}>{KIND_LABEL[i.kind][0]}</div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
-                          {i.name}
+            {enriched.map((e) => {
+              const { i, live, productCcy, livePriceProductCcy, valueKRW, pnlKRW, pnlPctLeveraged, pnlPctSpot, lev } = e;
+              const showPct = lev > 1 ? pnlPctLeveraged : pnlPctSpot;
+              return (
+                <button key={i.id} type="button" onClick={() => { setEditing(i); setCreating(false); }}
+                  className="tap w-full rounded-2xl px-4 py-4 text-left"
+                  style={{ background: 'var(--color-card)' }}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold text-white"
+                        style={{ background: i.color }}>{KIND_LABEL[i.kind][0]}</div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                            {i.name}
+                          </p>
+                          {lev > 1 && (
+                            <span className="shrink-0 rounded px-1.5 py-0.5" style={{
+                              background: 'var(--color-text-1)', color: 'var(--color-card)',
+                              fontSize: 9, fontWeight: 800, letterSpacing: '0.02em',
+                            }}>
+                              {lev}x
+                            </span>
+                          )}
+                          {i.autoQuote && i.quoteId && (
+                            <span title="실시간 시세 연동" style={{
+                              display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+                              background: live ? '#00B956' : 'var(--color-gray-300)',
+                            }} />
+                          )}
+                        </div>
+                        <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+                          {KIND_LABEL[i.kind]}{i.ticker ? ` · ${i.ticker}` : ''}{productCcy !== 'KRW' ? ` · ${productCcy}` : ''}
+                          {live && (
+                            <span className="tnum"> · {live.change >= 0 ? '+' : ''}{live.change}%</span>
+                          )}
                         </p>
-                        {i.autoQuote && i.quoteId && (
-                          <span title="실시간 시세 연동" style={{
-                            display: 'inline-block', width: 6, height: 6, borderRadius: 3,
-                            background: live ? '#00B956' : 'var(--color-gray-300)',
-                          }} />
-                        )}
                       </div>
-                      <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-                        {KIND_LABEL[i.kind]}{i.ticker ? ` · ${i.ticker}` : ''}
-                        {live && (
-                          <span className="tnum"> · {live.change >= 0 ? '+' : ''}{live.change}%</span>
-                        )}
-                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <Money value={valueKRW} sign="never"
+                        style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }} />
+                      {productCcy !== 'KRW' && livePriceProductCcy != null && (i.shares ?? 0) > 0 && (
+                        <p className="tnum" style={{ color: 'var(--color-text-3)', fontSize: 9 }}>
+                          {formatNative(livePriceProductCcy * (i.shares ?? 0), productCcy)}
+                        </p>
+                      )}
+                      {Math.abs(pnlKRW) > 0.5 && (
+                        <p className="tnum mt-0.5" style={{ fontSize: 'var(--text-xxs)', color: pnlKRW >= 0 ? 'var(--color-primary)' : 'var(--color-danger)', fontWeight: 700 }}>
+                          {pnlKRW >= 0 ? '+' : '−'}{Math.abs(Math.round(pnlKRW)).toLocaleString('ko-KR')}
+                          {' '}({pnlKRW >= 0 ? '+' : '−'}{Math.abs(showPct).toFixed(1)}%{lev > 1 ? `·${lev}x` : ''})
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Money value={currentKRW} sign="never"
-                      style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }} />
-                    {cost > 0 && (
-                      <p className="tnum" style={{ fontSize: 'var(--text-xxs)', color: profit >= 0 ? 'var(--color-primary)' : 'var(--color-danger)', fontWeight: 700 }}>
-                        {profit >= 0 ? '+' : '−'}{Math.abs(Math.round(profit)).toLocaleString('ko-KR')} ({profit >= 0 ? '+' : '−'}{Math.abs(profitPct).toFixed(1)}%)
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
       </section>
@@ -181,7 +254,10 @@ export default function InvestmentsPage() {
       </section>
 
       {editing && (
-        <Editor i={editing} isNew={creating}
+        <Editor
+          i={editing}
+          isNew={creating}
+          accounts={accounts.filter((a) => a.scope === mode && (a.type === 'investment' || a.type === 'bank'))}
           previewQuote={editing.autoQuote && editing.quoteId ? quotes[editing.quoteId as QuoteId] : undefined}
           onSave={(i) => {
             if (creating) add(i); else update(i.id, i);
@@ -206,7 +282,6 @@ function LiveBadge({
   onRefresh: () => void;
 }) {
   const [, force] = useState(0);
-  // Re-render every 30s to update the "방금/n분 전" label
   useEffect(() => {
     const t = setInterval(() => force((n) => n + 1), 30_000);
     return () => clearInterval(t);
@@ -249,6 +324,7 @@ function LiveBadge({
 function Editor({
   i,
   isNew,
+  accounts,
   previewQuote,
   onSave,
   onDelete,
@@ -256,44 +332,67 @@ function Editor({
 }: {
   i: Investment;
   isNew: boolean;
+  accounts: ReturnType<typeof useAccounts>['accounts'];
   previewQuote?: Quote;
   onSave: (i: Investment) => void;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(i);
+  const productCcy = (draft.currency ?? defaultCurrencyForKind(draft.kind)) as Currency;
 
-  // Keep quoteId in sync with ticker + kind when autoQuote is on
+  // When kind changes and currency is unset/no-longer-sensible, reset to a sensible default.
+  useEffect(() => {
+    if (!draft.currency) {
+      setDraft((d) => ({ ...d, currency: defaultCurrencyForKind(d.kind) }));
+    }
+    // Crypto leverage only applies to crypto; reset when kind != crypto
+    if (draft.kind !== 'crypto' && draft.leverage && draft.leverage > 1) {
+      setDraft((d) => ({ ...d, leverage: 1 }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.kind]);
+
+  // Keep quoteId in sync with ticker + kind + currency when autoQuote is on
   useEffect(() => {
     if (!draft.autoQuote) return;
     if (!draft.ticker) {
       if (draft.quoteId) setDraft((d) => ({ ...d, quoteId: undefined }));
       return;
     }
-    const next = tickerToQuoteId(draft.ticker, draft.kind);
+    const next = tickerToQuoteId(draft.ticker, draft.kind, productCcy);
     if (next !== (draft.quoteId ?? null)) {
       setDraft((d) => ({ ...d, quoteId: next ?? undefined }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft.ticker, draft.kind, draft.autoQuote]);
+  }, [draft.ticker, draft.kind, draft.autoQuote, productCcy]);
 
   const livePriceKRW = previewQuote ? toKRW(previewQuote.price, previewQuote.currency) : undefined;
-  const liveValue =
-    draft.autoQuote && livePriceKRW != null && draft.shares != null
-      ? livePriceKRW * draft.shares
+  const fxRate = fxRateToKRW(productCcy);
+
+  const shares = draft.shares ?? 0;
+  const liveValueProduct =
+    draft.autoQuote && previewQuote != null && shares > 0
+      ? previewQuote.price * shares
       : null;
+  const liveValueKRW =
+    draft.autoQuote && livePriceKRW != null && shares > 0
+      ? livePriceKRW * shares
+      : null;
+
+  const lev = draft.leverage ?? 1;
 
   const valid =
     draft.name.trim().length > 0 &&
     (draft.autoQuote ? !!draft.quoteId : draft.currentValue >= 0);
 
   const handleSave = () => {
-    // If autoQuote on and we have a live value, write it as the persisted snapshot
-    // so wallet pages without live access still see something sensible.
     const persisted: Investment = {
       ...draft,
+      currency: productCcy,
+      leverage: draft.kind === 'crypto' ? lev : undefined,
       currentValue:
-        draft.autoQuote && liveValue != null ? Math.round(liveValue) : draft.currentValue,
+        draft.autoQuote && liveValueKRW != null ? Math.round(liveValueKRW) : draft.currentValue,
     };
     onSave(persisted);
   };
@@ -312,12 +411,17 @@ function Editor({
             className="h-12 w-full rounded-xl px-4 outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
         </Field>
+
         <Field label="종류">
           <div className="flex gap-2">
             {(['stock', 'fund', 'crypto', 'other'] as const).map((k) => {
               const sel = draft.kind === k;
               return (
-                <button key={k} type="button" onClick={() => setDraft({ ...draft, kind: k })}
+                <button key={k} type="button" onClick={() => setDraft({
+                  ...draft, kind: k,
+                  currency: defaultCurrencyForKind(k),
+                  leverage: k === 'crypto' ? (draft.leverage ?? 1) : undefined,
+                })}
                   className="tap flex-1 rounded-xl py-3"
                   style={{
                     background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
@@ -332,15 +436,40 @@ function Editor({
           </div>
         </Field>
 
+        <Field label="주 통화">
+          <div className="flex flex-wrap gap-1.5">
+            {CURRENCIES.map((c) => {
+              const sel = productCcy === c;
+              return (
+                <button key={c} type="button" onClick={() => setDraft({ ...draft, currency: c })}
+                  className="tap rounded-lg px-3 py-2"
+                  style={{
+                    background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                    color: sel ? '#fff' : 'var(--color-text-2)',
+                    fontSize: 12, fontWeight: 700,
+                  }}>
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+            {CURRENCY_LABEL[productCcy]}
+            {productCcy !== 'KRW' && fxRate && (
+              <span className="tnum"> · 1 {productCcy} ≈ {Math.round(fxRate).toLocaleString('ko-KR')}원</span>
+            )}
+          </p>
+        </Field>
+
         <Field label={
-          draft.kind === 'crypto' ? '티커 (예: BTC, ETH, DOGE)'
-            : draft.kind === 'stock' ? '티커 (한국 6자리, 미국 영문 예: AAPL)'
+          draft.kind === 'crypto' ? '티커 (예: BTC, ETH, DOGE — Binance USDT 페어)'
+            : draft.kind === 'stock' ? '티커 (예: 005930=삼성전자, AAPL=애플, 7203.T=토요타)'
               : '티커 (선택)'
         }>
           <input
             value={draft.ticker ?? ''}
             onChange={(e) => setDraft({ ...draft, ticker: e.target.value.toUpperCase() })}
-            placeholder={draft.kind === 'crypto' ? 'BTC' : draft.kind === 'stock' ? '005930 또는 AAPL' : ''}
+            placeholder={draft.kind === 'crypto' ? 'BTC' : draft.kind === 'stock' ? '005930 / AAPL / 7203.T' : ''}
             className="h-12 w-full rounded-xl px-4 outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
         </Field>
@@ -370,10 +499,10 @@ function Editor({
             {draft.autoQuote && previewQuote && (
               <div className="mt-2 rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-soft)' }}>
                 <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
-                  현재가 ({previewQuote.currency})
+                  현재가
                 </p>
                 <p className="tnum mt-0.5" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 800 }}>
-                  {previewQuote.price.toLocaleString('ko-KR')} {previewQuote.currency}
+                  {formatNative(previewQuote.price, previewQuote.currency)}
                   <span className="ml-2" style={{
                     color: previewQuote.change >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
                     fontSize: 'var(--text-xs)',
@@ -391,23 +520,82 @@ function Editor({
           </Field>
         )}
 
+        {draft.kind === 'crypto' && (
+          <Field label="레버리지">
+            <div className="flex flex-wrap gap-1.5">
+              {LEVERAGES.map((L) => {
+                const sel = lev === L;
+                return (
+                  <button key={L} type="button" onClick={() => setDraft({ ...draft, leverage: L })}
+                    className="tap rounded-lg px-3 py-2"
+                    style={{
+                      background: sel ? (L === 1 ? 'var(--color-text-1)' : 'var(--color-danger)') : 'var(--color-gray-100)',
+                      color: sel ? '#fff' : 'var(--color-text-2)',
+                      fontSize: 12, fontWeight: 800,
+                    }}>
+                    {L}x
+                  </button>
+                );
+              })}
+            </div>
+            {lev > 1 && (
+              <p className="mt-1.5" style={{ color: 'var(--color-danger)', fontSize: 11, fontWeight: 600 }}>
+                {lev}x 레버리지 — P&L 표시 % 가 {lev}배로 증폭됩니다
+              </p>
+            )}
+          </Field>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
-          <Field label="평균 매수가 (원)">
-            <input type="number" inputMode="numeric"
+          <Field label={`평균 매수가 (${productCcy})`}>
+            <input type="number" inputMode="decimal" step="any"
               value={draft.avgPrice ?? ''} onChange={(e) => setDraft({ ...draft, avgPrice: Number(e.target.value) || 0 })} placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
           </Field>
-          <Field label="수량">
-            <input type="number" inputMode="decimal"
+          <Field label={draft.kind === 'crypto' ? '수량 (coin)' : '수량 (주)'}>
+            <input type="number" inputMode="decimal" step="any"
               value={draft.shares ?? ''} onChange={(e) => setDraft({ ...draft, shares: Number(e.target.value) || 0 })} placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
           </Field>
         </div>
 
+        {accounts.length > 0 && (
+          <Field label="연동 계좌 (선택)">
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => setDraft({ ...draft, linkedAccountId: undefined })}
+                className="tap rounded-lg px-3 py-2"
+                style={{
+                  background: !draft.linkedAccountId ? 'var(--color-text-1)' : 'var(--color-gray-100)',
+                  color: !draft.linkedAccountId ? '#fff' : 'var(--color-text-2)',
+                  fontSize: 12, fontWeight: 700,
+                }}>
+                없음
+              </button>
+              {accounts.map((a) => {
+                const sel = draft.linkedAccountId === a.id;
+                return (
+                  <button key={a.id} type="button" onClick={() => setDraft({ ...draft, linkedAccountId: a.id })}
+                    className="tap rounded-lg px-3 py-2"
+                    style={{
+                      background: sel ? a.color : `${a.color}1f`,
+                      color: sel ? '#fff' : a.color,
+                      fontSize: 12, fontWeight: 700,
+                    }}>
+                    {a.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+              연동하면 시세 변할 때마다 그 계좌의 잔액도 같이 움직입니다
+            </p>
+          </Field>
+        )}
+
         {!draft.autoQuote && (
-          <Field label="현재 평가액 *">
+          <Field label="현재 평가액 (KRW) *">
             <input type="number" inputMode="numeric"
               value={draft.currentValue || ''} onChange={(e) => setDraft({ ...draft, currentValue: Number(e.target.value) || 0 })} placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
@@ -415,24 +603,34 @@ function Editor({
           </Field>
         )}
 
-        {draft.autoQuote && liveValue != null && (
+        {draft.autoQuote && liveValueKRW != null && (
           <div className="mb-3 rounded-xl px-4 py-3" style={{ background: 'var(--color-gray-100)' }}>
             <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
               자동 평가액
             </p>
             <p className="tnum mt-0.5" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 800 }}>
-              {Math.round(liveValue).toLocaleString('ko-KR')}원
+              {Math.round(liveValueKRW).toLocaleString('ko-KR')}원
             </p>
+            {productCcy !== 'KRW' && liveValueProduct != null && (
+              <p className="tnum mt-0.5" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+                = {formatNative(liveValueProduct, productCcy)}
+              </p>
+            )}
             {(draft.shares ?? 0) > 0 && (draft.avgPrice ?? 0) > 0 && (() => {
-              const cost = (draft.shares ?? 0) * (draft.avgPrice ?? 0);
-              const p = liveValue - cost;
-              const pp = (p / cost) * 100;
+              const costProduct = (draft.shares ?? 0) * (draft.avgPrice ?? 0);
+              const costKRW = toKRW(costProduct, productCcy);
+              const p = liveValueKRW - costKRW;
+              const pp = costProduct > 0 ? (((liveValueProduct ?? 0) - costProduct) / costProduct) * 100 : 0;
+              const ppLev = pp * lev;
               return (
                 <p className="tnum mt-1" style={{
                   color: p >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
                   fontSize: 'var(--text-xs)', fontWeight: 700,
                 }}>
-                  {p >= 0 ? '+' : '−'}{Math.abs(Math.round(p)).toLocaleString('ko-KR')}원 ({p >= 0 ? '+' : '−'}{Math.abs(pp).toFixed(2)}%)
+                  {p >= 0 ? '+' : '−'}{Math.abs(Math.round(p)).toLocaleString('ko-KR')}원 (
+                  {p >= 0 ? '+' : '−'}{Math.abs(lev > 1 ? ppLev : pp).toFixed(2)}%
+                  {lev > 1 ? ` · ${lev}x` : ''}
+                  )
                 </p>
               );
             })()}

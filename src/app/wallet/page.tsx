@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import { useMode } from '@/components/ModeProvider';
@@ -9,17 +9,35 @@ import { useToast } from '@/components/Toast';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { fmt } from '@/lib/format';
+import { useInvestments } from '@/lib/investments';
 import { useLoans } from '@/lib/loans';
+import { type Currency, FX_IDS, type QuoteId, toKRW, useQuotes } from '@/lib/quotes';
 import { useAllTransactions } from '@/lib/storage';
 import type { Account, Transaction } from '@/lib/types';
 
 export default function WalletPage() {
   const { accounts, ready } = useAccounts();
   const { items: loans, ready: loansReady } = useLoans();
+  const { items: investmentItems, ready: invReady } = useInvestments();
   const { add: addTx } = useAllTransactions();
   const { mode } = useMode();
   const toast = useToast();
   const [correctingAcc, setCorrectingAcc] = useState<Account | null>(null);
+
+  // Subscribe to live quotes for all current-mode investment products
+  const modeInvestments = useMemo(
+    () => investmentItems.filter((i) => i.scope === mode),
+    [investmentItems, mode],
+  );
+  const liveIds = useMemo<QuoteId[]>(() => {
+    const ids = new Set<QuoteId>();
+    for (const i of modeInvestments) {
+      if (i.autoQuote && i.quoteId) ids.add(i.quoteId as QuoteId);
+    }
+    for (const fx of FX_IDS) ids.add(fx);
+    return Array.from(ids);
+  }, [modeInvestments]);
+  const { quotes } = useQuotes(liveIds);
 
   const applyCorrection = (account: Account, actualBalance: number) => {
     const diff = actualBalance - account.balance;
@@ -43,7 +61,7 @@ export default function WalletPage() {
     setCorrectingAcc(null);
   };
 
-  if (!ready || !loansReady) {
+  if (!ready || !loansReady || !invReady) {
     return (
       <div className="flex h-[calc(100dvh-68px)] items-center justify-center">
         <span style={{ color: 'var(--color-text-3)' }}>로딩 중...</span>
@@ -57,8 +75,51 @@ export default function WalletPage() {
   const investments = accounts.filter((a) => a.type === 'investment');
   const modeLoans = loans.filter((l) => l.scope === mode);
 
+  // Compute live KRW value + cost per investment product
+  const enrichedInv = modeInvestments.map((i) => {
+    const live = i.autoQuote && i.quoteId ? quotes[i.quoteId as QuoteId] : undefined;
+    const productCcy = (i.currency ?? 'KRW') as Currency;
+    const livePriceKRW = live ? toKRW(live.price, live.currency) : undefined;
+    const shares = i.shares ?? 0;
+    const valueKRW = livePriceKRW != null ? livePriceKRW * shares : i.currentValue;
+    const costKRW = toKRW(shares * (i.avgPrice ?? 0), productCcy);
+    return { i, valueKRW, costKRW };
+  });
+
+  const groupedByAccount = new Map<string, typeof enrichedInv>();
+  const unlinkedInv: typeof enrichedInv = [];
+  for (const e of enrichedInv) {
+    if (e.i.linkedAccountId) {
+      const arr = groupedByAccount.get(e.i.linkedAccountId) ?? [];
+      arr.push(e);
+      groupedByAccount.set(e.i.linkedAccountId, arr);
+    } else {
+      unlinkedInv.push(e);
+    }
+  }
+
+  // Effective per-investment-account balance: linked live value if any, else manual balance
+  const effectiveAccountBalance = (a: Account): number => {
+    if (a.type !== 'investment') return a.balance;
+    const linked = groupedByAccount.get(a.id);
+    if (!linked || linked.length === 0) return a.balance;
+    return Math.round(linked.reduce((s, e) => s + e.valueKRW, 0));
+  };
+  const effectiveAccountCost = (a: Account): number => {
+    const linked = groupedByAccount.get(a.id) ?? [];
+    return Math.round(linked.reduce((s, e) => s + e.costKRW, 0));
+  };
+
   const cashTotal = [...banks, ...cash].reduce((s, a) => s + a.balance, 0);
-  const investmentTotal = investments.reduce((s, a) => s + a.balance, 0);
+  const linkedInvTotal = investments.reduce((s, a) => s + effectiveAccountBalance(a), 0);
+  const unlinkedInvTotal = Math.round(unlinkedInv.reduce((s, e) => s + e.valueKRW, 0));
+  const investmentTotal = linkedInvTotal + unlinkedInvTotal;
+  const investmentCostTotal =
+    Math.round(investments.reduce((s, a) => s + effectiveAccountCost(a), 0)) +
+    Math.round(unlinkedInv.reduce((s, e) => s + e.costKRW, 0));
+  const investmentPnL = investmentTotal - investmentCostTotal;
+  const investmentPnLPct = investmentCostTotal > 0 ? (investmentPnL / investmentCostTotal) * 100 : 0;
+
   const debtTotal = cards.reduce((s, a) => s + a.balance, 0); // negative
   const loanDebt = modeLoans.reduce((s, l) => s + l.remaining, 0);
   const net = cashTotal + investmentTotal + debtTotal - loanDebt;
@@ -97,6 +158,54 @@ export default function WalletPage() {
         <SummaryRow label="대출 잔액" value={loanDebt} tone="danger" prefix="−" />
       </section>
 
+      {investmentCostTotal > 0 && (
+        <section className="px-5 pb-3">
+          <Link
+            href="/settings/investments"
+            className="tap flex items-center justify-between rounded-2xl px-4 py-3"
+            style={{
+              background: investmentPnL >= 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)',
+            }}
+          >
+            <div>
+              <p style={{
+                color: investmentPnL >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                fontSize: 11, fontWeight: 800,
+              }}>
+                투자 손익 (실시간)
+              </p>
+              <p className="tnum mt-0.5" style={{
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 800,
+              }}>
+                {investmentPnL >= 0 ? '+' : '−'}
+                {Math.abs(Math.round(investmentPnL)).toLocaleString('ko-KR')}원
+              </p>
+            </div>
+            <div className="text-right">
+              <span
+                className="rounded-full px-2.5 py-1 tnum"
+                style={{
+                  background: 'rgba(255,255,255,0.6)',
+                  color: investmentPnL >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                {investmentPnL >= 0 ? '+' : '−'}{Math.abs(investmentPnLPct).toFixed(2)}%
+              </span>
+              <p className="tnum mt-1" style={{
+                color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600,
+              }}>
+                평단 {Math.round(investmentCostTotal / 10000).toLocaleString('ko-KR')}만 →
+                {' '}{Math.round(investmentTotal / 10000).toLocaleString('ko-KR')}만
+              </p>
+            </div>
+          </Link>
+        </section>
+      )}
+
       {accounts.length === 0 && modeLoans.length === 0 && (
         <section className="px-5 pt-3">
           <Link
@@ -133,11 +242,69 @@ export default function WalletPage() {
         </Section>
       )}
 
-      {investments.length > 0 && (
+      {(investments.length > 0 || unlinkedInv.length > 0) && (
         <Section title="투자">
-          {investments.map((a) => (
-            <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
-          ))}
+          {investments.map((a) => {
+            const linked = groupedByAccount.get(a.id) ?? [];
+            if (linked.length > 0) {
+              const value = effectiveAccountBalance(a);
+              const cost = effectiveAccountCost(a);
+              const pnl = value - cost;
+              const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
+              return (
+                <Link key={a.id} href="/settings/investments"
+                  className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
+                  style={{ background: 'var(--color-card)' }}>
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
+                    style={{ background: a.color, fontSize: 'var(--text-base)' }}>
+                    {(a.bank || a.name).slice(0, 1)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
+                      {a.name}
+                    </p>
+                    <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+                      {linked.length}개 종목 · 실시간
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Money value={value} sign="never"
+                      style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text-1)' }} />
+                    {cost > 0 && (
+                      <p className="tnum" style={{
+                        fontSize: 11,
+                        color: pnl >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                        fontWeight: 700,
+                      }}>
+                        {pnl >= 0 ? '+' : '−'}{Math.abs(pnlPct).toFixed(2)}%
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              );
+            }
+            return <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />;
+          })}
+          {unlinkedInv.length > 0 && (
+            <Link href="/settings/investments"
+              className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
+              style={{ background: 'var(--color-card)' }}>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
+                style={{ background: '#8B95A1', fontSize: 'var(--text-base)' }}>
+                📈
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
+                  연동 안 된 종목
+                </p>
+                <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+                  {unlinkedInv.length}개 · 계좌 연결 필요
+                </p>
+              </div>
+              <Money value={unlinkedInvTotal} sign="never"
+                style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text-1)' }} />
+            </Link>
+          )}
         </Section>
       )}
 

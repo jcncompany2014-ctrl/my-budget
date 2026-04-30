@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from 'react';
  *   The cadence is per-id, but a single coalesced fetch fulfills all due ids.
  */
 
-export type QuoteId = `upbit:${string}` | `yahoo:${string}`;
+export type QuoteId = `binance:${string}` | `upbit:${string}` | `yahoo:${string}`;
 
 export type Quote = {
   price: number;     // native currency
@@ -31,8 +31,9 @@ const CACHE_KEY = 'asset/quotes-cache/v1';
 
 /** Per-id refresh interval while tab visible. */
 function refreshMs(id: QuoteId): number {
+  if (id.startsWith('binance:')) return 30_000;
   if (id.startsWith('upbit:')) return 30_000;
-  // FX Yahoo symbols (KRW=X, JPY=X, ...) refresh slower
+  // FX Yahoo symbols (USDKRW=X, JPYKRW=X, ...) refresh slower
   if (id.startsWith('yahoo:') && id.endsWith('=X')) return 30 * 60_000; // 30 min
   return 90_000;
 }
@@ -217,37 +218,73 @@ export function useQuotes(ids: QuoteId[]): {
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
 
+export type Currency = 'KRW' | 'USD' | 'JPY' | 'USDT' | 'EUR' | 'CNY' | 'HKD';
+
 /**
- * Heuristically build a QuoteId from a user-typed ticker + investment kind.
- * Returns null if we can't confidently route it.
+ * Heuristically build a QuoteId from a user-typed ticker + kind + currency.
+ * Routes to the most authoritative source for that combination.
+ *
+ *   crypto + USDT → Binance USDT pair (real-time, deepest liquidity)
+ *   crypto + KRW  → Upbit (KRW direct, Korean market)
+ *   stock  + KRW  → Yahoo with .KS suffix (KOSPI/KOSDAQ)
+ *   stock  + JPY  → Yahoo with .T suffix (Tokyo)
+ *   stock  + USD  → Yahoo (NYSE/Nasdaq)
+ *   stock  + HKD  → Yahoo with .HK suffix
  */
 export function tickerToQuoteId(
   ticker: string,
   kind: 'stock' | 'fund' | 'crypto' | 'other',
+  currency?: Currency,
 ): QuoteId | null {
   const t = ticker.trim().toUpperCase();
   if (!t) return null;
+
   if (kind === 'crypto') {
-    // BTC, ETH, DOGE, etc → Upbit KRW pair
-    return `upbit:${t}` as QuoteId;
+    if (currency === 'KRW') return `upbit:${t}` as QuoteId;
+    // Default crypto: USDT pair on Binance
+    return `binance:${t}USDT` as QuoteId;
   }
+
   if (kind === 'stock') {
-    // 6-digit numeric → KOSPI/KOSDAQ
+    // If user already typed a Yahoo-suffixed symbol, respect it
+    if (/\.(KS|KQ|T|HK|L|TO|SS|SZ)$/i.test(t)) return `yahoo:${t}` as QuoteId;
+    // 6-digit numeric → KOSPI by default (KOSDAQ uses .KQ but Yahoo accepts .KS for both via auto-fallback)
     if (/^\d{6}$/.test(t)) return `yahoo:${t}.KS` as QuoteId;
-    // Letters + optional dot suffix → US (or already-suffixed Yahoo symbol)
+    // 4-digit numeric + JPY → Tokyo
+    if (/^\d{4}$/.test(t) && currency === 'JPY') return `yahoo:${t}.T` as QuoteId;
+    if (/^\d{4,5}$/.test(t) && currency === 'HKD') return `yahoo:${t}.HK` as QuoteId;
+    // Letters → US (NYSE/Nasdaq)
     if (/^[A-Z][A-Z0-9.\-]{0,9}$/.test(t)) return `yahoo:${t}` as QuoteId;
   }
   return null;
 }
 
+/** Default currency for a freshly-created investment of given kind. */
+export function defaultCurrencyForKind(kind: 'stock' | 'fund' | 'crypto' | 'other'): Currency {
+  if (kind === 'crypto') return 'USDT';
+  if (kind === 'stock') return 'KRW'; // user changes this if they buy US/JP
+  return 'KRW';
+}
+
 /** Convert a price in any currency to KRW using the FX cache. */
 export function toKRW(price: number, currency: string): number {
-  if (currency === 'KRW') return price;
-  // Yahoo FX symbol convention: USDKRW=X means 1 USD in KRW
-  const id = `yahoo:${currency}KRW=X` as QuoteId;
+  const c = currency.toUpperCase();
+  if (c === 'KRW') return price;
+  // USDT trades within ±0.5% of USD; use USDKRW as approximation
+  const fxBase = c === 'USDT' || c === 'USDC' || c === 'BUSD' ? 'USD' : c;
+  const id = `yahoo:${fxBase}KRW=X` as QuoteId;
   const fx = memCache[id];
   if (fx?.price) return price * fx.price;
   return price; // best-effort fallback (don't pretend)
+}
+
+/** Get the live FX rate (1 unit of `currency` = N KRW). */
+export function fxRateToKRW(currency: string): number | null {
+  const c = currency.toUpperCase();
+  if (c === 'KRW') return 1;
+  const fxBase = c === 'USDT' || c === 'USDC' || c === 'BUSD' ? 'USD' : c;
+  const id = `yahoo:${fxBase}KRW=X` as QuoteId;
+  return memCache[id]?.price ?? null;
 }
 
 /** Standard FX symbols to subscribe to alongside any holdings. */
@@ -256,4 +293,5 @@ export const FX_IDS: QuoteId[] = [
   'yahoo:JPYKRW=X',
   'yahoo:EURKRW=X',
   'yahoo:CNYKRW=X',
+  'yahoo:HKDKRW=X',
 ];

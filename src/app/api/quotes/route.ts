@@ -3,11 +3,12 @@ import type { NextRequest } from 'next/server';
 /**
  * Real-time quote aggregator.
  *
- *  GET /api/quotes?ids=upbit:BTC,upbit:ETH,yahoo:AAPL,yahoo:005930.KS,yahoo:USDKRW=X
+ *  GET /api/quotes?ids=binance:BTCUSDT,upbit:BTC,yahoo:AAPL,yahoo:005930.KS,yahoo:7203.T,yahoo:USDKRW=X
  *
  * Sources:
- *   • upbit:<symbol>       → KRW pair from Upbit (crypto, ~real-time)
- *   • yahoo:<symbol>       → Yahoo Finance unofficial v7/quote (US/KR stocks, FX, crypto USD pairs)
+ *   • binance:<symbol>     → USDT (or other) pair from Binance — crypto primary source
+ *   • upbit:<symbol>       → KRW pair from Upbit — kept for legacy / KRW-quoted crypto
+ *   • yahoo:<symbol>       → Yahoo Finance unofficial v7/quote (US/KR/JP stocks, FX, indices)
  *
  * In-memory cache lives per V8 isolate. TTL is source-dependent so upstream
  * never gets hammered. On upstream failure we serve the previous cached value
@@ -20,14 +21,15 @@ export const dynamic = 'force-dynamic';
 type Quote = {
   price: number;          // last/current price in source's native currency
   change: number;         // 24h change percent (e.g. -1.42)
-  currency: string;       // ISO 4217 (KRW, USD, JPY, EUR, ...)
+  currency: string;       // ISO 4217 (KRW, USD, JPY, EUR, USDT, ...)
   name: string;           // human-readable name
   ts: number;             // when this quote was fetched (ms epoch)
 };
 
-type Source = 'upbit' | 'yahoo';
+type Source = 'binance' | 'upbit' | 'yahoo';
 const TTL_MS: Record<Source, number> = {
-  upbit: 20_000,   // 20s — crypto moves fast, Upbit allows 600 req/min
+  binance: 20_000, // 20s — crypto moves fast, Binance is generous
+  upbit: 20_000,
   yahoo: 60_000,   // 60s — stocks/FX, lighter source
 };
 
@@ -44,6 +46,49 @@ async function fetchWithTimeout(url: string, ms: number, init?: RequestInit): Pr
     return await fetch(url, { ...init, signal: controller.signal, cache: 'no-store' });
   } finally {
     clearTimeout(t);
+  }
+}
+
+/* ─── Binance (USDT / BUSD / etc. crypto pairs) ─── */
+async function fetchBinance(symbols: string[], out: Record<string, Quote>, now: number) {
+  // symbols arrive as e.g. "BTCUSDT", "ETHUSDT" — pass through as-is, uppercased
+  const ups = symbols.map((s) => s.toUpperCase());
+  const symbolsParam = encodeURIComponent(JSON.stringify(ups));
+  try {
+    const r = await fetchWithTimeout(
+      `https://api.binance.com/api/v3/ticker/24hr?symbols=${symbolsParam}`,
+      4000,
+      { headers: { Accept: 'application/json' } },
+    );
+    if (!r.ok) throw new Error(`binance ${r.status}`);
+    const arr = (await r.json()) as Array<{
+      symbol: string;
+      lastPrice: string;
+      priceChangePercent: string;
+    }>;
+    for (const row of arr) {
+      const sym = row.symbol;
+      // Determine quote currency by suffix (USDT/BUSD/USDC/BTC/ETH/...)
+      const ccy = sym.endsWith('USDT')
+        ? 'USDT'
+        : sym.endsWith('USDC')
+          ? 'USDC'
+          : sym.endsWith('BUSD')
+            ? 'BUSD'
+            : 'USD';
+      const id = `binance:${sym}`;
+      const q: Quote = {
+        price: Number(row.lastPrice) || 0,
+        change: +Number(row.priceChangePercent).toFixed(2),
+        currency: ccy,
+        name: sym.replace(/(USDT|USDC|BUSD|USD)$/, ''),
+        ts: now,
+      };
+      out[id] = q;
+      cache.set(id, { value: q, expires: now + TTL_MS.binance });
+    }
+  } catch {
+    /* swallow — caller falls back to cache */
   }
 }
 
@@ -178,7 +223,7 @@ export async function GET(req: NextRequest) {
 
   const now = Date.now();
   const result: Record<string, Quote> = {};
-  const todoBySource: Record<Source, string[]> = { upbit: [], yahoo: [] };
+  const todoBySource: Record<Source, string[]> = { binance: [], upbit: [], yahoo: [] };
 
   for (const id of ids) {
     const hit = cache.get(id);
@@ -190,12 +235,13 @@ export async function GET(req: NextRequest) {
     if (idx <= 0) continue;
     const src = id.slice(0, idx);
     const sym = id.slice(idx + 1);
-    if (src === 'upbit' || src === 'yahoo') {
+    if (src === 'binance' || src === 'upbit' || src === 'yahoo') {
       todoBySource[src].push(sym);
     }
   }
 
   await Promise.all([
+    todoBySource.binance.length ? fetchBinance(todoBySource.binance, result, now) : null,
     todoBySource.upbit.length ? fetchUpbit(todoBySource.upbit, result, now) : null,
     todoBySource.yahoo.length ? fetchYahoo(todoBySource.yahoo, result, now) : null,
   ]);

@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import IconCircle from '@/components/ui/IconCircle';
 import { useAccounts } from '@/lib/accounts';
 import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categorize';
+import { buildTransferLegs } from '@/lib/transfers';
 import { useBusinessProfile } from '@/lib/business-profile';
 import { applyRules, useCategoryRules } from '@/lib/category-rules';
 import {
@@ -161,6 +162,56 @@ function AddPage() {
             action: { label: '추가', onClick: () => submit(saveAsFavorite, true) },
           },
         );
+        return;
+      }
+    }
+
+    // ─── Auto savings transfer ─────────────────────────────────────────
+    // When user logs an outflow under '저축' category in personal mode AND
+    // a savings-target account exists, pair the deduction with an auto
+    // deposit into the savings account. Both legs share a transferPairId
+    // so the savings account balance moves up automatically.
+    if (mode === 'personal' && type === 'expense' && cat === 'saving') {
+      const fromAcc = accounts.find((a) => a.id === accId);
+      const savingsAcc = accounts.find(
+        (a) => a.scope === 'personal' && a.savingsTarget && a.id !== accId,
+      );
+      if (fromAcc && savingsAcc) {
+        const legs = buildTransferLegs({
+          fromAcc,
+          toAcc: savingsAcc,
+          amount: numericAmount,
+          date: txDate.toISOString(),
+          memo: memo.trim() || `저축 자동 이체 → ${savingsAcc.name}`,
+        });
+        // Override category to keep this in the saving bucket for analytics,
+        // but keep transfer linkage so balances move correctly.
+        legs[0].cat = 'saving';
+        legs[0].merchant = merchant.trim() || `저축 → ${savingsAcc.name}`;
+        legs[1].cat = 'saving';
+        legs[1].merchant = merchant.trim() || `← ${fromAcc.name}`;
+        legs.forEach((l) => add(l));
+        haptics.success();
+        toast.show(`${savingsAcc.name}로 자동 이체 완료`, {
+          variant: 'success',
+          durationMs: 4500,
+          action: {
+            label: '되돌리기',
+            onClick: () => {
+              legs.forEach((l) => remove(l.id));
+              toast.show('취소됨', 'info');
+            },
+          },
+        });
+        if (continueAfterSave) {
+          setAmount('0');
+          setMerchant('');
+          setMemo('');
+          setMemoTouched(false);
+          setStep(1);
+        } else {
+          router.replace('/');
+        }
         return;
       }
     }

@@ -268,6 +268,35 @@ function AccountEditor({
           </div>
         </Field>
 
+        {draft.type === 'bank' && (
+          <Field label="옵션">
+            <button type="button"
+              onClick={() => setDraft({ ...draft, main: !draft.main, savingsTarget: draft.main ? draft.savingsTarget : false })}
+              className="tap mb-2 flex w-full items-center justify-between rounded-xl px-4 py-3"
+              style={{ background: 'var(--color-gray-100)' }}>
+              <div className="text-left">
+                <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>주거래 계좌</p>
+                <p style={{ color: 'var(--color-text-3)', fontSize: 11, marginTop: 2 }}>
+                  저축 자동 이체의 출금 계좌로 사용
+                </p>
+              </div>
+              <SmallSwitch on={!!draft.main} />
+            </button>
+            <button type="button"
+              onClick={() => setDraft({ ...draft, savingsTarget: !draft.savingsTarget, main: draft.savingsTarget ? draft.main : false })}
+              className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
+              style={{ background: 'var(--color-gray-100)' }}>
+              <div className="text-left">
+                <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>저축 자동 이체 대상</p>
+                <p style={{ color: 'var(--color-text-3)', fontSize: 11, marginTop: 2 }}>
+                  저축 카테고리 거래 시 주거래 → 이 계좌로 자동 이체
+                </p>
+              </div>
+              <SmallSwitch on={!!draft.savingsTarget} />
+            </button>
+          </Field>
+        )}
+
         <div className="mt-2 flex gap-2">
           {onDelete && (
             <button
@@ -322,5 +351,19 @@ function Field({
       </label>
       {children}
     </div>
+  );
+}
+
+function SmallSwitch({ on }: { on: boolean }) {
+  return (
+    <span
+      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+      style={{ background: on ? 'var(--color-primary)' : 'var(--color-gray-300)' }}
+    >
+      <span
+        className="absolute h-5 w-5 rounded-full bg-white shadow transition-transform"
+        style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)' }}
+      />
+    </span>
   );
 }

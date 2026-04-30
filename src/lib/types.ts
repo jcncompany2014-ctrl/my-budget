@@ -22,6 +22,8 @@ export type Account = {
   last4?: string;
   main?: boolean;
   scope: Scope;
+  /** When true, "저축" category transactions auto-create a transfer pair into this account. */
+  savingsTarget?: boolean;
 };
 
 export type Transaction = {
@@ -139,13 +141,21 @@ export type Investment = {
   ticker?: string;
   kind: 'stock' | 'fund' | 'crypto' | 'other';
   shares?: number;
+  /** Average purchase price in the investment's native currency (`currency`). */
   avgPrice?: number;
+  /** Cached evaluation in KRW — last known total value (live quote × shares × FX → KRW). */
   currentValue: number;
   color: string;
-  /** Live quote source id, e.g. "upbit:BTC", "yahoo:AAPL", "yahoo:005930.KS". */
+  /** Live quote source id, e.g. "binance:BTCUSDT", "yahoo:AAPL", "yahoo:005930.KS". */
   quoteId?: string;
   /** When true, currentValue is recomputed from live quote × shares. */
   autoQuote?: boolean;
+  /** Native currency of this product (USD for US stocks, JPY for JP, USDT for crypto). */
+  currency?: 'KRW' | 'USD' | 'JPY' | 'USDT' | 'EUR' | 'CNY' | 'HKD';
+  /** Crypto only — 1 = spot, >1 = leveraged. Multiplies displayed % P&L. */
+  leverage?: number;
+  /** Optional cash/investment account this product is held in. */
+  linkedAccountId?: string;
 };
 
 export type Favorite = {
