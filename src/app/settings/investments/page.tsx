@@ -391,23 +391,24 @@ function Editor({
   const lev = draft.leverage ?? 1;
   const isCrypto = draft.kind === 'crypto';
 
-  // For crypto, the user enters notional in product currency (e.g. USDT) instead
-  // of coin count. shares stays the schema-of-record and is derived as
-  //   shares = notional / avgPrice
-  // avgPrice changes preserve the typed notional and re-derive shares.
-  const [notionalInput, setNotionalInput] = useState(() => {
+  // For crypto, the user enters MARGIN (capital they actually put in) in product
+  // currency. Gross notional = margin × leverage. shares stays schema-of-record:
+  //   shares = (margin × leverage) / avgPrice
+  // avgPrice and leverage edits preserve the typed margin and re-derive shares —
+  // the user's "I deposited 500 USDT" stays fixed; exposure flexes around it.
+  const [marginInput, setMarginInput] = useState(() => {
     const s = i.shares ?? 0;
     const a = i.avgPrice ?? 0;
-    return s > 0 && a > 0 ? String(s * a) : '';
+    const l = i.leverage ?? 1;
+    return s > 0 && a > 0 ? String((s * a) / l) : '';
   });
 
-  // If the user flips kind to/from crypto, resync notional to the current
-  // shares × avgPrice so the field stays consistent.
   useEffect(() => {
     if (isCrypto) {
       const s = draft.shares ?? 0;
       const a = draft.avgPrice ?? 0;
-      setNotionalInput(s > 0 && a > 0 ? String(s * a) : '');
+      const l = draft.leverage ?? 1;
+      setMarginInput(s > 0 && a > 0 ? String((s * a) / l) : '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.kind]);
@@ -415,26 +416,36 @@ function Editor({
   const handleAvgPriceChange = (raw: string) => {
     const newAvg = Number(raw) || 0;
     if (isCrypto) {
-      const usdt = parseFloat(notionalInput) || 0;
+      const margin = parseFloat(marginInput) || 0;
       setDraft({
         ...draft,
         avgPrice: newAvg,
-        shares: newAvg > 0 ? usdt / newAvg : draft.shares,
+        shares: newAvg > 0 ? (margin * lev) / newAvg : draft.shares,
       });
     } else {
       setDraft({ ...draft, avgPrice: newAvg });
     }
   };
 
-  const handleNotionalChange = (raw: string) => {
-    setNotionalInput(raw);
-    const usdt = parseFloat(raw) || 0;
+  const handleMarginChange = (raw: string) => {
+    setMarginInput(raw);
+    const margin = parseFloat(raw) || 0;
     const avg = draft.avgPrice ?? 0;
     if (avg > 0) {
-      setDraft({ ...draft, shares: usdt / avg });
-    } else if (raw === '' || usdt === 0) {
+      setDraft({ ...draft, shares: (margin * lev) / avg });
+    } else if (raw === '' || margin === 0) {
       setDraft({ ...draft, shares: 0 });
     }
+  };
+
+  const handleLeverageChange = (L: number) => {
+    const margin = parseFloat(marginInput) || 0;
+    const avg = draft.avgPrice ?? 0;
+    setDraft({
+      ...draft,
+      leverage: L,
+      shares: avg > 0 ? (margin * L) / avg : draft.shares,
+    });
   };
 
   const valid =
@@ -578,7 +589,7 @@ function Editor({
               {LEVERAGES.map((L) => {
                 const sel = lev === L;
                 return (
-                  <button key={L} type="button" onClick={() => setDraft({ ...draft, leverage: L })}
+                  <button key={L} type="button" onClick={() => handleLeverageChange(L)}
                     className="tap rounded-lg px-3 py-2"
                     style={{
                       background: sel ? (L === 1 ? 'var(--color-text-1)' : 'var(--color-danger)') : 'var(--color-gray-100)',
@@ -606,14 +617,14 @@ function Editor({
               style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
           </Field>
           {isCrypto ? (
-            <Field label={`매수 총액 (${productCcy})`}>
+            <Field label={`투입 자본 (${productCcy})`}>
               <input type="number" inputMode="decimal" step="any"
-                value={notionalInput} onChange={(e) => handleNotionalChange(e.target.value)} placeholder="0"
+                value={marginInput} onChange={(e) => handleMarginChange(e.target.value)} placeholder="0"
                 className="tnum h-12 w-full rounded-xl px-4 outline-none"
                 style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
-              {(draft.shares ?? 0) > 0 && (
+              {(draft.shares ?? 0) > 0 && (draft.avgPrice ?? 0) > 0 && (
                 <p className="tnum mt-1" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-                  ≈ {(draft.shares ?? 0).toFixed(4)} coin
+                  ≈ {((draft.shares ?? 0) * (draft.avgPrice ?? 0)).toLocaleString('ko-KR', { maximumFractionDigits: 2 })} {productCcy} 포지션 · {(draft.shares ?? 0).toFixed(4)} coin
                 </p>
               )}
             </Field>
