@@ -8,6 +8,7 @@ import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import EmptyState from '@/components/ui/EmptyState';
+import Sheet from '@/components/ui/Sheet';
 import { useChallenges } from '@/lib/challenges';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { fmt, isExpense } from '@/lib/format';
@@ -167,10 +168,7 @@ function Editor({ c, mode, isNew, onSave, onDelete, onCancel }: {
   const cats = expenseCategoriesByScope(mode);
   const valid = draft.name.trim().length > 0 && draft.limit > 0;
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-      <div className="max-h-[88dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-6"
-        style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'var(--color-gray-200)' }} />
+    <Sheet open onClose={onCancel}>
         <h2 className="mb-4" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
           {isNew ? '챌린지 추가' : '챌린지 편집'}
         </h2>
@@ -259,8 +257,7 @@ function Editor({ c, mode, isNew, onSave, onDelete, onCancel }: {
               fontWeight: 700,
             }}>저장</button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

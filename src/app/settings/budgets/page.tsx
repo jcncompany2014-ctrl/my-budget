@@ -6,6 +6,7 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import Sheet from '@/components/ui/Sheet';
 import { useBudgets } from '@/lib/budgets';
 import { expenseCategoriesByScope } from '@/lib/categories';
 import { fmt } from '@/lib/format';
@@ -121,12 +122,7 @@ function BudgetEditor({
   const [value, setValue] = useState(current ? String(current) : '');
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-      <div
-        className="w-full max-w-[440px] rounded-t-3xl p-6"
-        style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
-      >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'var(--color-gray-200)' }} />
+    <Sheet open onClose={onCancel}>
         <div className="mb-4 flex items-center gap-3">
           <CategoryIcon catId={category.id} size={48} style={{ borderRadius: 16 }} />
           <div>
@@ -171,7 +167,6 @@ function BudgetEditor({
             저장
           </button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

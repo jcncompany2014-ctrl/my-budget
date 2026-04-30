@@ -7,6 +7,7 @@ import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import EmptyState from '@/components/ui/EmptyState';
+import Sheet from '@/components/ui/Sheet';
 import { useEmployees } from '@/lib/employees';
 import { fmt } from '@/lib/format';
 import type { Employee } from '@/lib/types';
@@ -135,10 +136,7 @@ function Editor({ e, isNew, onSave, onDelete, onCancel }: {
   const [draft, setDraft] = useState(e);
   const valid = draft.name.trim().length > 0;
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-      <div className="max-h-[88dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-6"
-        style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'var(--color-gray-200)' }} />
+    <Sheet open onClose={onCancel}>
         <h2 className="mb-4" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
           {isNew ? '직원 추가' : '직원 편집'}
         </h2>
@@ -183,8 +181,7 @@ function Editor({ e, isNew, onSave, onDelete, onCancel }: {
           <Btn label="취소" tone="gray" onClick={onCancel} flex />
           <Btn label="저장" tone="primary" onClick={() => onSave(draft)} flex disabled={!valid} />
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

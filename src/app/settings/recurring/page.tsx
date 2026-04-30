@@ -8,6 +8,7 @@ import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import EmptyState from '@/components/ui/EmptyState';
+import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { daysUntilDay, useRecurring } from '@/lib/recurring';
@@ -200,12 +201,7 @@ function RecurringEditor({
   const expCats = Object.values(CATEGORIES).filter((c) => c.kind !== 'income');
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-      <div
-        className="max-h-[88dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-6"
-        style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
-      >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'var(--color-gray-200)' }} />
+    <Sheet open onClose={onCancel}>
         <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
           {isNew ? '정기결제 추가' : '정기결제 편집'}
         </h2>
@@ -342,7 +338,6 @@ function RecurringEditor({
             저장
           </button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

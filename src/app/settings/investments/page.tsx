@@ -8,6 +8,7 @@ import { useMode } from '@/components/ModeProvider';
 import { SkeletonList } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { useInvestments } from '@/lib/investments';
 import {
@@ -405,10 +406,7 @@ function Editor({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-      <div className="max-h-[88dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-6"
-        style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'var(--color-gray-200)' }} />
+    <Sheet open onClose={onCancel}>
         <h2 className="mb-4" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
           {isNew ? '투자 추가' : '투자 편집'}
         </h2>
@@ -661,8 +659,7 @@ function Editor({
               fontWeight: 700,
             }}>저장</button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

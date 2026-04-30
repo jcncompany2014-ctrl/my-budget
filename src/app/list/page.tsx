@@ -9,6 +9,7 @@ import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
 import { useToast } from '@/components/Toast';
+import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import { fmt, isExpense } from '@/lib/format';
 import { useAllTransactions, useTransactions } from '@/lib/storage';
@@ -335,10 +336,7 @@ export default function ListPage() {
       )}
 
       {bulkCatPicker && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-          <div className="max-h-[75dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-5"
-            style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'var(--color-gray-200)' }} />
+        <Sheet open onClose={() => setBulkCatPicker(false)}>
             <h3 className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
               카테고리 선택
             </h3>
@@ -359,8 +357,7 @@ export default function ListPage() {
               style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
               취소
             </button>
-          </div>
-        </div>
+        </Sheet>
       )}
     </>
   );

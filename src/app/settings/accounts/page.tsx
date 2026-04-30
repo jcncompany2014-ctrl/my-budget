@@ -10,6 +10,7 @@ import { SkeletonList } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
 import EmptyState from '@/components/ui/EmptyState';
+import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { fmt } from '@/lib/format';
 import type { Account, AccountType } from '@/lib/types';
@@ -184,21 +185,7 @@ function AccountEditor({
   const valid = draft.name.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-      <div
-        className="w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-6"
-        style={{
-          background: 'var(--color-card)',
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-          maxHeight: '92dvh',
-          animation: 'slide-up 200ms var(--ease-spring)',
-        }}
-      >
-        <div
-          className="mx-auto mb-4 h-1 w-10 rounded-full"
-          style={{ background: 'var(--color-gray-200)' }}
-        />
-
+    <Sheet open onClose={onCancel}>
         {/* Live preview header */}
         <div className="mb-5 flex items-center gap-3 rounded-2xl px-4 py-3"
           style={{ background: 'var(--color-gray-50)' }}>
@@ -367,8 +354,7 @@ function AccountEditor({
             저장
           </button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

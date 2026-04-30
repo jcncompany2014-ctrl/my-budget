@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import Keypad from '@/components/Keypad';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
+import Sheet from '@/components/ui/Sheet';
 import { useAllAccounts } from '@/lib/accounts';
 import { fmt } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
@@ -233,18 +234,7 @@ function AccountPicker({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
-          <div
-            className="max-h-[75dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-5"
-            style={{
-              background: 'var(--color-card)',
-              paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-            }}
-          >
-            <div
-              className="mx-auto mb-4 h-1 w-10 rounded-full"
-              style={{ background: 'var(--color-gray-200)' }}
-            />
+        <Sheet open onClose={() => setOpen(false)}>
             <h3
               className="mb-3"
               style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
@@ -261,8 +251,7 @@ function AccountPicker({
             >
               닫기
             </button>
-          </div>
-        </div>
+        </Sheet>
       )}
     </>
   );
