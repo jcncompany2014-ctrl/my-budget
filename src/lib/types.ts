@@ -142,6 +142,10 @@ export type Investment = {
   avgPrice?: number;
   currentValue: number;
   color: string;
+  /** Live quote source id, e.g. "upbit:BTC", "yahoo:AAPL", "yahoo:005930.KS". */
+  quoteId?: string;
+  /** When true, currentValue is recomputed from live quote × shares. */
+  autoQuote?: boolean;
 };
 
 export type Favorite = {
