@@ -72,7 +72,7 @@ export default function Sheet({ open, onClose, children, title, full }: Props) {
     >
       <div
         ref={sheetRef}
-        className={`w-full max-w-[440px] rounded-t-3xl ${full ? 'h-[88dvh]' : 'max-h-[88dvh]'} overflow-y-auto`}
+        className={`w-full max-w-[440px] rounded-t-3xl ${full ? 'h-[88dvh]' : 'max-h-[88dvh]'} overflow-y-auto overflow-x-hidden`}
         style={{
           background: 'var(--color-card)',
           padding: 24,
