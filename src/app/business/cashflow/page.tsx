@@ -80,20 +80,79 @@ export default function CashflowPage() {
       </Section>
 
       <Section bottomGap={4}>
-        <Card padding={20} background="linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))">
-          <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-            기간 순현금흐름 (영업)
-          </p>
-          <Money
-            value={total.net}
-            sign="auto"
-            className="mt-1 block tracking-tight"
-            style={{ color: '#fff', fontSize: 'var(--text-2xl)', fontWeight: 800 }}
-          />
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-xxs)', marginTop: 4 }}>
-            유입 {fmt(total.in)}원 · 유출 {fmt(total.out)}원
-          </p>
-        </Card>
+        <div
+          className="relative overflow-hidden rounded-2xl px-5 py-5"
+          style={{
+            background: total.net >= 0
+              ? 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)'
+              : 'linear-gradient(135deg, #F04452 0%, #C71F2D 100%)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
+          }}
+        >
+          <div aria-hidden style={{
+            position: 'absolute', top: -40, right: -40,
+            width: 180, height: 180, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }} />
+          <div className="relative">
+            <p style={{
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
+            }}>
+              기간 순현금흐름 (영업)
+            </p>
+            <p className="tnum mt-1.5 block tracking-tight" style={{
+              color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.025em',
+            }}>
+              {total.net >= 0 ? '+' : '−'}{fmt(total.net)}원
+            </p>
+            {(total.in + total.out) > 0 && (
+              <div className="mt-3 flex h-[4px] w-full overflow-hidden rounded-full"
+                style={{ background: 'rgba(255,255,255,0.22)' }}>
+                <div style={{
+                  width: `${(total.in / (total.in + total.out)) * 100}%`,
+                  background: 'rgba(255,255,255,0.95)',
+                  transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+                }} />
+                <div style={{
+                  width: `${(total.out / (total.in + total.out)) * 100}%`,
+                  background: 'rgba(255,255,255,0.36)',
+                }} />
+              </div>
+            )}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-white">
+              <div>
+                <div className="flex items-center gap-1">
+                  <span style={{
+                    display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+                    background: '#fff', opacity: 0.95,
+                  }} />
+                  <span style={{
+                    opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
+                  }}>유입</span>
+                </div>
+                <p className="tnum mt-0.5" style={{ fontSize: 13, fontWeight: 800 }}>
+                  +{fmt(total.in)}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <span style={{
+                    display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+                    background: '#fff', opacity: 0.36,
+                  }} />
+                  <span style={{
+                    opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
+                  }}>유출</span>
+                </div>
+                <p className="tnum mt-0.5" style={{ fontSize: 13, fontWeight: 800 }}>
+                  −{fmt(total.out)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </Section>
 
       <Section title="월별 현금흐름">

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import CountUp from '@/components/CountUp';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
 import Money from '@/components/Money';
@@ -142,11 +143,16 @@ export default function WalletPage() {
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
           순자산
         </p>
-        <Money
+        <CountUp
           value={net}
-          sign="auto"
+          format={(n) => (n >= 0 ? '' : '−') + Math.round(Math.abs(n)).toLocaleString('ko-KR') + '원'}
           className="mt-1 block tracking-tight"
-          style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text-1)' }}
+          style={{
+            fontSize: 'var(--text-3xl)',
+            fontWeight: 800,
+            color: net >= 0 ? 'var(--color-text-1)' : 'var(--color-danger)',
+            letterSpacing: '-0.025em',
+          }}
         />
       </section>
 

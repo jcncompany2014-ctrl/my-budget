@@ -1,8 +1,8 @@
 'use client';
 
+import { Banknote, CreditCard, Landmark, type LucideIcon, TrendingUp, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Wallet } from 'lucide-react';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
 import { useMode } from '@/components/ModeProvider';
@@ -15,6 +15,12 @@ import { fmt } from '@/lib/format';
 import type { Account, AccountType } from '@/lib/types';
 
 const COLORS = ['#00B956', '#3182F6', '#F472B6', '#FF8A1F', '#8B5CF6', '#14B8A6', '#FFCC00', '#EF4444'];
+const TYPE_META: Record<AccountType, { label: string; Icon: LucideIcon }> = {
+  bank: { label: '은행', Icon: Landmark },
+  card: { label: '카드', Icon: CreditCard },
+  cash: { label: '현금', Icon: Banknote },
+  investment: { label: '투자', Icon: TrendingUp },
+};
 const TYPE_LABELS: Record<AccountType, string> = {
   bank: '은행',
   card: '카드',
@@ -180,16 +186,40 @@ function AccountEditor({
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40">
       <div
-        className="w-full max-w-[440px] rounded-t-3xl p-6"
-        style={{ background: 'var(--color-card)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}
+        className="w-full max-w-[440px] overflow-y-auto rounded-t-3xl p-6"
+        style={{
+          background: 'var(--color-card)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+          maxHeight: '92dvh',
+          animation: 'slide-up 200ms var(--ease-spring)',
+        }}
       >
         <div
           className="mx-auto mb-4 h-1 w-10 rounded-full"
           style={{ background: 'var(--color-gray-200)' }}
         />
-        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
-          {isNew ? '새 계좌' : '계좌 편집'}
-        </h2>
+
+        {/* Live preview header */}
+        <div className="mb-5 flex items-center gap-3 rounded-2xl px-4 py-3"
+          style={{ background: 'var(--color-gray-50)' }}>
+          {draft.type === 'card' ? (
+            <CardIcon name={draft.bank || draft.name || '카드'} size={36} />
+          ) : (
+            <BankIcon name={draft.bank || draft.name || '계좌'} size={44} />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate" style={{
+              color: 'var(--color-text-1)', fontSize: 15, fontWeight: 700,
+            }}>
+              {draft.name || (isNew ? '새 계좌' : '계좌')}
+            </p>
+            <p className="truncate" style={{
+              color: 'var(--color-text-3)', fontSize: 11,
+            }}>
+              {TYPE_LABELS[draft.type]}{draft.bank ? ` · ${draft.bank}` : ''}
+            </p>
+          </div>
+        </div>
 
         <Field label="이름" required>
           <input
@@ -205,28 +235,34 @@ function AccountEditor({
           <input
             value={draft.bank}
             onChange={(e) => setDraft({ ...draft, bank: e.target.value })}
-            placeholder="예) 토스뱅크 (선택)"
+            placeholder={draft.type === 'card' ? '예) 신한카드' : '예) 토스뱅크 (선택)'}
             className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
           />
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
+            정확한 은행/카드사명을 입력하면 브랜드 색상이 자동 적용됩니다
+          </p>
         </Field>
 
         <Field label="종류">
-          <div className="flex gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {(['bank', 'card', 'cash', 'investment'] as AccountType[]).map((t) => {
               const sel = draft.type === t;
+              const { Icon, label } = TYPE_META[t];
               return (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setDraft({ ...draft, type: t })}
-                  className="tap flex-1 rounded-xl py-3 text-[13px] font-bold"
+                  className="tap flex flex-col items-center justify-center gap-1.5 rounded-xl py-3"
                   style={{
                     background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
                     color: sel ? '#fff' : 'var(--color-text-2)',
+                    fontSize: 12, fontWeight: 700,
                   }}
                 >
-                  {TYPE_LABELS[t]}
+                  <Icon size={18} strokeWidth={2.4} />
+                  {label}
                 </button>
               );
             })}

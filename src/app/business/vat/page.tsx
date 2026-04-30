@@ -1,7 +1,10 @@
 'use client';
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import CountUp from '@/components/CountUp';
 import Money from '@/components/Money';
+import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import { fmt } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
@@ -60,27 +63,40 @@ export default function VATPage() {
     return { revenue, purchase, output, input, payable };
   }, [tx, year, quarter, ready, taxType]);
 
+  if (!ready) return <SkeletonHome />;
+
+  // Net VAT bar fraction
+  const totalTax = summary.output + summary.input;
+  const outputPct = totalTax > 0 ? (summary.output / totalTax) * 100 : 50;
+
   return (
     <>
       <TopBar title="부가세 신고 도우미" />
 
-      <section className="px-5 pb-3 pt-1">
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          분기말 부가세 신고 준비. 매출세액에서 매입세액을 차감한 금액이 납부 예상액입니다.
-          (간이과세자는 다른 계산식 적용)
-        </p>
-      </section>
-
       <section className="px-5 pb-3 pt-2">
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setYear(year - 1)} className="tap rounded-xl px-4"
-            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', height: 44, fontSize: 'var(--text-sm)', fontWeight: 700 }}>‹</button>
-          <div className="flex-1 rounded-xl px-4 text-center"
-            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', lineHeight: '44px', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-            {year}년 {quarter}분기 ({year}-{String((quarter - 1) * 3 + 1).padStart(2, '0')} ~ {year}-{String(quarter * 3).padStart(2, '0')})
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setYear(year - 1)}
+            className="tap flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
+            aria-label="이전 해">
+            <ChevronLeft size={20} strokeWidth={2.4} />
+          </button>
+          <div className="flex-1 text-center" style={{
+            color: 'var(--color-text-1)', fontSize: 15, fontWeight: 800, letterSpacing: '-0.02em',
+          }}>
+            {year}년 {quarter}분기
+            <p style={{
+              color: 'var(--color-text-3)', fontSize: 11, fontWeight: 600, marginTop: 2,
+            }}>
+              {year}.{String((quarter - 1) * 3 + 1).padStart(2, '0')} – {year}.{String(quarter * 3).padStart(2, '0')}
+            </p>
           </div>
-          <button type="button" onClick={() => setYear(year + 1)} className="tap rounded-xl px-4"
-            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', height: 44, fontSize: 'var(--text-sm)', fontWeight: 700 }}>›</button>
+          <button type="button" onClick={() => setYear(year + 1)}
+            className="tap flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
+            aria-label="다음 해">
+            <ChevronRight size={20} strokeWidth={2.4} />
+          </button>
         </div>
       </section>
 
@@ -105,17 +121,77 @@ export default function VATPage() {
       </section>
 
       <section className="px-5 pb-3 pt-3">
-        <div className="rounded-2xl p-5"
-          style={{ background: 'linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))' }}>
-          <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-            예상 납부 부가세
-          </p>
-          <Money value={summary.payable} sign="never"
-            className="mt-1 block tracking-tight"
-            style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: '#fff' }} />
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-xxs)', marginTop: 4 }}>
-            매출세액 {fmt(summary.output)}원 - 매입세액 {fmt(summary.input)}원
-          </p>
+        <div className="relative overflow-hidden rounded-2xl px-5 py-5"
+          style={{
+            background: 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
+          }}>
+          <div aria-hidden style={{
+            position: 'absolute', top: -40, right: -40,
+            width: 180, height: 180, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }} />
+          <div className="relative">
+            <p style={{
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
+            }}>
+              예상 납부 부가세
+            </p>
+            <CountUp
+              value={summary.payable}
+              format={(n) => Math.round(n).toLocaleString('ko-KR') + '원'}
+              className="mt-1.5 block tracking-tight"
+              style={{
+                color: '#fff', fontSize: 30, fontWeight: 900, letterSpacing: '-0.025em',
+              }}
+            />
+            {totalTax > 0 && (
+              <div className="mt-3 flex h-[4px] w-full overflow-hidden rounded-full"
+                style={{ background: 'rgba(255,255,255,0.22)' }}>
+                <div style={{
+                  width: `${outputPct}%`,
+                  background: 'rgba(255,255,255,0.95)',
+                  transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+                }} />
+                <div style={{
+                  width: `${100 - outputPct}%`,
+                  background: 'rgba(255,255,255,0.36)',
+                }} />
+              </div>
+            )}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-white">
+              <div>
+                <div className="flex items-center gap-1">
+                  <span style={{
+                    display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+                    background: '#fff', opacity: 0.95,
+                  }} />
+                  <span style={{
+                    opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
+                  }}>매출세액</span>
+                </div>
+                <p className="tnum mt-0.5" style={{ fontSize: 13, fontWeight: 800 }}>
+                  {fmt(summary.output)}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <span style={{
+                    display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+                    background: '#fff', opacity: 0.36,
+                  }} />
+                  <span style={{
+                    opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
+                  }}>매입세액</span>
+                </div>
+                <p className="tnum mt-0.5" style={{ fontSize: 13, fontWeight: 800 }}>
+                  {fmt(summary.input)}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -127,9 +203,9 @@ export default function VATPage() {
           <Row label="매입세액 (1/11)" value={summary.input} highlight="primary" />
           <Row label="납부 예상액" value={summary.payable} highlight="strong" last />
         </div>
-        <p className="mt-3 px-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-          ※ 실제 부가세 신고 금액은 사업 형태(일반/간이), 면세 거래, 세금계산서 수취 여부 등에 따라 달라집니다.
-          본 화면은 추정치이며 실제 신고는 세무사 또는 홈택스를 이용하세요.
+        <p className="mt-3 px-1 leading-snug" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+          ※ 실제 부가세 신고 금액은 사업 형태(일반/간이), 면세 거래, 세금계산서 수취 여부 등에 따라
+          달라집니다. 본 화면은 추정치이며 실제 신고는 세무사 또는 홈택스를 이용하세요.
         </p>
       </section>
     </>

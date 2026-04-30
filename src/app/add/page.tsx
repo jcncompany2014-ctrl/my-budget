@@ -134,7 +134,21 @@ function AddPage() {
   }, [mode, type, expenseList, incomeList, cat]);
 
   const valid = useMemo(() => Number(amount) > 0, [amount]);
-  const cats = type === 'expense' ? expenseList : incomeList;
+
+  // Frequency-sort categories: most-used in current scope+type appear first.
+  // Subtle UX win — daily-driver categories surface in the top row.
+  const cats = useMemo(() => {
+    const list = type === 'expense' ? expenseList : incomeList;
+    const usage = new Map<string, number>();
+    for (const t of history) {
+      if ((t.scope ?? 'personal') !== mode) continue;
+      const wantsIncome = type === 'income';
+      const isIncomeTx = t.amount > 0;
+      if (wantsIncome !== isIncomeTx) continue;
+      usage.set(t.cat, (usage.get(t.cat) ?? 0) + 1);
+    }
+    return [...list].sort((a, b) => (usage.get(b.id) ?? 0) - (usage.get(a.id) ?? 0));
+  }, [type, expenseList, incomeList, history, mode]);
 
   const submit = (saveAsFavorite = false, force = false) => {
     if (!valid) return;
