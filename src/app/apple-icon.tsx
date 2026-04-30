@@ -26,8 +26,8 @@ export default function AppleIcon() {
               strokeLinejoin="round"
               strokeLinecap="round"
             />
-            <line x1={20} y1={50} x2={80} y2={50} stroke="#fff" strokeWidth={7} strokeLinecap="round" />
-            <line x1={20} y1={62} x2={80} y2={62} stroke="#fff" strokeWidth={7} strokeLinecap="round" />
+            <line x1={18} y1={42} x2={82} y2={42} stroke="#fff" strokeWidth={7} strokeLinecap="round" />
+            <line x1={18} y1={58} x2={82} y2={58} stroke="#fff" strokeWidth={7} strokeLinecap="round" />
           </g>
         </svg>
       </div>
