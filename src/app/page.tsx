@@ -7,6 +7,7 @@ import {
   AlertCircle,
   AlertTriangle,
   type LucideIcon,
+  Minus,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -18,7 +19,6 @@ import { SkeletonHome } from '@/components/Skeleton';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
 import SmartPrompts from '@/components/SmartPrompts';
-import Sparkline from '@/components/Sparkline';
 import TxRow from '@/components/TxRow';
 import UpcomingRecurring from '@/components/UpcomingRecurring';
 import { useAccounts } from '@/lib/accounts';
@@ -316,12 +316,28 @@ function PersonalHome({
             <div className="flex flex-col gap-3">
               {topCats.map(([catId, amt]) => {
                 const c = CATEGORIES[catId];
+                const color = c?.color ?? 'var(--color-primary)';
                 const sparkValues = lastNDaysCategory(tx, catId, 14);
+                const pct = expense > 0 ? (amt / expense) * 100 : 0;
+                const recent7 = sparkValues.slice(-7).reduce((s, v) => s + v, 0);
+                const prior7 = sparkValues.slice(0, 7).reduce((s, v) => s + v, 0);
+                const change =
+                  prior7 > 0 ? ((recent7 - prior7) / prior7) * 100 : recent7 > 0 ? 100 : 0;
+                const trendKind: 'up' | 'down' | 'flat' =
+                  Math.abs(change) < 2 ? 'flat' : change > 0 ? 'up' : 'down';
+                const trendColor =
+                  trendKind === 'up'
+                    ? 'var(--color-danger)'
+                    : trendKind === 'down'
+                      ? 'var(--color-primary)'
+                      : 'var(--color-text-3)';
+                const TrendIcon =
+                  trendKind === 'up' ? TrendingUp : trendKind === 'down' ? TrendingDown : Minus;
                 return (
                   <div key={catId} className="flex items-center gap-3">
                     <CategoryIcon catId={catId} size={36} />
                     <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex items-baseline justify-between">
+                      <div className="mb-1.5 flex items-baseline justify-between">
                         <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
                           {c?.name ?? catId}
                         </span>
@@ -330,11 +346,22 @@ function PersonalHome({
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="h-1 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-100)' }}>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-100)' }}>
                           <div className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${expense > 0 ? (amt / expense) * 100 : 0}%`, background: c?.color ?? 'var(--color-primary)' }} />
+                            style={{
+                              width: `${pct}%`,
+                              background: `linear-gradient(90deg, ${color}, ${color}aa)`,
+                            }} />
                         </div>
-                        <Sparkline values={sparkValues} color={c?.color ?? 'var(--color-primary)'} width={48} height={18} />
+                        <span className="tnum shrink-0" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                          {Math.round(pct)}%
+                        </span>
+                        <span className="tnum flex shrink-0 items-center gap-0.5" style={{ color: trendColor, fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                          <TrendIcon size={12} strokeWidth={2.4} />
+                          {trendKind === 'flat'
+                            ? '0%'
+                            : `${trendKind === 'up' ? '+' : '−'}${Math.abs(Math.round(change))}%`}
+                        </span>
                       </div>
                     </div>
                   </div>
