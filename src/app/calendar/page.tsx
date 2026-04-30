@@ -12,6 +12,12 @@ import { useTransactions } from '@/lib/storage';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
+// Local YYYY-MM-DD — never round-trip dates through toISOString() for day keys
+// because that's UTC and shifts a KST midnight back to the previous day's
+// 15:00 UTC, producing an off-by-one in the day key.
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export default function CalendarPage() {
   const router = useRouter();
   const { tx, ready } = useTransactions();
@@ -37,7 +43,7 @@ export default function CalendarPage() {
     for (let i = 0; i < startWeekday; i++) row.push({ day: null, key: null });
     for (let d = 1; d <= lastDay; d++) {
       const date = new Date(month.getFullYear(), month.getMonth(), d);
-      row.push({ day: d, key: date.toISOString().slice(0, 10) });
+      row.push({ day: d, key: ymd(date) });
       if (row.length === 7) {
         rows.push(row);
         row = [];
@@ -52,7 +58,9 @@ export default function CalendarPage() {
   const totalsByDay = useMemo(() => {
     const map = new Map<string, { expense: number; income: number; count: number }>();
     tx.forEach((t) => {
-      const k = t.date.slice(0, 10);
+      // Bucket by LOCAL day so a KST 02:00 transaction on the 30th lands in
+      // the 30th's bucket, not the 29th's (its UTC slice would say 29).
+      const k = ymd(new Date(t.date));
       if (!map.has(k)) map.set(k, { expense: 0, income: 0, count: 0 });
       const v = map.get(k)!;
       if (isExpense(t)) v.expense += Math.abs(t.amount);
@@ -83,7 +91,9 @@ export default function CalendarPage() {
   }, [tx, month]);
 
   const dayTx = selectedDay
-    ? tx.filter((t) => t.date.slice(0, 10) === selectedDay).sort((a, b) => b.date.localeCompare(a.date))
+    ? tx
+        .filter((t) => ymd(new Date(t.date)) === selectedDay)
+        .sort((a, b) => b.date.localeCompare(a.date))
     : [];
 
   if (!ready) {
@@ -91,7 +101,7 @@ export default function CalendarPage() {
   }
 
   // Today's spend for the bottom hint
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = ymd(new Date());
   const todayTotal = totalsByDay.get(todayKey)?.expense ?? 0;
 
   return (
@@ -209,7 +219,6 @@ export default function CalendarPage() {
                   }
                   const data = totalsByDay.get(cell.key);
                   const isSelected = selectedDay === cell.key;
-                  const todayKey = new Date().toISOString().slice(0, 10);
                   const isToday = cell.key === todayKey;
                   return (
                     <button
@@ -281,7 +290,10 @@ export default function CalendarPage() {
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
               {(() => {
-                const d = new Date(selectedDay);
+                // Parse the local YYYY-MM-DD ourselves; new Date(string) treats
+                // it as UTC midnight which can flip days in non-UTC zones.
+                const [yy, mm, dd] = selectedDay.split('-').map(Number);
+                const d = new Date(yy, mm - 1, dd);
                 return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
               })()}
             </h2>
