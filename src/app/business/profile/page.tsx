@@ -52,16 +52,57 @@ export default function BusinessProfilePage() {
               letterSpacing: '0.04em',
             }}
           >
-            이 정보가 쓰이는 곳
+            지금 입력값이 어디에 적용되나요
           </p>
           <ul
-            className="mt-2 space-y-1.5"
+            className="mt-2 space-y-2"
             style={{ color: 'var(--color-text-2)', fontSize: 13, fontWeight: 500 }}
           >
-            <li>· 부가세·종합소득세 자동 계산 (과세 구분 기준)</li>
-            <li>· 카드/배달앱 매출 입력 시 수수료를 거래 메모에 자동 기록</li>
-            <li>· 손익계산서·세무 일정 페이지의 상호·대표자 표시</li>
-            <li>· 자동 인건비 직원 등록 시 월 기본급 합산</li>
+            <li>
+              <span style={{ color: 'var(--color-text-3)' }}>부가세 추정 →</span>{' '}
+              <span style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
+                {draft.taxClass === 'general' && '매출의 1/11 (≈9.09%)'}
+                {draft.taxClass === 'simplified' && '업종별 부가가치율 적용'}
+                {draft.taxClass === 'taxFree' && '면세사업자 — 부가세 없음'}
+              </span>
+            </li>
+            <li>
+              <span style={{ color: 'var(--color-text-3)' }}>카드 매출 100,000원 →</span>{' '}
+              <span className="tnum" style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
+                {draft.cardFeeRate > 0
+                  ? `메모 "카드 수수료 약 ${Math.round(1000 * draft.cardFeeRate).toLocaleString('ko-KR')}원"`
+                  : '수수료 메모 비활성'}
+              </span>
+            </li>
+            <li>
+              <span style={{ color: 'var(--color-text-3)' }}>배달앱 매출 100,000원 →</span>{' '}
+              <span className="tnum" style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
+                {draft.deliveryFeeRate > 0
+                  ? `메모 "배달앱 수수료 약 ${Math.round(1000 * draft.deliveryFeeRate).toLocaleString('ko-KR')}원"`
+                  : '수수료 메모 비활성'}
+              </span>
+            </li>
+            <li>
+              <span style={{ color: 'var(--color-text-3)' }}>손익계산서 헤더 →</span>{' '}
+              <span style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
+                {draft.companyName ? (
+                  <>
+                    {draft.companyName}
+                    {draft.ownerName && ` (대표 ${draft.ownerName})`}
+                  </>
+                ) : (
+                  <span style={{ color: 'var(--color-text-3)' }}>(상호명 미입력)</span>
+                )}
+              </span>
+            </li>
+            <li>
+              <span style={{ color: 'var(--color-text-3)' }}>자동 인건비 →</span>{' '}
+              <span className="tnum" style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
+                {draft.autoPayroll
+                  ? `매월 ${draft.payrollDay}일 (4대보험 +${draft.socialInsuranceRate}%)`
+                  : '비활성'}
+              </span>
+            </li>
           </ul>
         </div>
       </Section>

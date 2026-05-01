@@ -561,10 +561,10 @@ function BusinessHome({
           <p style={{ fontSize: 22, lineHeight: 1 }}>💰</p>
           <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>소득세</p>
         </Link>
-        <Link href="/business/inventory" className="tap rounded-2xl px-3 py-4 text-center"
+        <Link href="/business/tax-calendar" className="tap rounded-2xl px-3 py-4 text-center"
           style={{ background: 'var(--color-card)' }}>
-          <p style={{ fontSize: 22, lineHeight: 1 }}>📦</p>
-          <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>재고</p>
+          <p style={{ fontSize: 22, lineHeight: 1 }}>📅</p>
+          <p className="mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>세무 일정</p>
         </Link>
       </section>
 

@@ -27,7 +27,6 @@ export const KEYS = {
   language: 'asset/language/v1',
   currency: 'asset/currency/v1',
   taxpayerType: 'asset/taxpayer-type/v1',
-  auditLog: 'asset/audit-log/v1',
 } as const;
 
 export type StorageKey = (typeof KEYS)[keyof typeof KEYS];
