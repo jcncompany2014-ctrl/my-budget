@@ -28,8 +28,8 @@ export default function Icon() {
               strokeLinejoin="round"
               strokeLinecap="round"
             />
-            <line x1={26} y1={44} x2={74} y2={44} stroke="#fff" strokeWidth={8} strokeLinecap="round" />
-            <line x1={30} y1={56} x2={70} y2={56} stroke="#fff" strokeWidth={8} strokeLinecap="round" />
+            <line x1={26} y1={44} x2={74} y2={44} stroke="#fff" strokeWidth={5} strokeLinecap="round" />
+            <line x1={30} y1={56} x2={70} y2={56} stroke="#fff" strokeWidth={5} strokeLinecap="round" />
           </g>
         </svg>
       </div>
