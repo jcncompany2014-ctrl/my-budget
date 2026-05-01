@@ -20,16 +20,19 @@ const REVENUE_CATS = [
   'biz_other',
 ];
 
+// Local YYYY-MM-DD — toISOString() is UTC and shifts the day in non-UTC zones.
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export default function DailyClosePage() {
   const { tx, ready } = useTransactions();
   const { items: locations, activeId } = useLocations();
-  const today = new Date();
-  const [date, setDate] = useState(today.toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => ymd(new Date()));
 
   const data = useMemo(() => {
     if (!ready) return null;
     const dayTx = tx.filter(
-      (t) => t.date.slice(0, 10) === date && (!activeId || t.location === activeId),
+      (t) => ymd(new Date(t.date)) === date && (!activeId || t.location === activeId),
     );
     const revenue = dayTx
       .filter((t) => t.amount > 0 && REVENUE_CATS.includes(t.cat))
