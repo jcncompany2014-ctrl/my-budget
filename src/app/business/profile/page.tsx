@@ -205,8 +205,9 @@ export default function BusinessProfilePage() {
               type="number"
               inputMode="decimal"
               step="0.1"
-              value={draft.cardFeeRate}
+              value={draft.cardFeeRate || ''}
               onChange={(e) => setDraft({ ...draft, cardFeeRate: Number(e.target.value) || 0 })}
+              placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',
@@ -221,8 +222,9 @@ export default function BusinessProfilePage() {
               type="number"
               inputMode="decimal"
               step="0.1"
-              value={draft.deliveryFeeRate}
+              value={draft.deliveryFeeRate || ''}
               onChange={(e) => setDraft({ ...draft, deliveryFeeRate: Number(e.target.value) || 0 })}
+              placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',
@@ -237,10 +239,11 @@ export default function BusinessProfilePage() {
               type="number"
               inputMode="decimal"
               step="0.1"
-              value={draft.socialInsuranceRate}
+              value={draft.socialInsuranceRate || ''}
               onChange={(e) =>
                 setDraft({ ...draft, socialInsuranceRate: Number(e.target.value) || 0 })
               }
+              placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',
@@ -275,13 +278,14 @@ export default function BusinessProfilePage() {
                 inputMode="numeric"
                 min={1}
                 max={31}
-                value={draft.payrollDay}
+                value={draft.payrollDay || ''}
                 onChange={(e) =>
                   setDraft({
                     ...draft,
                     payrollDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
                   })
                 }
+                placeholder="25"
                 className="tnum h-12 w-full rounded-xl px-4 outline-none"
                 style={{
                   background: 'var(--color-gray-100)',

@@ -431,7 +431,7 @@ function Editor({
               inputMode="numeric"
               min={1}
               max={31}
-              value={draft.interestDay ?? ''}
+              value={draft.interestDay || ''}
               onChange={(e) =>
                 setDraft({
                   ...draft,

@@ -828,7 +828,7 @@ function Editor({
             type="number"
             inputMode="decimal"
             step="any"
-            value={draft.avgPrice ?? ''}
+            value={draft.avgPrice || ''}
             onChange={(e) => handleAvgPriceChange(e.target.value)}
             placeholder="0"
             className="tnum h-12 w-full rounded-xl px-4 outline-none"
@@ -873,7 +873,7 @@ function Editor({
               type="number"
               inputMode="decimal"
               step="any"
-              value={draft.shares ?? ''}
+              value={draft.shares || ''}
               onChange={(e) => setDraft({ ...draft, shares: Number(e.target.value) || 0 })}
               placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"

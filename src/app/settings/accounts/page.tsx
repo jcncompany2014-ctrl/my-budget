@@ -287,7 +287,7 @@ function AccountEditor({
         <input
           type="number"
           inputMode="numeric"
-          value={Number.isNaN(draft.balance) ? '' : draft.balance}
+          value={draft.balance || ''}
           onChange={(e) => setDraft({ ...draft, balance: Number(e.target.value) || 0 })}
           placeholder="0"
           className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
