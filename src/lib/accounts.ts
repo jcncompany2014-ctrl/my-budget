@@ -55,14 +55,6 @@ function commitAccounts(next: Account[]) {
   accListeners.forEach((fn) => fn());
 }
 
-/** Internal: integrity.ts mutates account balances directly via localStorage
- *  + writeStorageValue's notify. This refresh hook keeps the singleton in
- *  sync with those out-of-band writes. */
-export function refreshAccountsFromStorage() {
-  cachedAccounts = load();
-  accListeners.forEach((fn) => fn());
-}
-
 /**
  * Returns all accounts, regardless of mode.
  */
