@@ -195,16 +195,12 @@ export function applyRepair(issue: IntegrityIssue): boolean {
     return true;
   }
   if (r.type === 'unpair_transfer') {
-    const next = txs.map((t) =>
-      t.id === r.txId ? { ...t, transferPairId: undefined } : t,
-    );
+    const next = txs.map((t) => (t.id === r.txId ? { ...t, transferPairId: undefined } : t));
     window.localStorage.setItem(KEYS.transactions, JSON.stringify(next));
     return true;
   }
   if (r.type === 'recompute_balance') {
-    const next = accounts.map((a) =>
-      a.id === r.accId ? { ...a, balance: r.computed } : a,
-    );
+    const next = accounts.map((a) => (a.id === r.accId ? { ...a, balance: r.computed } : a));
     window.localStorage.setItem(KEYS.accounts, JSON.stringify(next));
     return true;
   }

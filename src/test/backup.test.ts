@@ -47,14 +47,30 @@ describe('backup integration', () => {
   it('does NOT wipe transactions when an import file has no transactions field (regression)', async () => {
     // User had 2 transactions saved already
     seed(KEYS.transactions, [
-      { id: 't1', amount: -1000, cat: 'food', merchant: 'A', acc: 'a', date: '2026-04-30T00:00:00Z' },
-      { id: 't2', amount: -2000, cat: 'food', merchant: 'B', acc: 'a', date: '2026-04-30T00:00:00Z' },
+      {
+        id: 't1',
+        amount: -1000,
+        cat: 'food',
+        merchant: 'A',
+        acc: 'a',
+        date: '2026-04-30T00:00:00Z',
+      },
+      {
+        id: 't2',
+        amount: -2000,
+        cat: 'food',
+        merchant: 'B',
+        acc: 'a',
+        date: '2026-04-30T00:00:00Z',
+      },
     ]);
     // Import a partial backup that only has accounts
     await importBackup(
       asFile({
         version: 5,
-        accounts: [{ id: 'a', name: 'X', balance: 0, type: 'bank', color: '#000', scope: 'personal' }],
+        accounts: [
+          { id: 'a', name: 'X', balance: 0, type: 'bank', color: '#000', scope: 'personal' },
+        ],
       }),
     );
     // Transactions must survive

@@ -3,8 +3,8 @@
 import { CheckCircle2, ShieldCheck, Wrench } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import { applyRepair, checkDataIntegrity, type IntegrityReport } from '@/lib/data-check';
 
@@ -64,8 +64,8 @@ export default function DataCheckPage() {
 
       <section className="px-5 pb-3 pt-1">
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          저장된 거래 / 계좌 / 카테고리의 일관성을 검사합니다. 백업 복원 후나 수동 편집
-          후에 한 번씩 돌려보세요.
+          저장된 거래 / 계좌 / 카테고리의 일관성을 검사합니다. 백업 복원 후나 수동 편집 후에 한 번씩
+          돌려보세요.
         </p>
       </section>
 
@@ -90,13 +90,11 @@ export default function DataCheckPage() {
                     fontWeight: 800,
                   }}
                 >
-                  {report.issues.length === 0
-                    ? '문제 없음'
-                    : `${report.issues.length}건 발견`}
+                  {report.issues.length === 0 ? '문제 없음' : `${report.issues.length}건 발견`}
                 </p>
                 <p style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-                  거래 {report.summary.transactions}건 · 계좌 {report.summary.accounts}개 ·
-                  오류 {report.summary.errors} / 경고 {report.summary.warnings}
+                  거래 {report.summary.transactions}건 · 계좌 {report.summary.accounts}개 · 오류{' '}
+                  {report.summary.errors} / 경고 {report.summary.warnings}
                 </p>
               </div>
             </div>
