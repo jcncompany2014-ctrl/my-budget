@@ -172,7 +172,10 @@ export default function CalendarPage() {
           <p className="text-[11px] font-medium" style={{ color: 'var(--color-text-3)' }}>
             지출
           </p>
-          <p className="tnum mt-0.5 text-sm font-extrabold" style={{ color: 'var(--color-danger)' }}>
+          <p
+            className="tnum mt-0.5 text-sm font-extrabold"
+            style={{ color: 'var(--color-danger)' }}
+          >
             -{fmt(monthExpense)}원
           </p>
         </div>
@@ -180,7 +183,10 @@ export default function CalendarPage() {
           <p className="text-[11px] font-medium" style={{ color: 'var(--color-text-3)' }}>
             수입
           </p>
-          <p className="tnum mt-0.5 text-sm font-extrabold" style={{ color: 'var(--color-primary)' }}>
+          <p
+            className="tnum mt-0.5 text-sm font-extrabold"
+            style={{ color: 'var(--color-primary)' }}
+          >
             +{fmt(monthIncome)}원
           </p>
         </div>
@@ -257,7 +263,9 @@ export default function CalendarPage() {
                             <span
                               className="tnum font-bold"
                               style={{
-                                color: isSelected ? 'rgba(255,255,255,0.95)' : 'var(--color-danger)',
+                                color: isSelected
+                                  ? 'rgba(255,255,255,0.95)'
+                                  : 'var(--color-danger)',
                               }}
                             >
                               -{fmtShort(data.expense)}
@@ -267,7 +275,9 @@ export default function CalendarPage() {
                             <span
                               className="tnum font-bold"
                               style={{
-                                color: isSelected ? 'rgba(255,255,255,0.95)' : 'var(--color-primary)',
+                                color: isSelected
+                                  ? 'rgba(255,255,255,0.95)'
+                                  : 'var(--color-primary)',
                               }}
                             >
                               +{fmtShort(data.income)}
@@ -302,21 +312,14 @@ export default function CalendarPage() {
             </span>
           </div>
           {dayTx.length === 0 ? (
-            <EmptyState
-              icon={Inbox}
-              iconColor="#94A3B8"
-              title="이 날 거래가 없어요"
-            />
+            <EmptyState icon={Inbox} iconColor="#94A3B8" title="이 날 거래가 없어요" />
           ) : (
-            <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
+            <div
+              className="overflow-hidden rounded-2xl"
+              style={{ background: 'var(--color-card)' }}
+            >
               {dayTx.map((t, i) => (
-                <TxRow
-                  key={t.id}
-                  tx={t}
-                  showTime
-                  showAccount
-                  borderBottom={i < dayTx.length - 1}
-                />
+                <TxRow key={t.id} tx={t} showTime showAccount borderBottom={i < dayTx.length - 1} />
               ))}
             </div>
           )}
@@ -326,10 +329,13 @@ export default function CalendarPage() {
       {!selectedDay && (
         <p className="px-5 pb-10 text-center text-xs" style={{ color: 'var(--color-text-3)' }}>
           날짜를 누르면 그 날 거래가 보여요 · 오늘은{' '}
-          <span style={{
-            color: todayTotal > 0 ? 'var(--color-danger)' : 'var(--color-text-2)',
-            fontWeight: 700,
-          }} className="tnum">
+          <span
+            style={{
+              color: todayTotal > 0 ? 'var(--color-danger)' : 'var(--color-text-2)',
+              fontWeight: 700,
+            }}
+            className="tnum"
+          >
             {todayTotal > 0 ? `-${fmtKRW(todayTotal)}` : fmtKRW(0)}
           </span>
         </p>

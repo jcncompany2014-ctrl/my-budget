@@ -33,27 +33,22 @@ export function useToast() {
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const show = useCallback(
-    (message: string, optsOrVariant?: ShowOptions | ToastVariant) => {
-      const opts =
-        typeof optsOrVariant === 'string'
-          ? { variant: optsOrVariant }
-          : optsOrVariant ?? {};
-      const id = Date.now() + Math.random();
-      const toast: Toast = {
-        id,
-        message,
-        variant: opts.variant ?? 'success',
-        action: opts.action,
-      };
-      setToasts((prev) => [...prev, toast]);
-      const duration = opts.durationMs ?? (opts.action ? 5000 : 1800);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
-    },
-    [],
-  );
+  const show = useCallback((message: string, optsOrVariant?: ShowOptions | ToastVariant) => {
+    const opts =
+      typeof optsOrVariant === 'string' ? { variant: optsOrVariant } : (optsOrVariant ?? {});
+    const id = Date.now() + Math.random();
+    const toast: Toast = {
+      id,
+      message,
+      variant: opts.variant ?? 'success',
+      action: opts.action,
+    };
+    setToasts((prev) => [...prev, toast]);
+    const duration = opts.durationMs ?? (opts.action ? 5000 : 1800);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
+  }, []);
 
   return (
     <ToastContext.Provider value={{ show }}>
@@ -63,7 +58,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
       >
         {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} onDismiss={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))} />
+          <ToastItem
+            key={t.id}
+            toast={t}
+            onDismiss={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+          />
         ))}
       </div>
     </ToastContext.Provider>
@@ -84,8 +83,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         ? { bg: 'var(--color-danger)', text: '#fff' }
         : { bg: 'var(--color-text-1)', text: 'var(--color-card)' };
 
-  const Icon =
-    toast.variant === 'success' ? Check : toast.variant === 'error' ? AlertCircle : Info;
+  const Icon = toast.variant === 'success' ? Check : toast.variant === 'error' ? AlertCircle : Info;
 
   return (
     <div

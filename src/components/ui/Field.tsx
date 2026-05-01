@@ -30,7 +30,10 @@ export default function Field({ label, hint, required, error, children, classNam
         </p>
       )}
       {error && (
-        <p className="mt-1" style={{ color: 'var(--color-danger)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+        <p
+          className="mt-1"
+          style={{ color: 'var(--color-danger)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}
+        >
           {error}
         </p>
       )}
@@ -49,10 +52,18 @@ type InputProps = {
   numeric?: boolean;
 };
 
-export function TextInput({ value, onChange, placeholder, type = 'text', inputMode, autoFocus, disabled, numeric }: InputProps) {
+export function TextInput({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  inputMode,
+  autoFocus,
+  disabled,
+  numeric,
+}: InputProps) {
   return (
     <input
-      autoFocus={autoFocus}
       disabled={disabled}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}

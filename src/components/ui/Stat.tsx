@@ -52,7 +52,10 @@ export default function Stat({
         <Money value={value} sign={sign} unit={unit} />
       </p>
       {hint && (
-        <p className="mt-1 truncate" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+        <p
+          className="mt-1 truncate"
+          style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
+        >
           {hint}
         </p>
       )}

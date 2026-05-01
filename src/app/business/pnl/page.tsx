@@ -13,16 +13,29 @@ import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
 import { CATEGORIES } from '@/lib/categories';
 import { useEmployees } from '@/lib/employees';
-import { useLocations } from '@/lib/locations';
 import { fmt } from '@/lib/format';
+import { useLocations } from '@/lib/locations';
 import { useTransactions } from '@/lib/storage';
 
 type Period = 'month' | 'quarter' | 'year';
 
-const REVENUE_CATS = ['biz_sales_card', 'biz_sales_cash', 'biz_sales_xfer', 'biz_sales_app', 'biz_other'];
+const REVENUE_CATS = [
+  'biz_sales_card',
+  'biz_sales_cash',
+  'biz_sales_xfer',
+  'biz_sales_app',
+  'biz_other',
+];
 const COGS_CATS = ['biz_purchase'];
 const FIXED_CATS = ['biz_rent', 'biz_payroll', 'biz_utility', 'biz_insurance']; // 고정비
-const VARIABLE_CATS = ['biz_marketing', 'biz_supplies', 'biz_meal', 'biz_travel', 'biz_fee', 'biz_etc']; // 변동비
+const VARIABLE_CATS = [
+  'biz_marketing',
+  'biz_supplies',
+  'biz_meal',
+  'biz_travel',
+  'biz_fee',
+  'biz_etc',
+]; // 변동비
 
 export default function PnLPage() {
   const { tx, ready } = useTransactions();
@@ -75,12 +88,27 @@ export default function PnLPage() {
     });
 
     const monthsInPeriod = period === 'month' ? 1 : period === 'quarter' ? 3 : 12;
-    const employeeCost = employees.filter((e) => e.active).reduce((s, e) => s + e.baseSalary, 0) * monthsInPeriod * 1.1;
+    const employeeCost =
+      employees.filter((e) => e.active).reduce((s, e) => s + e.baseSalary, 0) *
+      monthsInPeriod *
+      1.1;
     const sga = fixedSga + variableSga + employeeCost;
     const gross = revenue - cogs;
     const operating = gross - sga;
-    const tax = Math.max(0, Math.round(operating * 0.10));
-    return { revenue, cogs, fixedSga, variableSga, sga, gross, operating, byCategory, byLocation, tax, employeeCost };
+    const tax = Math.max(0, Math.round(operating * 0.1));
+    return {
+      revenue,
+      cogs,
+      fixedSga,
+      variableSga,
+      sga,
+      gross,
+      operating,
+      byCategory,
+      byLocation,
+      tax,
+      employeeCost,
+    };
   }, [tx, employees, period, ready]);
 
   // 6-month operating income trend
@@ -94,10 +122,16 @@ export default function PnLPage() {
         const d = new Date(t.date);
         return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
       });
-      const revenue = monthTx.filter((t) => t.amount > 0 && REVENUE_CATS.includes(t.cat)).reduce((s, t) => s + t.amount, 0);
-      const cogs = monthTx.filter((t) => COGS_CATS.includes(t.cat) && t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+      const revenue = monthTx
+        .filter((t) => t.amount > 0 && REVENUE_CATS.includes(t.cat))
+        .reduce((s, t) => s + t.amount, 0);
+      const cogs = monthTx
+        .filter((t) => COGS_CATS.includes(t.cat) && t.amount < 0)
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
       const sga = monthTx
-        .filter((t) => (FIXED_CATS.includes(t.cat) || VARIABLE_CATS.includes(t.cat)) && t.amount < 0)
+        .filter(
+          (t) => (FIXED_CATS.includes(t.cat) || VARIABLE_CATS.includes(t.cat)) && t.amount < 0,
+        )
         .reduce((s, t) => s + Math.abs(t.amount), 0);
       const empCost = employees.filter((e) => e.active).reduce((s, e) => s + e.baseSalary, 0) * 1.1;
       months.push({
@@ -110,7 +144,8 @@ export default function PnLPage() {
 
   if (!data) return <SkeletonHome />;
   const margin = data.revenue > 0 ? Math.round((data.operating / data.revenue) * 100) : 0;
-  const fixedRatio = data.revenue > 0 ? Math.round(((data.fixedSga + data.employeeCost) / data.revenue) * 100) : 0;
+  const fixedRatio =
+    data.revenue > 0 ? Math.round(((data.fixedSga + data.employeeCost) / data.revenue) * 100) : 0;
   const variableRatio = data.revenue > 0 ? Math.round((data.variableSga / data.revenue) * 100) : 0;
   const cogsRatio = data.revenue > 0 ? Math.round((data.cogs / data.revenue) * 100) : 0;
 
@@ -120,7 +155,13 @@ export default function PnLPage() {
 
       <Section topGap={4} bottomGap={4}>
         <div className="flex gap-1.5">
-          {([['month', '이번 달'], ['quarter', '이번 분기'], ['year', '올해']] as const).map(([k, label]) => (
+          {(
+            [
+              ['month', '이번 달'],
+              ['quarter', '이번 분기'],
+              ['year', '올해'],
+            ] as const
+          ).map(([k, label]) => (
             <Pill key={k} tone="primary" active={period === k} onClick={() => setPeriod(k)}>
               {label}
             </Pill>
@@ -132,33 +173,47 @@ export default function PnLPage() {
         <div
           className="relative overflow-hidden rounded-2xl px-5 py-5"
           style={{
-            background: data.operating >= 0
-              ? 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)'
-              : 'linear-gradient(135deg, #F04452 0%, #C71F2D 100%)',
+            background:
+              data.operating >= 0
+                ? 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)'
+                : 'linear-gradient(135deg, #F04452 0%, #C71F2D 100%)',
             boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
           }}
         >
-          <div aria-hidden style={{
-            position: 'absolute', top: -40, right: -40,
-            width: 180, height: 180, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
-            pointerEvents: 'none',
-          }} />
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: -40,
+              right: -40,
+              width: 180,
+              height: 180,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+              pointerEvents: 'none',
+            }}
+          />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <p style={{
-                color: 'rgba(255,255,255,0.9)',
-                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-              }}>
+              <p
+                style={{
+                  color: 'rgba(255,255,255,0.9)',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                }}
+              >
                 영업이익
               </p>
               <span
                 className="tnum"
                 style={{
-                  padding: '3px 8px', borderRadius: 999,
+                  padding: '3px 8px',
+                  borderRadius: 999,
                   background: 'rgba(255,255,255,0.20)',
                   color: '#fff',
-                  fontSize: 10, fontWeight: 800,
+                  fontSize: 10,
+                  fontWeight: 800,
                 }}
               >
                 마진 {margin}%
@@ -169,12 +224,20 @@ export default function PnLPage() {
               format={(n) => (n >= 0 ? '+' : '−') + fmt(Math.abs(n)) + '원'}
               className="mt-1.5 block tracking-tight"
               style={{
-                color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.025em',
+                color: '#fff',
+                fontSize: 28,
+                fontWeight: 900,
+                letterSpacing: '-0.025em',
               }}
             />
-            <p className="tnum mt-1" style={{
-              color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 600,
-            }}>
+            <p
+              className="tnum mt-1"
+              style={{
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            >
               매출 {fmt(data.revenue)}원
             </p>
           </div>
@@ -196,12 +259,34 @@ export default function PnLPage() {
       <Section title="비용 구조">
         <Card padding={16}>
           <div className="space-y-2.5">
-            <CostRow label="매출원가" value={data.cogs} ratio={cogsRatio} color="var(--color-orange-500)" />
-            <CostRow label="고정비" value={data.fixedSga + data.employeeCost} ratio={fixedRatio} color="var(--color-blue-500)" hint="임대료·인건비·공과금" />
-            <CostRow label="변동비" value={data.variableSga} ratio={variableRatio} color="var(--color-purple-500)" hint="마케팅·소모품·기타" />
+            <CostRow
+              label="매출원가"
+              value={data.cogs}
+              ratio={cogsRatio}
+              color="var(--color-orange-500)"
+            />
+            <CostRow
+              label="고정비"
+              value={data.fixedSga + data.employeeCost}
+              ratio={fixedRatio}
+              color="var(--color-blue-500)"
+              hint="임대료·인건비·공과금"
+            />
+            <CostRow
+              label="변동비"
+              value={data.variableSga}
+              ratio={variableRatio}
+              color="var(--color-purple-500)"
+              hint="마케팅·소모품·기타"
+            />
           </div>
-          <div className="mt-3 rounded-xl px-3 py-2" style={{ background: 'var(--color-gray-100)' }}>
-            <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+          <div
+            className="mt-3 rounded-xl px-3 py-2"
+            style={{ background: 'var(--color-gray-100)' }}
+          >
+            <p
+              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}
+            >
               손익분기점 (BEP) 추정
             </p>
             <Money
@@ -237,25 +322,43 @@ export default function PnLPage() {
               const loc = locations.find((l) => l.id === locId);
               const profit = val.revenue - val.expense;
               return (
-                <div key={locId} className="flex items-center gap-3 px-4 py-3"
-                  style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
-                  <IconCircle size={36} background={loc ? `${loc.color}1f` : 'var(--color-gray-150)'} fontSize={16}>
+                <div
+                  key={locId}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={{
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                  }}
+                >
+                  <IconCircle
+                    size={36}
+                    background={loc ? `${loc.color}1f` : 'var(--color-gray-150)'}
+                    fontSize={16}
+                  >
                     {loc?.emoji ?? '🏪'}
                   </IconCircle>
                   <div className="min-w-0 flex-1">
-                    <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                    <p
+                      style={{
+                        color: 'var(--color-text-1)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 700,
+                      }}
+                    >
                       {loc?.name ?? '미분류'}
                     </p>
                     <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
                       매출 {fmt(val.revenue)} · 비용 {fmt(val.expense)}
                     </p>
                   </div>
-                  <Money value={profit} sign="auto"
+                  <Money
+                    value={profit}
+                    sign="auto"
                     style={{
                       color: profit >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
                       fontSize: 'var(--text-sm)',
                       fontWeight: 700,
-                    }} />
+                    }}
+                  />
                 </div>
               );
             })}
@@ -271,13 +374,33 @@ export default function PnLPage() {
               .map(([cat, val], i, arr) => {
                 const c = CATEGORIES[cat];
                 return (
-                  <div key={cat} className="flex items-center gap-3 px-4 py-3"
-                    style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
+                  <div
+                    key={cat}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={{
+                      borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                    }}
+                  >
                     <CategoryIcon catId={cat} size={36} />
-                    <span className="flex-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                    <span
+                      className="flex-1"
+                      style={{
+                        color: 'var(--color-text-1)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 600,
+                      }}
+                    >
                       {c?.name ?? cat}
                     </span>
-                    <Money value={val} sign="never" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }} />
+                    <Money
+                      value={val}
+                      sign="never"
+                      style={{
+                        color: 'var(--color-text-1)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 700,
+                      }}
+                    />
                   </div>
                 );
               })}
@@ -288,43 +411,93 @@ export default function PnLPage() {
   );
 }
 
-function Row({ label, value, bold, muted, highlight, strong, last }: {
-  label: string; value: number; bold?: boolean; muted?: boolean; highlight?: boolean; strong?: boolean; last?: boolean;
+function Row({
+  label,
+  value,
+  bold,
+  muted,
+  highlight,
+  strong,
+  last,
+}: {
+  label: string;
+  value: number;
+  bold?: boolean;
+  muted?: boolean;
+  highlight?: boolean;
+  strong?: boolean;
+  last?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3"
+    <div
+      className="flex items-center justify-between px-4 py-3"
       style={{
         borderBottom: last ? 'none' : '1px solid var(--color-divider)',
         background: highlight ? 'var(--color-gray-50)' : undefined,
-      }}>
-      <span style={{
-        color: muted ? 'var(--color-text-3)' : 'var(--color-text-1)',
-        fontSize: 'var(--text-sm)',
-        fontWeight: bold || strong ? 700 : 500,
-      }}>{label}</span>
-      <Money value={value} sign={muted ? 'never' : 'auto'}
+      }}
+    >
+      <span
         style={{
-          color: muted ? 'var(--color-text-2)' : strong ? 'var(--color-primary)' : 'var(--color-text-1)',
+          color: muted ? 'var(--color-text-3)' : 'var(--color-text-1)',
+          fontSize: 'var(--text-sm)',
+          fontWeight: bold || strong ? 700 : 500,
+        }}
+      >
+        {label}
+      </span>
+      <Money
+        value={value}
+        sign={muted ? 'never' : 'auto'}
+        style={{
+          color: muted
+            ? 'var(--color-text-2)'
+            : strong
+              ? 'var(--color-primary)'
+              : 'var(--color-text-1)',
           fontSize: 'var(--text-base)',
           fontWeight: bold || strong ? 800 : 700,
-        }} />
+        }}
+      />
     </div>
   );
 }
 
-function CostRow({ label, value, ratio, color, hint }: { label: string; value: number; ratio: number; color: string; hint?: string }) {
+function CostRow({
+  label,
+  value,
+  ratio,
+  color,
+  hint,
+}: {
+  label: string;
+  value: number;
+  ratio: number;
+  color: string;
+  hint?: string;
+}) {
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-          {label} {hint && <span style={{ color: 'var(--color-text-3)', fontWeight: 500 }}>· {hint}</span>}
+          {label}{' '}
+          {hint && <span style={{ color: 'var(--color-text-3)', fontWeight: 500 }}>· {hint}</span>}
         </span>
-        <span className="tnum" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
-          {fmt(value)}원 <span style={{ color: 'var(--color-text-3)', fontWeight: 500 }}>({ratio}%)</span>
+        <span
+          className="tnum"
+          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
+        >
+          {fmt(value)}원{' '}
+          <span style={{ color: 'var(--color-text-3)', fontWeight: 500 }}>({ratio}%)</span>
         </span>
       </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
-        <div className="h-full rounded-full" style={{ width: `${Math.min(100, ratio)}%`, background: color }} />
+      <div
+        className="mt-1 h-1.5 overflow-hidden rounded-full"
+        style={{ background: 'var(--color-gray-150)' }}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.min(100, ratio)}%`, background: color }}
+        />
       </div>
     </div>
   );

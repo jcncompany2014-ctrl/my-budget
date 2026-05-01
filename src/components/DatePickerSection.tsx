@@ -30,8 +30,10 @@ export default function DatePickerSection({
 }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const twoDays = new Date(today); twoDays.setDate(today.getDate() - 2);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const twoDays = new Date(today);
+  twoDays.setDate(today.getDate() - 2);
 
   const ymd = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -53,8 +55,24 @@ export default function DatePickerSection({
 
   const presets: Array<{ label: string; sel: boolean; onClick: () => void }> = [
     { label: '오늘', sel: isToday, onClick: () => onChange(new Date()) },
-    { label: '어제', sel: isYesterday, onClick: () => { const d = new Date(); d.setDate(d.getDate() - 1); onChange(d); } },
-    { label: '그제', sel: isTwoDays, onClick: () => { const d = new Date(); d.setDate(d.getDate() - 2); onChange(d); } },
+    {
+      label: '어제',
+      sel: isYesterday,
+      onClick: () => {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        onChange(d);
+      },
+    },
+    {
+      label: '그제',
+      sel: isTwoDays,
+      onClick: () => {
+        const d = new Date();
+        d.setDate(d.getDate() - 2);
+        onChange(d);
+      },
+    },
   ];
 
   const maxDate = pastOnly
@@ -113,11 +131,19 @@ export default function DatePickerSection({
     </div>
   );
 
-  if (bare) return <div className={className} style={style}>{inner}</div>;
+  if (bare)
+    return (
+      <div className={className} style={style}>
+        {inner}
+      </div>
+    );
 
   return (
     <section className={`px-4 pb-3 ${className ?? ''}`} style={style}>
-      <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+      <label
+        className="mb-2.5 block"
+        style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+      >
         {label}
       </label>
       {inner}

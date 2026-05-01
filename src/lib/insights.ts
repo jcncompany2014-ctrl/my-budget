@@ -2,7 +2,12 @@
 
 import type { Transaction } from '@/lib/types';
 
-const isExp = (t: Transaction) => t.amount < 0 && t.cat !== 'saving' && t.cat !== 'transfer' && t.cat !== 'biz_transfer' && t.cat !== 'biz_owner_draw';
+const isExp = (t: Transaction) =>
+  t.amount < 0 &&
+  t.cat !== 'saving' &&
+  t.cat !== 'transfer' &&
+  t.cat !== 'biz_transfer' &&
+  t.cat !== 'biz_owner_draw';
 
 /**
  * Anomaly: returns categories whose current month spending is significantly
@@ -52,11 +57,7 @@ export function forecastMonthEnd(tx: Transaction[]) {
   const monthExpense = tx
     .filter((t) => {
       const d = new Date(t.date);
-      return (
-        d.getFullYear() === now.getFullYear() &&
-        d.getMonth() === now.getMonth() &&
-        isExp(t)
-      );
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && isExp(t);
     })
     .reduce((s, t) => s + Math.abs(t.amount), 0);
   const projection = Math.round((monthExpense / day) * lastDay);
@@ -67,10 +68,7 @@ export function forecastMonthEnd(tx: Transaction[]) {
  * Returns category buckets that crossed thresholds against budget map.
  * Threshold pct triggers (80, 100).
  */
-export function budgetAlerts(
-  tx: Transaction[],
-  budgets: Record<string, { limit: number }>,
-) {
+export function budgetAlerts(tx: Transaction[], budgets: Record<string, { limit: number }>) {
   const now = new Date();
   const monthExpense = new Map<string, number>();
   tx.forEach((t) => {
@@ -79,7 +77,13 @@ export function budgetAlerts(
     if (d.getFullYear() !== now.getFullYear() || d.getMonth() !== now.getMonth()) return;
     monthExpense.set(t.cat, (monthExpense.get(t.cat) ?? 0) + Math.abs(t.amount));
   });
-  const alerts: { cat: string; pct: number; used: number; limit: number; level: 'warn' | 'over' }[] = [];
+  const alerts: {
+    cat: string;
+    pct: number;
+    used: number;
+    limit: number;
+    level: 'warn' | 'over';
+  }[] = [];
   Object.entries(budgets).forEach(([cat, b]) => {
     if (b.limit <= 0) return;
     const used = monthExpense.get(cat) ?? 0;

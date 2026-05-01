@@ -3,10 +3,10 @@
 import { CreditCard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
+import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
@@ -127,7 +127,10 @@ export default function CreditLinePage() {
                       >
                         {l.name}
                       </p>
-                      <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+                      <p
+                        className="truncate"
+                        style={{ color: 'var(--color-text-3)', fontSize: 11 }}
+                      >
                         {l.bank} · 연 {l.rate}%
                       </p>
                     </div>
@@ -265,7 +268,8 @@ function Editor({
               onClick={() => setDraft({ ...draft, emoji: e })}
               className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
               style={{
-                background: draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                background:
+                  draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
                 border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
               }}
             >
@@ -369,9 +373,7 @@ function Editor({
               style={{
                 background: c,
                 boxShadow:
-                  draft.color === c
-                    ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33`
-                    : 'none',
+                  draft.color === c ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
               }}
               aria-label={c}
             />
@@ -380,7 +382,10 @@ function Editor({
       </Field>
 
       {draft.used > 0 && draft.rate > 0 && (
-        <div className="mb-3 rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-soft)' }}>
+        <div
+          className="mb-3 rounded-xl px-4 py-3"
+          style={{ background: 'var(--color-primary-soft)' }}
+        >
           <p
             style={{
               color: 'var(--color-primary)',
@@ -450,9 +455,7 @@ function Editor({
           <Field label="출금 계좌">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {accounts.length === 0 ? (
-                <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>
-                  먼저 계좌를 추가하세요
-                </p>
+                <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>먼저 계좌를 추가하세요</p>
               ) : (
                 accounts.map((a) => {
                   const sel = draft.linkedAccountId === a.id;

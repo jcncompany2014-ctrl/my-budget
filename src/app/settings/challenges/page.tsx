@@ -3,14 +3,14 @@
 import { Trophy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
+import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
-import { useChallenges } from '@/lib/challenges';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
+import { useChallenges } from '@/lib/challenges';
 import { fmt, isExpense } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 import type { Challenge } from '@/lib/types';
@@ -24,7 +24,12 @@ export default function ChallengesPage() {
   const [editing, setEditing] = useState<Challenge | null>(null);
   const [creating, setCreating] = useState(false);
 
-  if (!ready) return <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>로딩 중...</div>;
+  if (!ready)
+    return (
+      <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>
+        로딩 중...
+      </div>
+    );
   const list = items.filter((c) => c.scope === mode);
 
   const startNew = () => {
@@ -50,8 +55,12 @@ export default function ChallengesPage() {
       <TopBar
         title="챌린지"
         right={
-          <button type="button" onClick={() => router.back()} className="tap rounded-full px-3 py-2"
-            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="tap rounded-full px-3 py-2"
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+          >
             완료
           </button>
         }
@@ -68,37 +77,72 @@ export default function ChallengesPage() {
         ) : (
           <div className="space-y-2">
             {list.map((c) => (
-              <ChallengeCard key={c.id} challenge={c} tx={tx}
-                onEdit={() => { setEditing(c); setCreating(false); }} />
+              <ChallengeCard
+                key={c.id}
+                challenge={c}
+                tx={tx}
+                onEdit={() => {
+                  setEditing(c);
+                  setCreating(false);
+                }}
+              />
             ))}
           </div>
         )}
       </section>
 
       <section className="px-5 pb-10 pt-2">
-        <button type="button" onClick={startNew}
+        <button
+          type="button"
+          onClick={startNew}
           className="tap w-full rounded-2xl border-2 border-dashed py-4"
-          style={{ borderColor: 'var(--color-gray-300)', color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          style={{
+            borderColor: 'var(--color-gray-300)',
+            color: 'var(--color-text-2)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
           + 챌린지 추가
         </button>
       </section>
 
       {editing && (
-        <Editor c={editing} mode={mode} isNew={creating}
+        <Editor
+          c={editing}
+          mode={mode}
+          isNew={creating}
           onSave={(c) => {
-            if (creating) add(c); else update(c.id, c);
+            if (creating) add(c);
+            else update(c.id, c);
             toast.show(creating ? '챌린지 추가 완료' : '수정 완료', 'success');
-            setEditing(null); setCreating(false);
+            setEditing(null);
+            setCreating(false);
           }}
-          onDelete={creating ? undefined : () => { remove(editing.id); toast.show('삭제 완료', 'info'); setEditing(null); }}
-          onCancel={() => { setEditing(null); setCreating(false); }}
+          onDelete={
+            creating
+              ? undefined
+              : () => {
+                  remove(editing.id);
+                  toast.show('삭제 완료', 'info');
+                  setEditing(null);
+                }
+          }
+          onCancel={() => {
+            setEditing(null);
+            setCreating(false);
+          }}
         />
       )}
     </>
   );
 }
 
-function ChallengeCard({ challenge, tx, onEdit }: {
+function ChallengeCard({
+  challenge,
+  tx,
+  onEdit,
+}: {
   challenge: Challenge;
   tx: { date: string; amount: number; cat: string; scope?: string }[];
   onEdit: () => void;
@@ -121,15 +165,24 @@ function ChallengeCard({ challenge, tx, onEdit }: {
   const exceeded = spent > challenge.limit;
   const today = new Date();
   const endDate = new Date(challenge.endDate);
-  const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
+  );
 
   return (
-    <button type="button" onClick={onEdit} className="tap w-full rounded-2xl px-4 py-4 text-left"
-      style={{ background: 'var(--color-card)' }}>
+    <button
+      type="button"
+      onClick={onEdit}
+      className="tap w-full rounded-2xl px-4 py-4 text-left"
+      style={{ background: 'var(--color-card)' }}
+    >
       <div className="flex items-center gap-3">
         <span style={{ fontSize: 26 }}>{challenge.emoji}</span>
         <div className="flex-1">
-          <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+          <p
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+          >
             {challenge.name}
           </p>
           <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
@@ -138,125 +191,227 @@ function ChallengeCard({ challenge, tx, onEdit }: {
           </p>
         </div>
         <div className="text-right">
-          <Money value={spent} sign="never"
+          <Money
+            value={spent}
+            sign="never"
             style={{
               color: exceeded ? 'var(--color-danger)' : 'var(--color-text-1)',
               fontSize: 'var(--text-base)',
               fontWeight: 700,
-            }} />
+            }}
+          />
           <p className="tnum" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
             / {fmt(challenge.limit)}원
           </p>
         </div>
       </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
-        <div className="h-full rounded-full"
+      <div
+        className="mt-3 h-1.5 overflow-hidden rounded-full"
+        style={{ background: 'var(--color-gray-150)' }}
+      >
+        <div
+          className="h-full rounded-full"
           style={{
             width: `${pct}%`,
-            background: exceeded ? 'var(--color-danger)' : pct > 80 ? 'var(--color-orange-500)' : 'var(--color-primary)',
-          }} />
+            background: exceeded
+              ? 'var(--color-danger)'
+              : pct > 80
+                ? 'var(--color-orange-500)'
+                : 'var(--color-primary)',
+          }}
+        />
       </div>
     </button>
   );
 }
 
-function Editor({ c, mode, isNew, onSave, onDelete, onCancel }: {
-  c: Challenge; mode: 'personal' | 'business'; isNew: boolean;
-  onSave: (c: Challenge) => void; onDelete?: () => void; onCancel: () => void;
+function Editor({
+  c,
+  mode,
+  isNew,
+  onSave,
+  onDelete,
+  onCancel,
+}: {
+  c: Challenge;
+  mode: 'personal' | 'business';
+  isNew: boolean;
+  onSave: (c: Challenge) => void;
+  onDelete?: () => void;
+  onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(c);
   const cats = expenseCategoriesByScope(mode);
   const valid = draft.name.trim().length > 0 && draft.limit > 0;
   return (
     <Sheet open onClose={onCancel}>
-        <h2 className="mb-4" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-          {isNew ? '챌린지 추가' : '챌린지 편집'}
-        </h2>
+      <h2
+        className="mb-4"
+        style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}
+      >
+        {isNew ? '챌린지 추가' : '챌린지 편집'}
+      </h2>
 
-        <Field label="이모지">
-          <div className="flex flex-wrap gap-2">
-            {['🎯', '⛳', '🥇', '🏃', '💪', '🔥', '🚀', '✨'].map((e) => (
-              <button key={e} type="button" onClick={() => setDraft({ ...draft, emoji: e })}
-                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                style={{
-                  background: draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                  border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
-                }}>{e}</button>
-            ))}
-          </div>
-        </Field>
-        <Field label="이름 *">
-          <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="예) 이번 주 식비 5만원"
-            className="h-12 w-full rounded-xl px-4 outline-none"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
-        </Field>
-        <Field label="카테고리 (선택)">
-          <div className="flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => setDraft({ ...draft, cat: undefined })}
-              className="tap rounded-full px-3 py-1.5"
+      <Field label="이모지">
+        <div className="flex flex-wrap gap-2">
+          {['🎯', '⛳', '🥇', '🏃', '💪', '🔥', '🚀', '✨'].map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => setDraft({ ...draft, emoji: e })}
+              className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
               style={{
-                background: !draft.cat ? 'var(--color-primary)' : 'var(--color-gray-100)',
-                color: !draft.cat ? '#fff' : 'var(--color-text-2)',
-                fontSize: 'var(--text-xs)',
-                fontWeight: 700,
-              }}>
-              전체
+                background:
+                  draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
+              }}
+            >
+              {e}
             </button>
-            {cats.slice(0, 8).map((c) => {
-              const sel = draft.cat === c.id;
-              return (
-                <button key={c.id} type="button" onClick={() => setDraft({ ...draft, cat: c.id })}
-                  className="tap rounded-full px-3 py-1.5"
-                  style={{
-                    background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
-                    color: sel ? '#fff' : 'var(--color-text-2)',
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 700,
-                  }}>
-                  {c.emoji} {c.name}
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-        <Field label="한도 *">
-          <input type="number" inputMode="numeric"
-            value={draft.limit || ''} onChange={(e) => setDraft({ ...draft, limit: Number(e.target.value) || 0 })}
-            placeholder="0"
-            className="tnum h-12 w-full rounded-xl px-4 outline-none"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="시작">
-            <input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
-              className="h-12 w-full rounded-xl px-4 outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 500 }} />
-          </Field>
-          <Field label="종료">
-            <input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
-              className="h-12 w-full rounded-xl px-4 outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 500 }} />
-          </Field>
+          ))}
         </div>
-
-        <div className="flex gap-2">
-          {onDelete && (
-            <button type="button" onClick={onDelete} className="tap h-12 rounded-xl px-4"
-              style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              삭제
-            </button>
-          )}
-          <button type="button" onClick={onCancel} className="tap h-12 flex-1 rounded-xl"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>취소</button>
-          <button type="button" disabled={!valid} onClick={() => onSave(draft)} className="tap h-12 flex-1 rounded-xl"
+      </Field>
+      <Field label="이름 *">
+        <input
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          placeholder="예) 이번 주 식비 5만원"
+          className="h-12 w-full rounded-xl px-4 outline-none"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 500,
+          }}
+        />
+      </Field>
+      <Field label="카테고리 (선택)">
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setDraft({ ...draft, cat: undefined })}
+            className="tap rounded-full px-3 py-1.5"
             style={{
-              background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
-              color: valid ? '#fff' : 'var(--color-text-4)',
+              background: !draft.cat ? 'var(--color-primary)' : 'var(--color-gray-100)',
+              color: !draft.cat ? '#fff' : 'var(--color-text-2)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 700,
+            }}
+          >
+            전체
+          </button>
+          {cats.slice(0, 8).map((c) => {
+            const sel = draft.cat === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setDraft({ ...draft, cat: c.id })}
+                className="tap rounded-full px-3 py-1.5"
+                style={{
+                  background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                  color: sel ? '#fff' : 'var(--color-text-2)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 700,
+                }}
+              >
+                {c.emoji} {c.name}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+      <Field label="한도 *">
+        <input
+          type="number"
+          inputMode="numeric"
+          value={draft.limit || ''}
+          onChange={(e) => setDraft({ ...draft, limit: Number(e.target.value) || 0 })}
+          placeholder="0"
+          className="tnum h-12 w-full rounded-xl px-4 outline-none"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 500,
+          }}
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="시작">
+          <input
+            type="date"
+            value={draft.startDate}
+            onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
+            className="h-12 w-full rounded-xl px-4 outline-none"
+            style={{
+              background: 'var(--color-gray-100)',
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 500,
+            }}
+          />
+        </Field>
+        <Field label="종료">
+          <input
+            type="date"
+            value={draft.endDate}
+            onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
+            className="h-12 w-full rounded-xl px-4 outline-none"
+            style={{
+              background: 'var(--color-gray-100)',
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 500,
+            }}
+          />
+        </Field>
+      </div>
+
+      <div className="flex gap-2">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="tap h-12 rounded-xl px-4"
+            style={{
+              background: 'var(--color-danger-soft)',
+              color: 'var(--color-danger)',
               fontSize: 'var(--text-sm)',
               fontWeight: 700,
-            }}>저장</button>
-        </div>
+            }}
+          >
+            삭제
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={() => onSave(draft)}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
+            color: valid ? '#fff' : 'var(--color-text-4)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          저장
+        </button>
+      </div>
     </Sheet>
   );
 }
@@ -264,7 +419,12 @@ function Editor({ c, mode, isNew, onSave, onDelete, onCancel }: {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="mb-1.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>{label}</label>
+      <label
+        className="mb-1.5 block"
+        style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+      >
+        {label}
+      </label>
       {children}
     </div>
   );

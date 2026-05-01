@@ -2,16 +2,14 @@
 
 import { useMemo } from 'react';
 import { useMode } from '@/components/ModeProvider';
-import { createListStore } from '@/lib/store-factory';
 import { KEYS } from '@/lib/storage-keys';
+import { createListStore } from '@/lib/store-factory';
 import type { RecurringItem, Scope } from '@/lib/types';
 
 export const useAllRecurring = createListStore<RecurringItem>(KEYS.recurring, [], {
   validate: (data) =>
     Array.isArray(data)
-      ? (data as RecurringItem[]).map((r) =>
-          r.scope ? r : { ...r, scope: 'personal' as Scope },
-        )
+      ? (data as RecurringItem[]).map((r) => (r.scope ? r : { ...r, scope: 'personal' as Scope }))
       : null,
 });
 

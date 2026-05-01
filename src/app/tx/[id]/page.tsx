@@ -150,10 +150,14 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
 
       <section className="px-6 pb-8 pt-6 text-center">
         <CategoryIcon catId={item.cat} size={72} style={{ margin: '0 auto 16px' }} />
-        <p style={{
-          color: 'var(--color-text-3)',
-          fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
-        }}>
+        <p
+          style={{
+            color: 'var(--color-text-3)',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}
+        >
           {(cat?.name ?? '기타').toUpperCase()}
           {(isTransferCategory(item.cat) || item.transferPairId) && ' · 이체'}
         </p>
@@ -161,11 +165,15 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
           className="tnum mt-1.5 tracking-tight"
           style={{
             color: isIncome ? 'var(--color-primary)' : 'var(--color-text-1)',
-            fontSize: 32, fontWeight: 900, letterSpacing: '-0.03em',
+            fontSize: 32,
+            fontWeight: 900,
+            letterSpacing: '-0.03em',
             lineHeight: 1.1,
           }}
         >
-          {isIncome ? '+' : '−'}{fmt(item.amount)}<span style={{ fontSize: 18, marginLeft: 2, color: 'var(--color-text-3)' }}>원</span>
+          {isIncome ? '+' : '−'}
+          {fmt(item.amount)}
+          <span style={{ fontSize: 18, marginLeft: 2, color: 'var(--color-text-3)' }}>원</span>
         </p>
         <p className="mt-2 text-base font-semibold" style={{ color: 'var(--color-text-1)' }}>
           {item.merchant}
@@ -264,7 +272,6 @@ function RowEditable({
         {label}
       </span>
       <input
-        autoFocus
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {

@@ -4,15 +4,25 @@ import { Target } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
-import { useGoals } from '@/lib/goals';
 import { fmt } from '@/lib/format';
+import { useGoals } from '@/lib/goals';
 import type { SavingsGoal } from '@/lib/types';
 
-const COLORS = ['#00B956', '#3182F6', '#F472B6', '#FF8A1F', '#8B5CF6', '#14B8A6', '#FFCC00', '#EF4444', '#06B6D4'];
+const COLORS = [
+  '#00B956',
+  '#3182F6',
+  '#F472B6',
+  '#FF8A1F',
+  '#8B5CF6',
+  '#14B8A6',
+  '#FFCC00',
+  '#EF4444',
+  '#06B6D4',
+];
 const EMOJIS = ['🎯', '🏝️', '💻', '🛟', '🚗', '🏠', '✈️', '💍', '🎓', '👶'];
 
 export default function GoalsSettingsPage() {
@@ -106,11 +116,15 @@ export default function GoalsSettingsPage() {
                   }}
                 >
                   {completed && (
-                    <div aria-hidden style={{
-                      position: 'absolute', inset: 0,
-                      background: `radial-gradient(120% 80% at 100% 0%, ${g.color}1a 0%, transparent 70%)`,
-                      pointerEvents: 'none',
-                    }} />
+                    <div
+                      aria-hidden
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: `radial-gradient(120% 80% at 100% 0%, ${g.color}1a 0%, transparent 70%)`,
+                        pointerEvents: 'none',
+                      }}
+                    />
                   )}
                   <div className="relative flex items-center gap-3">
                     <div
@@ -121,16 +135,24 @@ export default function GoalsSettingsPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
+                        <p
+                          className="truncate text-base font-bold"
+                          style={{ color: 'var(--color-text-1)' }}
+                        >
                           {g.name}
                         </p>
                         {completed && (
-                          <span style={{
-                            background: g.color,
-                            color: '#fff',
-                            fontSize: 9, fontWeight: 800, letterSpacing: '0.02em',
-                            padding: '2px 6px', borderRadius: 999,
-                          }}>
+                          <span
+                            style={{
+                              background: g.color,
+                              color: '#fff',
+                              fontSize: 9,
+                              fontWeight: 800,
+                              letterSpacing: '0.02em',
+                              padding: '2px 6px',
+                              borderRadius: 999,
+                            }}
+                          >
                             달성
                           </span>
                         )}
@@ -143,20 +165,36 @@ export default function GoalsSettingsPage() {
                           <span> · D-{daysUntil}</span>
                         )}
                         {!completed && daysUntil != null && daysUntil <= 0 && (
-                          <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}> · 기한 지남</span>
+                          <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>
+                            {' '}
+                            · 기한 지남
+                          </span>
                         )}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="tnum tracking-tight" style={{
-                        color: g.color, fontSize: 22, fontWeight: 900, letterSpacing: '-0.025em', lineHeight: 1,
-                      }}>
-                        {pct}<span style={{ fontSize: 12, marginLeft: 1 }}>%</span>
+                      <p
+                        className="tnum tracking-tight"
+                        style={{
+                          color: g.color,
+                          fontSize: 22,
+                          fontWeight: 900,
+                          letterSpacing: '-0.025em',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {pct}
+                        <span style={{ fontSize: 12, marginLeft: 1 }}>%</span>
                       </p>
                       {!completed && remaining > 0 && (
-                        <p className="tnum mt-0.5" style={{
-                          color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600,
-                        }}>
+                        <p
+                          className="tnum mt-0.5"
+                          style={{
+                            color: 'var(--color-text-3)',
+                            fontSize: 10,
+                            fontWeight: 600,
+                          }}
+                        >
                           {fmt(remaining)} 남음
                         </p>
                       )}
@@ -237,148 +275,166 @@ function GoalEditor({
 
   return (
     <Sheet open onClose={onCancel}>
-        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
-          {isNew ? '새 목표' : '목표 편집'}
-        </h2>
+      <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
+        {isNew ? '새 목표' : '목표 편집'}
+      </h2>
 
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-            이모지
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {EMOJIS.map((e) => {
-              const sel = draft.emoji === e;
-              return (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setDraft({ ...draft, emoji: e })}
-                  className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                  style={{
-                    background: sel ? `${draft.color}33` : 'var(--color-gray-100)',
-                    border: `2px solid ${sel ? draft.color : 'transparent'}`,
-                  }}
-                >
-                  {e}
-                </button>
-              );
-            })}
-          </div>
+      <div className="mb-3">
+        <label
+          className="mb-1.5 block text-[13px] font-semibold"
+          style={{ color: 'var(--color-text-2)' }}
+        >
+          이모지
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {EMOJIS.map((e) => {
+            const sel = draft.emoji === e;
+            return (
+              <button
+                key={e}
+                type="button"
+                onClick={() => setDraft({ ...draft, emoji: e })}
+                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
+                style={{
+                  background: sel ? `${draft.color}33` : 'var(--color-gray-100)',
+                  border: `2px solid ${sel ? draft.color : 'transparent'}`,
+                }}
+              >
+                {e}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-            이름 *
+      <div className="mb-3">
+        <label
+          className="mb-1.5 block text-[13px] font-semibold"
+          style={{ color: 'var(--color-text-2)' }}
+        >
+          이름 *
+        </label>
+        <input
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          placeholder="예) 제주도 여행"
+          className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+          style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+        />
+      </div>
+
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <div>
+          <label
+            className="mb-1.5 block text-[13px] font-semibold"
+            style={{ color: 'var(--color-text-2)' }}
+          >
+            목표 금액 *
           </label>
           <input
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="예) 제주도 여행"
-            className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+            type="number"
+            inputMode="numeric"
+            value={draft.target || ''}
+            onChange={(e) => setDraft({ ...draft, target: Number(e.target.value) || 0 })}
+            placeholder="0"
+            className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
           />
         </div>
-
-        <div className="mb-3 grid grid-cols-2 gap-2">
-          <div>
-            <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-              목표 금액 *
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={draft.target || ''}
-              onChange={(e) => setDraft({ ...draft, target: Number(e.target.value) || 0 })}
-              placeholder="0"
-              className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-              현재 금액
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={draft.current || ''}
-              onChange={(e) => setDraft({ ...draft, current: Number(e.target.value) || 0 })}
-              placeholder="0"
-              className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-            />
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-            목표일
+        <div>
+          <label
+            className="mb-1.5 block text-[13px] font-semibold"
+            style={{ color: 'var(--color-text-2)' }}
+          >
+            현재 금액
           </label>
           <input
-            type="date"
-            value={draft.due}
-            onChange={(e) => setDraft({ ...draft, due: e.target.value })}
-            className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+            type="number"
+            inputMode="numeric"
+            value={draft.current || ''}
+            onChange={(e) => setDraft({ ...draft, current: Number(e.target.value) || 0 })}
+            placeholder="0"
+            className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
           />
         </div>
+      </div>
 
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-            색상
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {COLORS.map((c) => {
-              const sel = draft.color === c;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setDraft({ ...draft, color: c })}
-                  className="tap h-10 w-10 rounded-full"
-                  style={{
-                    background: c,
-                    boxShadow: sel ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
-                  }}
-                  aria-label={c}
-                />
-              );
-            })}
-          </div>
+      <div className="mb-3">
+        <label
+          className="mb-1.5 block text-[13px] font-semibold"
+          style={{ color: 'var(--color-text-2)' }}
+        >
+          목표일
+        </label>
+        <input
+          type="date"
+          value={draft.due}
+          onChange={(e) => setDraft({ ...draft, due: e.target.value })}
+          className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+          style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+        />
+      </div>
+
+      <div className="mb-4">
+        <label
+          className="mb-1.5 block text-[13px] font-semibold"
+          style={{ color: 'var(--color-text-2)' }}
+        >
+          색상
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {COLORS.map((c) => {
+            const sel = draft.color === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setDraft({ ...draft, color: c })}
+                className="tap h-10 w-10 rounded-full"
+                style={{
+                  background: c,
+                  boxShadow: sel ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
+                }}
+                aria-label={c}
+              />
+            );
+          })}
         </div>
+      </div>
 
-        <div className="mt-2 flex gap-2">
-          {onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="tap h-12 rounded-xl px-4 text-sm font-bold"
-              style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
-            >
-              삭제
-            </button>
-          )}
+      <div className="mt-2 flex gap-2">
+        {onDelete && (
           <button
             type="button"
-            onClick={onCancel}
-            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+            onClick={onDelete}
+            className="tap h-12 rounded-xl px-4 text-sm font-bold"
+            style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
           >
-            취소
+            삭제
           </button>
-          <button
-            type="button"
-            disabled={!valid}
-            onClick={() => onSave(draft)}
-            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
-            style={{
-              background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
-              color: valid ? '#fff' : 'var(--color-text-4)',
-            }}
-          >
-            저장
-          </button>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+          style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={() => onSave(draft)}
+          className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+          style={{
+            background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
+            color: valid ? '#fff' : 'var(--color-text-4)',
+          }}
+        >
+          저장
+        </button>
+      </div>
     </Sheet>
   );
 }

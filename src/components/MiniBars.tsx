@@ -18,7 +18,11 @@ export default function MiniBars({ bars, height = 60 }: Props) {
               ? 'var(--color-gray-300)'
               : 'var(--color-primary)';
         return (
-          <div key={i} className="flex flex-1 flex-col items-center gap-1" style={{ height: '100%' }}>
+          <div
+            key={i}
+            className="flex flex-1 flex-col items-center gap-1"
+            style={{ height: '100%' }}
+          >
             <div className="flex w-full flex-1 items-end">
               <div
                 className="w-full rounded-t-md"

@@ -1,8 +1,8 @@
 'use client';
 
-import { useMode } from './ModeProvider';
 import { haptics } from '@/lib/haptics';
 import type { Scope } from '@/lib/types';
+import { useMode } from './ModeProvider';
 
 export default function ModeToggle() {
   const { mode, setMode } = useMode();

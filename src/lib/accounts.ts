@@ -85,11 +85,8 @@ export function useAllAccounts() {
 
   const add = (a: Account) => commitAccounts([...getCachedAccounts(), a]);
   const update = (id: string, patch: Partial<Account>) =>
-    commitAccounts(
-      getCachedAccounts().map((a) => (a.id === id ? { ...a, ...patch } : a)),
-    );
-  const remove = (id: string) =>
-    commitAccounts(getCachedAccounts().filter((a) => a.id !== id));
+    commitAccounts(getCachedAccounts().map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  const remove = (id: string) => commitAccounts(getCachedAccounts().filter((a) => a.id !== id));
 
   return { accounts, ready, add, update, remove };
 }

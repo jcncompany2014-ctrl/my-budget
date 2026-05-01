@@ -43,7 +43,10 @@ export function expandByCategory(t: {
   splits?: { cat: string; amount: number }[];
 }): { cat: string; amount: number }[] {
   if (t.splits && t.splits.length > 0) {
-    return t.splits.map((s) => ({ cat: s.cat, amount: t.amount < 0 ? -Math.abs(s.amount) : Math.abs(s.amount) }));
+    return t.splits.map((s) => ({
+      cat: s.cat,
+      amount: t.amount < 0 ? -Math.abs(s.amount) : Math.abs(s.amount),
+    }));
   }
   return [{ cat: t.cat, amount: t.amount }];
 }

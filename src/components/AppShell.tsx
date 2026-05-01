@@ -2,12 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import BottomNav from './BottomNav';
 import { ensureAutoBackup } from '@/lib/auto-backup';
 import { ensureAutoCreditLine } from '@/lib/auto-credit-line';
 import { ensureAutoLoanPayment } from '@/lib/auto-loan-payment';
 import { ensureAutoPayroll } from '@/lib/auto-payroll';
 import { ensureAutoRecurring } from '@/lib/auto-recurring';
+import BottomNav from './BottomNav';
 
 const HIDE_NAV_PREFIXES = ['/add', '/tx/', '/transfer', '/quick-add'];
 

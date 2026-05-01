@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
+import TopBar from '@/components/TopBar';
 import IconCircle from '@/components/ui/IconCircle';
 import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
-import TopBar from '@/components/TopBar';
 
 type TaxItem = {
   emoji: string;
@@ -21,7 +21,12 @@ const TAX_SCHEDULE: TaxItem[] = [
   { emoji: '💰', title: '종합소득세', detail: '전년도 사업소득', due: { month: 5, day: 31 } },
   { emoji: '👥', title: '원천세', detail: '매월 신고', due: { month: 0, day: 10 } }, // every month
   { emoji: '🛡️', title: '4대보험 정산', detail: '연말정산', due: { month: 4, day: 30 } },
-  { emoji: '📋', title: '간이지급명세서', detail: '반기 1회', due: { month: 7, day: 31, semiannually: true } },
+  {
+    emoji: '📋',
+    title: '간이지급명세서',
+    detail: '반기 1회',
+    due: { month: 7, day: 31, semiannually: true },
+  },
 ];
 
 function nextDue(item: TaxItem, now: Date): Date {
@@ -72,7 +77,9 @@ export default function TaxCalendarPage() {
               >
                 <IconCircle
                   size={44}
-                  background={urgent ? 'var(--color-danger-soft)' : soon ? '#FFF6E5' : 'var(--color-gray-100)'}
+                  background={
+                    urgent ? 'var(--color-danger-soft)' : soon ? '#FFF6E5' : 'var(--color-gray-100)'
+                  }
                   fontSize={20}
                 >
                   {it.emoji}
@@ -80,7 +87,11 @@ export default function TaxCalendarPage() {
                 <div className="min-w-0 flex-1">
                   <p
                     className="truncate"
-                    style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+                    style={{
+                      color: 'var(--color-text-1)',
+                      fontSize: 'var(--text-base)',
+                      fontWeight: 700,
+                    }}
                   >
                     {it.title}
                   </p>
@@ -88,12 +99,12 @@ export default function TaxCalendarPage() {
                     className="truncate"
                     style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
                   >
-                    {it.detail} · {it.dueDate.getFullYear()}.{String(it.dueDate.getMonth() + 1).padStart(2, '0')}.{String(it.dueDate.getDate()).padStart(2, '0')}
+                    {it.detail} · {it.dueDate.getFullYear()}.
+                    {String(it.dueDate.getMonth() + 1).padStart(2, '0')}.
+                    {String(it.dueDate.getDate()).padStart(2, '0')}
                   </p>
                 </div>
-                <Pill tone={urgent ? 'danger' : soon ? 'warn' : 'neutral'}>
-                  D-{it.daysUntil}
-                </Pill>
+                <Pill tone={urgent ? 'danger' : soon ? 'warn' : 'neutral'}>D-{it.daysUntil}</Pill>
               </div>
             );
           })}

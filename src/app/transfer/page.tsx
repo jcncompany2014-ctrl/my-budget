@@ -222,7 +222,8 @@ function AccountPicker({
               className="tnum mt-0.5"
               style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
             >
-              {fmt(Math.abs(selected.balance))}원 · {selected.scope === 'business' ? '사업' : '개인'}
+              {fmt(Math.abs(selected.balance))}원 ·{' '}
+              {selected.scope === 'business' ? '사업' : '개인'}
             </p>
           </>
         ) : (
@@ -237,22 +238,45 @@ function AccountPicker({
 
       {open && (
         <Sheet open onClose={() => setOpen(false)}>
-            <h3
-              className="mb-3"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
-            >
-              {label}
-            </h3>
-            <Group label="개인 계좌" accounts={accounts.filter((a) => a.scope === 'personal')} excludeId={excludeId} onPick={(id) => { onSelect(id); setOpen(false); }} selectedId={selectedId} />
-            <Group label="사업 계좌" accounts={accounts.filter((a) => a.scope === 'business')} excludeId={excludeId} onPick={(id) => { onSelect(id); setOpen(false); }} selectedId={selectedId} />
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="tap mt-4 h-12 w-full rounded-xl"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              닫기
-            </button>
+          <h3
+            className="mb-3"
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+          >
+            {label}
+          </h3>
+          <Group
+            label="개인 계좌"
+            accounts={accounts.filter((a) => a.scope === 'personal')}
+            excludeId={excludeId}
+            onPick={(id) => {
+              onSelect(id);
+              setOpen(false);
+            }}
+            selectedId={selectedId}
+          />
+          <Group
+            label="사업 계좌"
+            accounts={accounts.filter((a) => a.scope === 'business')}
+            excludeId={excludeId}
+            onPick={(id) => {
+              onSelect(id);
+              setOpen(false);
+            }}
+            selectedId={selectedId}
+          />
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="tap mt-4 h-12 w-full rounded-xl"
+            style={{
+              background: 'var(--color-gray-100)',
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 700,
+            }}
+          >
+            닫기
+          </button>
         </Sheet>
       )}
     </>

@@ -4,16 +4,11 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
-import IconCircle from '@/components/ui/IconCircle';
-import {
-  CATEGORIES,
-  expenseCategoriesByScope,
-  incomeCategoriesByScope,
-} from '@/lib/categories';
-import { useCategoryRules } from '@/lib/category-rules';
+import TopBar from '@/components/TopBar';
+import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import type { CategoryRule } from '@/lib/category-rules';
+import { useCategoryRules } from '@/lib/category-rules';
 
 export default function CategoryRulesPage() {
   const router = useRouter();
@@ -28,7 +23,12 @@ export default function CategoryRulesPage() {
   const [matchInput, setMatchInput] = useState('');
   const [pickedCat, setPickedCat] = useState(cats[0]?.id ?? '');
 
-  if (!ready) return <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>로딩 중...</div>;
+  if (!ready)
+    return (
+      <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>
+        로딩 중...
+      </div>
+    );
 
   const handleAdd = () => {
     if (!matchInput.trim() || !pickedCat) return;
@@ -62,14 +62,23 @@ export default function CategoryRulesPage() {
 
       <section className="px-5 pb-3 pt-1">
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          소비처 이름에 특정 단어가 들어가면 자동으로 카테고리를 적용합니다.
-          예) <span style={{ color: 'var(--color-text-2)', fontWeight: 700 }}>이마트 → 쇼핑</span>
+          소비처 이름에 특정 단어가 들어가면 자동으로 카테고리를 적용합니다. 예){' '}
+          <span style={{ color: 'var(--color-text-2)', fontWeight: 700 }}>이마트 → 쇼핑</span>
         </p>
       </section>
 
       <section className="px-5 pb-3 pt-1">
         <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-          <p className="mb-2" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xxs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <p
+            className="mb-2"
+            style={{
+              color: 'var(--color-text-2)',
+              fontSize: 'var(--text-xxs)',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
             새 규칙
           </p>
           <div className="space-y-2">
@@ -78,13 +87,23 @@ export default function CategoryRulesPage() {
               onChange={(e) => setMatchInput(e.target.value)}
               placeholder='소비처에 포함될 단어 (예: "이마트")'
               className="h-12 w-full rounded-xl px-4 outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }}
+              style={{
+                background: 'var(--color-gray-100)',
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 500,
+              }}
             />
             <select
               value={pickedCat}
               onChange={(e) => setPickedCat(e.target.value)}
               className="h-12 w-full rounded-xl px-4 outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }}
+              style={{
+                background: 'var(--color-gray-100)',
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 500,
+              }}
             >
               {cats.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -112,24 +131,35 @@ export default function CategoryRulesPage() {
 
       <section className="px-5 pb-10 pt-2">
         {items.length === 0 ? (
-          <div className="rounded-2xl px-6 py-12 text-center" style={{ background: 'var(--color-card)' }}>
+          <div
+            className="rounded-2xl px-6 py-12 text-center"
+            style={{ background: 'var(--color-card)' }}
+          >
             <p style={{ fontSize: 32, lineHeight: 1 }}>📐</p>
-            <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+            <p
+              className="mt-2"
+              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+            >
               규칙이 없어요
             </p>
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+            <p
+              className="mt-1"
+              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+            >
               위에서 첫 규칙을 추가하세요
             </p>
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {items.map((r: CategoryRule, i: number) => {
-              const c = CATEGORIES[r.cat];
+              const _c = CATEGORIES[r.cat];
               return (
                 <div
                   key={r.id}
                   className="flex items-center gap-3 px-4 py-3"
-                  style={{ borderBottom: i < items.length - 1 ? '1px solid var(--color-divider)' : 'none' }}
+                  style={{
+                    borderBottom: i < items.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                  }}
                 >
                   <input
                     value={r.match}

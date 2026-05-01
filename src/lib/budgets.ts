@@ -1,7 +1,7 @@
 'use client';
 
-import { createRecordStore } from '@/lib/store-factory';
 import { KEYS } from '@/lib/storage-keys';
+import { createRecordStore } from '@/lib/store-factory';
 import type { Budget } from '@/lib/types';
 
 const useBudgetsRecord = createRecordStore<Budget>(KEYS.budgets);

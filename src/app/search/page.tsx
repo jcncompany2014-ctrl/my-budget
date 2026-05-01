@@ -6,12 +6,11 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import Highlight from '@/components/Highlight';
 import CategoryIcon from '@/components/icons/CategoryIcon';
-import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
-import TopBar from '@/components/TopBar';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { fmt, fmtSigned, isExpense } from '@/lib/format';
@@ -54,15 +53,18 @@ export default function SearchPage() {
     };
     const today = new Date();
     if (datePreset === '7d') {
-      const from = new Date(today); from.setDate(today.getDate() - 6);
+      const from = new Date(today);
+      from.setDate(today.getDate() - 6);
       return { from: ymd(from), to: ymd(today) };
     }
     if (datePreset === '30d') {
-      const from = new Date(today); from.setDate(today.getDate() - 29);
+      const from = new Date(today);
+      from.setDate(today.getDate() - 29);
       return { from: ymd(from), to: ymd(today) };
     }
     if (datePreset === '3m') {
-      const from = new Date(today); from.setMonth(today.getMonth() - 3);
+      const from = new Date(today);
+      from.setMonth(today.getMonth() - 3);
       return { from: ymd(from), to: ymd(today) };
     }
     if (datePreset === 'custom') {
@@ -117,21 +119,32 @@ export default function SearchPage() {
       <TopBar
         title="검색"
         right={
-          <button type="button" onClick={() => router.back()} className="tap rounded-full px-3 py-2"
-            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="tap rounded-full px-3 py-2"
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+          >
             완료
           </button>
         }
       />
 
       <Section topGap={4} bottomGap={8}>
-        <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: 'var(--color-card)', height: 48 }}>
+        <div
+          className="flex items-center gap-2 rounded-xl px-3"
+          style={{ background: 'var(--color-card)', height: 48 }}
+        >
           <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
             <circle cx={11} cy={11} r={7} stroke="var(--color-text-3)" strokeWidth={1.8} />
-            <path d="M16 16l4 4" stroke="var(--color-text-3)" strokeWidth={1.8} strokeLinecap="round" />
+            <path
+              d="M16 16l4 4"
+              stroke="var(--color-text-3)"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+            />
           </svg>
           <input
-            autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="소비처, 카테고리, 메모"
@@ -139,11 +152,19 @@ export default function SearchPage() {
             style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)' }}
           />
           {query && (
-            <button type="button" onClick={() => setQuery('')}
+            <button
+              type="button"
+              onClick={() => setQuery('')}
               className="tap flex h-5 w-5 items-center justify-center rounded-full"
-              style={{ background: 'var(--color-gray-300)' }}>
+              style={{ background: 'var(--color-gray-300)' }}
+            >
               <svg viewBox="0 0 24 24" width={12} height={12} fill="none">
-                <path d="M6 6l12 12M18 6l-12 12" stroke="white" strokeWidth={3} strokeLinecap="round" />
+                <path
+                  d="M6 6l12 12M18 6l-12 12"
+                  stroke="white"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                />
               </svg>
             </button>
           )}
@@ -151,20 +172,54 @@ export default function SearchPage() {
       </Section>
 
       <Section topGap={0} bottomGap={4}>
-        <button type="button" onClick={() => setShowFilters(!showFilters)}
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
           className="tap inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
           style={{
-            background: showFilters || minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all' ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-            color: showFilters || minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all' ? 'var(--color-primary)' : 'var(--color-text-2)',
+            background:
+              showFilters ||
+              minAmount ||
+              maxAmount ||
+              catFilter ||
+              accFilter ||
+              datePreset !== 'all'
+                ? 'var(--color-primary-soft)'
+                : 'var(--color-gray-100)',
+            color:
+              showFilters ||
+              minAmount ||
+              maxAmount ||
+              catFilter ||
+              accFilter ||
+              datePreset !== 'all'
+                ? 'var(--color-primary)'
+                : 'var(--color-text-2)',
             fontSize: 'var(--text-xs)',
             fontWeight: 700,
-          }}>
+          }}
+        >
           <SlidersHorizontal size={13} strokeWidth={2.6} />
           고급 필터
           {(minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all') && (
-            <span className="rounded-full px-1.5"
-              style={{ background: 'var(--color-primary)', color: '#fff', fontSize: 10, fontWeight: 800 }}>
-              {[minAmount, maxAmount, catFilter, accFilter, datePreset !== 'all' ? 'date' : null].filter(Boolean).length}
+            <span
+              className="rounded-full px-1.5"
+              style={{
+                background: 'var(--color-primary)',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 800,
+              }}
+            >
+              {
+                [
+                  minAmount,
+                  maxAmount,
+                  catFilter,
+                  accFilter,
+                  datePreset !== 'all' ? 'date' : null,
+                ].filter(Boolean).length
+              }
             </span>
           )}
         </button>
@@ -173,58 +228,133 @@ export default function SearchPage() {
       {showFilters && (
         <Section topGap={4} bottomGap={4}>
           <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-            <p className="mb-2" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>기간</p>
+            <p
+              className="mb-2"
+              style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
+            >
+              기간
+            </p>
             <div className="flex flex-wrap gap-1.5">
-              {([
-                ['all', '전체'],
-                ['7d', '최근 7일'],
-                ['30d', '최근 30일'],
-                ['3m', '최근 3개월'],
-                ['custom', '직접 선택'],
-              ] as const).map(([k, label]) => (
-                <Pill key={k} tone="dark" active={datePreset === k} onClick={() => setDatePreset(k)}>
+              {(
+                [
+                  ['all', '전체'],
+                  ['7d', '최근 7일'],
+                  ['30d', '최근 30일'],
+                  ['3m', '최근 3개월'],
+                  ['custom', '직접 선택'],
+                ] as const
+              ).map(([k, label]) => (
+                <Pill
+                  key={k}
+                  tone="dark"
+                  active={datePreset === k}
+                  onClick={() => setDatePreset(k)}
+                >
                   {label}
                 </Pill>
               ))}
             </div>
             {datePreset === 'custom' && (
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
                   className="h-11 w-full rounded-xl px-3 outline-none"
-                  style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 13 }} />
-                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  style={{
+                    background: 'var(--color-gray-100)',
+                    color: 'var(--color-text-1)',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
                   className="h-11 w-full rounded-xl px-3 outline-none"
-                  style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 13 }} />
+                  style={{
+                    background: 'var(--color-gray-100)',
+                    color: 'var(--color-text-1)',
+                    fontSize: 13,
+                  }}
+                />
               </div>
             )}
 
-            <p className="mb-2 mt-3" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>금액 범위</p>
+            <p
+              className="mb-2 mt-3"
+              style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
+            >
+              금액 범위
+            </p>
             <div className="grid grid-cols-2 gap-2">
-              <input type="number" inputMode="numeric" value={minAmount}
-                onChange={(e) => setMinAmount(e.target.value)} placeholder="최소"
+              <input
+                type="number"
+                inputMode="numeric"
+                value={minAmount}
+                onChange={(e) => setMinAmount(e.target.value)}
+                placeholder="최소"
                 className="tnum h-11 w-full rounded-xl px-3 outline-none"
-                style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)' }} />
-              <input type="number" inputMode="numeric" value={maxAmount}
-                onChange={(e) => setMaxAmount(e.target.value)} placeholder="최대"
+                style={{
+                  background: 'var(--color-gray-100)',
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              />
+              <input
+                type="number"
+                inputMode="numeric"
+                value={maxAmount}
+                onChange={(e) => setMaxAmount(e.target.value)}
+                placeholder="최대"
                 className="tnum h-11 w-full rounded-xl px-3 outline-none"
-                style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)' }} />
+                style={{
+                  background: 'var(--color-gray-100)',
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-sm)',
+                }}
+              />
             </div>
 
-            <p className="mb-2 mt-3" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>카테고리</p>
+            <p
+              className="mb-2 mt-3"
+              style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
+            >
+              카테고리
+            </p>
             <div className="flex flex-wrap gap-1.5">
-              <Pill tone="dark" active={!catFilter} onClick={() => setCatFilter(null)}>전체</Pill>
+              <Pill tone="dark" active={!catFilter} onClick={() => setCatFilter(null)}>
+                전체
+              </Pill>
               {cats.slice(0, 12).map((c) => (
-                <Pill key={c.id} tone="dark" active={catFilter === c.id} onClick={() => setCatFilter(c.id)}>
+                <Pill
+                  key={c.id}
+                  tone="dark"
+                  active={catFilter === c.id}
+                  onClick={() => setCatFilter(c.id)}
+                >
                   {c.name}
                 </Pill>
               ))}
             </div>
 
-            <p className="mb-2 mt-3" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>계좌</p>
+            <p
+              className="mb-2 mt-3"
+              style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
+            >
+              계좌
+            </p>
             <div className="flex flex-wrap gap-1.5">
-              <Pill tone="dark" active={!accFilter} onClick={() => setAccFilter(null)}>전체</Pill>
+              <Pill tone="dark" active={!accFilter} onClick={() => setAccFilter(null)}>
+                전체
+              </Pill>
               {accounts.map((a) => (
-                <Pill key={a.id} tone="dark" active={accFilter === a.id} onClick={() => setAccFilter(a.id)}>
+                <Pill
+                  key={a.id}
+                  tone="dark"
+                  active={accFilter === a.id}
+                  onClick={() => setAccFilter(a.id)}
+                >
                   {a.name}
                 </Pill>
               ))}
@@ -248,11 +378,20 @@ export default function SearchPage() {
       {(query || minAmount || maxAmount || catFilter || accFilter || datePreset !== 'all') && (
         <Section bottomGap={40}>
           <div className="mb-2 flex items-baseline justify-between">
-            <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
+            <span
+              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', fontWeight: 500 }}
+            >
               {results.length}건 검색
             </span>
             {totalFound > 0 && (
-              <span className="tnum" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
+              <span
+                className="tnum"
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 700,
+                }}
+              >
                 총 {fmt(totalFound)}원
               </span>
             )}
@@ -265,9 +404,12 @@ export default function SearchPage() {
               hint="다른 키워드를 시도하거나 필터를 풀어보세요"
             />
           ) : (
-            <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
+            <div
+              className="overflow-hidden rounded-2xl"
+              style={{ background: 'var(--color-card)' }}
+            >
               {results.slice(0, 100).map((t, i, arr) => {
-                const c = CATEGORIES[t.cat];
+                const _c = CATEGORIES[t.cat];
                 const acc = accounts.find((a) => a.id === t.acc);
                 return (
                   <Link

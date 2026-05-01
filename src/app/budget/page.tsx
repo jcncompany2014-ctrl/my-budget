@@ -67,7 +67,10 @@ export default function BudgetPage() {
             <p className="text-xs font-medium" style={{ color: 'var(--color-text-3)' }}>
               이번 달 비용 합계
             </p>
-            <p className="tnum mt-1 text-2xl font-extrabold" style={{ color: 'var(--color-danger)' }}>
+            <p
+              className="tnum mt-1 text-2xl font-extrabold"
+              style={{ color: 'var(--color-danger)' }}
+            >
               -{fmt(businessBreakdown.total)}원
             </p>
             <p className="mt-1 text-xs" style={{ color: 'var(--color-text-3)' }}>
@@ -97,7 +100,10 @@ export default function BudgetPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
+            <div
+              className="overflow-hidden rounded-2xl"
+              style={{ background: 'var(--color-card)' }}
+            >
               {businessBreakdown.arr.map((i, idx) => {
                 const pct = Math.round((i.used / businessBreakdown.total) * 100);
                 return (
@@ -114,10 +120,16 @@ export default function BudgetPage() {
                     <CategoryIcon catId={i.cat} size={40} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between">
-                        <p className="text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
+                        <p
+                          className="text-[15px] font-semibold"
+                          style={{ color: 'var(--color-text-1)' }}
+                        >
                           {i.info?.name ?? i.cat}
                         </p>
-                        <p className="tnum text-[15px] font-bold" style={{ color: 'var(--color-text-1)' }}>
+                        <p
+                          className="tnum text-[15px] font-bold"
+                          style={{ color: 'var(--color-text-1)' }}
+                        >
                           {fmt(i.used)}원
                         </p>
                       </div>
@@ -128,10 +140,16 @@ export default function BudgetPage() {
                         >
                           <div
                             className="absolute inset-y-0 left-0 rounded-full"
-                            style={{ width: `${pct}%`, background: i.info?.color ?? 'var(--color-primary)' }}
+                            style={{
+                              width: `${pct}%`,
+                              background: i.info?.color ?? 'var(--color-primary)',
+                            }}
                           />
                         </div>
-                        <span className="tnum w-10 text-right text-xs" style={{ color: 'var(--color-text-3)' }}>
+                        <span
+                          className="tnum w-10 text-right text-xs"
+                          style={{ color: 'var(--color-text-3)' }}
+                        >
                           {pct}%
                         </span>
                       </div>
@@ -189,13 +207,20 @@ export default function BudgetPage() {
               <p className="text-xs font-medium" style={{ color: 'var(--color-text-3)' }}>
                 이번 달 총 예산
               </p>
-              <p className="tnum mt-1 text-2xl font-extrabold" style={{ color: 'var(--color-text-1)' }}>
+              <p
+                className="tnum mt-1 text-2xl font-extrabold"
+                style={{ color: 'var(--color-text-1)' }}
+              >
                 {fmt(totalUsed)}
                 <span className="text-base font-semibold" style={{ color: 'var(--color-text-3)' }}>
-                  {' '}/ {fmt(totalLimit)}원
+                  {' '}
+                  / {fmt(totalLimit)}원
                 </span>
               </p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
+              <div
+                className="mt-3 h-2 overflow-hidden rounded-full"
+                style={{ background: 'var(--color-gray-150)' }}
+              >
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -255,7 +280,10 @@ function BudgetCard({ item }: { item: Item }) {
             <p className="text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
               {item.info?.name ?? item.cat}
             </p>
-            <p className="text-xs" style={{ color: over ? 'var(--color-danger)' : 'var(--color-text-3)' }}>
+            <p
+              className="text-xs"
+              style={{ color: over ? 'var(--color-danger)' : 'var(--color-text-3)' }}
+            >
               {over ? `${fmt(item.used - item.limit)}원 초과` : `${fmt(remaining)}원 남음`}
             </p>
           </div>
@@ -265,7 +293,10 @@ function BudgetCard({ item }: { item: Item }) {
           <span style={{ color: 'var(--color-text-3)' }}> / {fmt(item.limit)}</span>
         </p>
       </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
+      <div
+        className="mt-3 h-1.5 overflow-hidden rounded-full"
+        style={{ background: 'var(--color-gray-150)' }}
+      >
         <div className="h-full rounded-full" style={{ width: `${item.pct}%`, background: color }} />
       </div>
     </div>

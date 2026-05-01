@@ -76,15 +76,17 @@ export default function ConfirmDialog({
       >
         <p
           className="mb-1.5"
-          style={{ color: 'var(--color-text-1)', fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em' }}
+          style={{
+            color: 'var(--color-text-1)',
+            fontSize: 17,
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+          }}
         >
           {title}
         </p>
         {description && (
-          <p
-            className="mb-5 leading-snug"
-            style={{ color: 'var(--color-text-3)', fontSize: 13 }}
-          >
+          <p className="mb-5 leading-snug" style={{ color: 'var(--color-text-3)', fontSize: 13 }}>
             {description}
           </p>
         )}
@@ -105,7 +107,6 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            autoFocus
             className="tap h-12 flex-1 rounded-2xl"
             style={{
               background: danger ? 'var(--color-danger)' : 'var(--color-primary)',

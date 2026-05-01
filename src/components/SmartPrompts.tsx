@@ -2,7 +2,6 @@
 
 import { Briefcase, Repeat } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import IconCircle from '@/components/ui/IconCircle';
 import { useToast } from '@/components/Toast';
 import { detectRecurringPatterns, detectSalaryIncome } from '@/lib/auto-categorize';
 import { fmt } from '@/lib/format';
@@ -53,9 +52,7 @@ export default function SmartPrompts() {
       // Already registered?
       if (
         recurring.some(
-          (r) =>
-            r.scope === p.scope &&
-            r.name.toLowerCase() === p.merchant.toLowerCase(),
+          (r) => r.scope === p.scope && r.name.toLowerCase() === p.merchant.toLowerCase(),
         )
       )
         return false;
@@ -91,7 +88,8 @@ export default function SmartPrompts() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 32, height: 32,
+                  width: 32,
+                  height: 32,
                   borderRadius: '50%',
                   background: 'var(--color-primary)',
                   color: '#fff',
@@ -177,7 +175,8 @@ export default function SmartPrompts() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 32, height: 32,
+                  width: 32,
+                  height: 32,
                   borderRadius: '50%',
                   background: '#B45309',
                   color: '#fff',

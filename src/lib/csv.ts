@@ -13,7 +13,11 @@ export function transactionsToCSV(
   txs.forEach((t) => {
     const d = new Date(t.date);
     const date = d.toLocaleDateString('ko-KR');
-    const time = d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const time = d.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
     const type = t.amount > 0 ? '수입' : t.amount < 0 ? '지출' : '이체';
     const cat = CATEGORIES[t.cat]?.name ?? t.cat;
     const merchant = (t.merchant || '').replace(/"/g, '""');

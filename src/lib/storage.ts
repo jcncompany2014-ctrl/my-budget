@@ -54,10 +54,7 @@ function commitTx(next: Transaction[]) {
 export function useTransactions() {
   const { mode } = useMode();
   const all = useAllTransactions();
-  const tx = useMemo(
-    () => all.tx.filter((t) => (t.scope ?? 'personal') === mode),
-    [all.tx, mode],
-  );
+  const tx = useMemo(() => all.tx.filter((t) => (t.scope ?? 'personal') === mode), [all.tx, mode]);
   return { ...all, tx, allTx: all.tx };
 }
 

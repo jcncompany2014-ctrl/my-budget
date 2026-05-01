@@ -43,7 +43,8 @@ export default function CurrencyIcon({
     return (
       <div
         style={{
-          width: size, height: size,
+          width: size,
+          height: size,
           borderRadius: '50%',
           background: '#94A3B8',
           color: 'white',
@@ -68,7 +69,8 @@ export default function CurrencyIcon({
   return (
     <div
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         borderRadius: '50%',
         background: meta.bg,
         color: meta.fg ?? 'white',

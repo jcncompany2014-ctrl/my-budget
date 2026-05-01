@@ -5,20 +5,20 @@ import { useMemo, useState } from 'react';
 import CountUp from '@/components/CountUp';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
-import Money from '@/components/Money';
-import TopBar from '@/components/TopBar';
 import { useMode } from '@/components/ModeProvider';
+import Money from '@/components/Money';
+import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
+import { useCreditLines } from '@/lib/credit-lines';
 import { fmt } from '@/lib/format';
 import { useInvestments } from '@/lib/investments';
-import { useCreditLines } from '@/lib/credit-lines';
 import { useLoans } from '@/lib/loans';
 import { type Currency, FX_IDS, type QuoteId, toKRW, useQuotes } from '@/lib/quotes';
 import { useAllTransactions } from '@/lib/storage';
 import type { Account, Transaction } from '@/lib/types';
-import { SkeletonHome } from '@/components/Skeleton';
 
 export default function WalletPage() {
   const { accounts, ready } = useAccounts();
@@ -56,7 +56,14 @@ export default function WalletPage() {
       id: 'corr-' + Date.now().toString(36),
       date: new Date().toISOString(),
       amount: diff,
-      cat: diff > 0 ? (mode === 'business' ? 'biz_other' : 'income') : mode === 'business' ? 'biz_etc' : 'living',
+      cat:
+        diff > 0
+          ? mode === 'business'
+            ? 'biz_other'
+            : 'income'
+          : mode === 'business'
+            ? 'biz_etc'
+            : 'living',
       merchant: '잔액 보정',
       memo: `${fmt(account.balance)} → ${fmt(actualBalance)}`,
       acc: account.id,
@@ -120,7 +127,8 @@ export default function WalletPage() {
     Math.round(investments.reduce((s, a) => s + effectiveAccountCost(a), 0)) +
     Math.round(unlinkedInv.reduce((s, e) => s + e.costKRW, 0));
   const investmentPnL = investmentTotal - investmentCostTotal;
-  const investmentPnLPct = investmentCostTotal > 0 ? (investmentPnL / investmentCostTotal) * 100 : 0;
+  const investmentPnLPct =
+    investmentCostTotal > 0 ? (investmentPnL / investmentCostTotal) * 100 : 0;
 
   const debtTotal = cards.reduce((s, a) => s + a.balance, 0); // negative
   const loanDebt = modeLoans.reduce((s, l) => s + l.remaining, 0);
@@ -150,7 +158,9 @@ export default function WalletPage() {
         </p>
         <CountUp
           value={net}
-          format={(n) => (n >= 0 ? '' : '−') + Math.round(Math.abs(n)).toLocaleString('ko-KR') + '원'}
+          format={(n) =>
+            (n >= 0 ? '' : '−') + Math.round(Math.abs(n)).toLocaleString('ko-KR') + '원'
+          }
           className="mt-1 block tracking-tight"
           style={{
             fontSize: 'var(--text-3xl)',
@@ -182,21 +192,28 @@ export default function WalletPage() {
             href="/settings/investments"
             className="tap flex items-center justify-between rounded-2xl px-4 py-3"
             style={{
-              background: investmentPnL >= 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)',
+              background:
+                investmentPnL >= 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)',
             }}
           >
             <div>
-              <p style={{
-                color: investmentPnL >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
-                fontSize: 11, fontWeight: 800,
-              }}>
+              <p
+                style={{
+                  color: investmentPnL >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
                 투자 손익 (실시간)
               </p>
-              <p className="tnum mt-0.5" style={{
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 800,
-              }}>
+              <p
+                className="tnum mt-0.5"
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 800,
+                }}
+              >
                 {investmentPnL >= 0 ? '+' : '−'}
                 {Math.abs(Math.round(investmentPnL)).toLocaleString('ko-KR')}원
               </p>
@@ -211,13 +228,19 @@ export default function WalletPage() {
                   fontWeight: 800,
                 }}
               >
-                {investmentPnL >= 0 ? '+' : '−'}{Math.abs(investmentPnLPct).toFixed(2)}%
+                {investmentPnL >= 0 ? '+' : '−'}
+                {Math.abs(investmentPnLPct).toFixed(2)}%
               </span>
-              <p className="tnum mt-1" style={{
-                color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600,
-              }}>
-                평단 {Math.round(investmentCostTotal / 10000).toLocaleString('ko-KR')}만 →
-                {' '}{Math.round(investmentTotal / 10000).toLocaleString('ko-KR')}만
+              <p
+                className="tnum mt-1"
+                style={{
+                  color: 'var(--color-text-3)',
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              >
+                평단 {Math.round(investmentCostTotal / 10000).toLocaleString('ko-KR')}만 →{' '}
+                {Math.round(investmentTotal / 10000).toLocaleString('ko-KR')}만
               </p>
             </div>
           </Link>
@@ -232,7 +255,13 @@ export default function WalletPage() {
             style={{ background: 'var(--color-card)' }}
           >
             <p className="text-3xl">🏦</p>
-            <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+            <p
+              style={{
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 700,
+              }}
+            >
               {mode === 'business' ? '사업 계좌' : '개인 계좌'}를 추가해 보세요
             </p>
             <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
@@ -270,28 +299,52 @@ export default function WalletPage() {
               const pnl = value - cost;
               const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
               return (
-                <Link key={a.id} href="/settings/investments"
+                <Link
+                  key={a.id}
+                  href="/settings/investments"
                   className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
-                  style={{ background: 'var(--color-card)' }}>
+                  style={{ background: 'var(--color-card)' }}
+                >
                   <BankIcon name={a.bank || a.name} size={44} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
+                    <p
+                      className="truncate"
+                      style={{
+                        color: 'var(--color-text-1)',
+                        fontSize: 'var(--text-base)',
+                        fontWeight: 600,
+                      }}
+                    >
                       {a.name}
                     </p>
-                    <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+                    <p
+                      className="truncate"
+                      style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+                    >
                       {linked.length}개 종목 · 실시간
                     </p>
                   </div>
                   <div className="text-right">
-                    <Money value={value} sign="never"
-                      style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text-1)' }} />
-                    {cost > 0 && (
-                      <p className="tnum" style={{
-                        fontSize: 11,
-                        color: pnl >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                    <Money
+                      value={value}
+                      sign="never"
+                      style={{
+                        fontSize: 'var(--text-base)',
                         fontWeight: 700,
-                      }}>
-                        {pnl >= 0 ? '+' : '−'}{Math.abs(pnlPct).toFixed(2)}%
+                        color: 'var(--color-text-1)',
+                      }}
+                    />
+                    {cost > 0 && (
+                      <p
+                        className="tnum"
+                        style={{
+                          fontSize: 11,
+                          color: pnl >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {pnl >= 0 ? '+' : '−'}
+                        {Math.abs(pnlPct).toFixed(2)}%
                       </p>
                     )}
                   </div>
@@ -301,23 +354,44 @@ export default function WalletPage() {
             return <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />;
           })}
           {unlinkedInv.length > 0 && (
-            <Link href="/settings/investments"
+            <Link
+              href="/settings/investments"
               className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
-              style={{ background: 'var(--color-card)' }}>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
-                style={{ background: '#8B95A1', fontSize: 'var(--text-base)' }}>
+              style={{ background: 'var(--color-card)' }}
+            >
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
+                style={{ background: '#8B95A1', fontSize: 'var(--text-base)' }}
+              >
                 📈
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
+                <p
+                  className="truncate"
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 600,
+                  }}
+                >
                   연동 안 된 종목
                 </p>
-                <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+                <p
+                  className="truncate"
+                  style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+                >
                   {unlinkedInv.length}개 · 계좌 연결 필요
                 </p>
               </div>
-              <Money value={unlinkedInvTotal} sign="never"
-                style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text-1)' }} />
+              <Money
+                value={unlinkedInvTotal}
+                sign="never"
+                style={{
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 700,
+                  color: 'var(--color-text-1)',
+                }}
+              />
             </Link>
           )}
         </Section>
@@ -359,7 +433,11 @@ export default function WalletPage() {
               <div className="min-w-0 flex-1">
                 <p
                   className="truncate"
-                  style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 600,
+                  }}
                 >
                   {l.name}
                 </p>
@@ -370,7 +448,11 @@ export default function WalletPage() {
               <Money
                 value={-l.remaining}
                 sign="negative"
-                style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-danger)' }}
+                style={{
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 700,
+                  color: 'var(--color-danger)',
+                }}
               />
             </Link>
           ))}
@@ -437,7 +519,6 @@ function BalanceCorrectionSheet({
           inputMode="numeric"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          autoFocus
           className="tnum h-12 w-full rounded-xl px-4 outline-none"
           style={{
             background: 'var(--color-gray-100)',
@@ -448,8 +529,13 @@ function BalanceCorrectionSheet({
         />
       </div>
       {actual > 0 && (
-        <div className="mt-3 rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-soft)' }}>
-          <p style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+        <div
+          className="mt-3 rounded-xl px-4 py-3"
+          style={{ background: 'var(--color-primary-soft)' }}
+        >
+          <p
+            style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}
+          >
             보정 거래 미리보기
           </p>
           <p
@@ -546,7 +632,13 @@ function SummaryRow({
   );
 }
 
-function AccountCard({ account, onCorrect }: { account: Account; onCorrect?: (a: Account) => void }) {
+function AccountCard({
+  account,
+  onCorrect,
+}: {
+  account: Account;
+  onCorrect?: (a: Account) => void;
+}) {
   const isCard = account.type === 'card';
   const Wrapper = onCorrect ? 'button' : 'div';
   return (

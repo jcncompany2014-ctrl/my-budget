@@ -159,12 +159,8 @@ export default function YearHeatmap({
                 height={cellSize}
                 rx={2}
                 fill={levelColor(levelOf(d.spend))}
-                onMouseEnter={() =>
-                  setHover({ ci, ri, date: d.date, spend: d.spend })
-                }
-                onTouchStart={() =>
-                  setHover({ ci, ri, date: d.date, spend: d.spend })
-                }
+                onMouseEnter={() => setHover({ ci, ri, date: d.date, spend: d.spend })}
+                onTouchStart={() => setHover({ ci, ri, date: d.date, spend: d.spend })}
                 onTouchEnd={() => setTimeout(() => setHover(null), 1500)}
                 style={{ cursor: 'pointer' }}
               />
@@ -219,10 +215,7 @@ export default function YearHeatmap({
                   >
                     {dateStr}
                   </p>
-                  <p
-                    className="tnum"
-                    style={{ fontSize: 12, fontWeight: 800, marginTop: 2 }}
-                  >
+                  <p className="tnum" style={{ fontSize: 12, fontWeight: 800, marginTop: 2 }}>
                     {valStr}
                   </p>
                 </div>

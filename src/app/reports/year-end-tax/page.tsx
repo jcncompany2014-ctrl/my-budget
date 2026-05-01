@@ -3,9 +3,9 @@
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
+import TopBar from '@/components/TopBar';
 import Card from '@/components/ui/Card';
 import Section from '@/components/ui/Section';
-import TopBar from '@/components/TopBar';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt, isExpense } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
@@ -46,36 +46,69 @@ export default function YearEndTaxPage() {
 
       <Section topGap={8} bottomGap={8}>
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          연말정산 시 공제 가능한 카테고리별 사용액을 미리 확인. 실제 공제는 신용카드 vs 현금영수증, 총급여 25% 초과분 등 조건에 따라 다름.
+          연말정산 시 공제 가능한 카테고리별 사용액을 미리 확인. 실제 공제는 신용카드 vs 현금영수증,
+          총급여 25% 초과분 등 조건에 따라 다름.
         </p>
       </Section>
 
       <Section topGap={4} bottomGap={4}>
         <div className="flex items-center justify-between">
-          <button type="button" onClick={() => setYear(year - 1)} className="tap rounded-full px-3 py-2"
-            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <button
+            type="button"
+            onClick={() => setYear(year - 1)}
+            className="tap rounded-full px-3 py-2"
+            style={{
+              background: 'var(--color-card)',
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 700,
+            }}
+          >
             ← {year - 1}년
           </button>
-          <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+          <span
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+          >
             {year}년
           </span>
-          <button type="button" onClick={() => setYear(Math.min(today.getFullYear(), year + 1))} className="tap rounded-full px-3 py-2"
-            style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <button
+            type="button"
+            onClick={() => setYear(Math.min(today.getFullYear(), year + 1))}
+            className="tap rounded-full px-3 py-2"
+            style={{
+              background: 'var(--color-card)',
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 700,
+            }}
+          >
             {year + 1}년 →
           </button>
         </div>
       </Section>
 
       <Section bottomGap={8}>
-        <Card padding={20} background="linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))">
-          <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
+        <Card
+          padding={20}
+          background="linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))"
+        >
+          <p
+            style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'var(--text-xs)', fontWeight: 600 }}
+          >
             공제 대상 추정 사용액
           </p>
-          <Money value={totals.deductible} sign="never"
+          <Money
+            value={totals.deductible}
+            sign="never"
             className="mt-1 block tracking-tight"
-            style={{ color: '#fff', fontSize: 'var(--text-2xl)', fontWeight: 800 }} />
-          <p className="mt-2" style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-xxs)' }}>
-            연간 총 지출 {fmt(totals.totalSpend)}원 중 약 {totals.totalSpend > 0 ? Math.round((totals.deductible / totals.totalSpend) * 100) : 0}%
+            style={{ color: '#fff', fontSize: 'var(--text-2xl)', fontWeight: 800 }}
+          />
+          <p
+            className="mt-2"
+            style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-xxs)' }}
+          >
+            연간 총 지출 {fmt(totals.totalSpend)}원 중 약{' '}
+            {totals.totalSpend > 0 ? Math.round((totals.deductible / totals.totalSpend) * 100) : 0}%
           </p>
         </Card>
       </Section>
@@ -84,16 +117,35 @@ export default function YearEndTaxPage() {
         <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
           {Object.entries(DEDUCTIBLE_CATS).map(([cat, label], i, arr) => {
             const used = totals.byCat.get(cat) ?? 0;
-            const c = CATEGORIES[cat];
+            const _c = CATEGORIES[cat];
             return (
-              <div key={cat} className="flex items-center gap-3 px-4 py-3"
-                style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
+              <div
+                key={cat}
+                className="flex items-center gap-3 px-4 py-3"
+                style={{
+                  borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                }}
+              >
                 <CategoryIcon catId={cat} size={28} />
-                <span className="flex-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                <span
+                  className="flex-1"
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: 600,
+                  }}
+                >
                   {label}
                 </span>
-                <Money value={used} sign="never"
-                  style={{ color: used > 0 ? 'var(--color-text-1)' : 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 700 }} />
+                <Money
+                  value={used}
+                  sign="never"
+                  style={{
+                    color: used > 0 ? 'var(--color-text-1)' : 'var(--color-text-3)',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: 700,
+                  }}
+                />
               </div>
             );
           })}
@@ -102,7 +154,8 @@ export default function YearEndTaxPage() {
 
       <Section bottomGap={40}>
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-          ※ 본 화면은 사용액 추정치입니다. 실제 공제는 국세청 홈택스 또는 회사 연말정산 서비스 결과를 따르세요.
+          ※ 본 화면은 사용액 추정치입니다. 실제 공제는 국세청 홈택스 또는 회사 연말정산 서비스
+          결과를 따르세요.
         </p>
       </Section>
     </>

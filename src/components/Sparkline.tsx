@@ -26,7 +26,14 @@ export default function Sparkline({ values, color, width = 80, height = 22, fill
   return (
     <svg width={width} height={height} style={{ display: 'block' }}>
       {fill && <path d={areaD} fill={color} opacity={0.16} />}
-      <path d={pathD} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+      <path
+        d={pathD}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

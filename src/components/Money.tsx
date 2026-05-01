@@ -18,13 +18,7 @@ type Props = {
  * - Always right-aligned in flex/grid contexts
  * - Sign formatting controlled explicitly
  */
-export default function Money({
-  value,
-  sign = 'auto',
-  unit = '원',
-  className = '',
-  style,
-}: Props) {
+export default function Money({ value, sign = 'auto', unit = '원', className = '', style }: Props) {
   const abs = Math.abs(value);
   const num = fmt(abs);
 

@@ -8,9 +8,7 @@ import type { Account, Transaction } from '@/lib/types';
  * Compute net balance change for an account from a set of transactions.
  */
 export function computeAccountDelta(accId: string, txs: Transaction[]): number {
-  return txs
-    .filter((t) => t.acc === accId)
-    .reduce((s, t) => s + t.amount, 0);
+  return txs.filter((t) => t.acc === accId).reduce((s, t) => s + t.amount, 0);
 }
 
 /**
@@ -59,9 +57,7 @@ export function findTransferPair(tx: Transaction, all: Transaction[]): Transacti
  */
 export function transferPairIds(tx: Transaction, all: Transaction[]): string[] {
   if (!tx.transferPairId) return [tx.id];
-  const ids = all
-    .filter((t) => t.transferPairId === tx.transferPairId)
-    .map((t) => t.id);
+  const ids = all.filter((t) => t.transferPairId === tx.transferPairId).map((t) => t.id);
   return ids;
 }
 

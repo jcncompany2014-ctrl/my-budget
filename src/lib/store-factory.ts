@@ -19,7 +19,7 @@ const subscribers = new Map<string, Set<() => void>>();
 
 export function subscribeToKey(key: string, fn: () => void) {
   if (!subscribers.has(key)) subscribers.set(key, new Set());
-  subscribers.get(key)!.add(fn);
+  subscribers.get(key)?.add(fn);
   return () => subscribers.get(key)?.delete(fn);
 }
 
@@ -120,8 +120,7 @@ export function createListStore<T extends { id: string }>(
     const add = (item: T) => set([...readRaw(key, opts), item]);
     const update = (id: string, patch: Partial<T>) =>
       set(readRaw(key, opts).map((i) => (i.id === id ? { ...i, ...patch } : i)));
-    const remove = (id: string) =>
-      set(readRaw(key, opts).filter((i) => i.id !== id));
+    const remove = (id: string) => set(readRaw(key, opts).filter((i) => i.id !== id));
     const upsert = (item: T) => {
       const cur = readRaw(key, opts);
       if (cur.find((i) => i.id === item.id)) {

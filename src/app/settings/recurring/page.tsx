@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES } from '@/lib/categories';
@@ -57,9 +57,7 @@ export default function RecurringSettingsPage() {
     setCreating(true);
   };
 
-  const sorted = [...items].sort(
-    (a, b) => daysUntilDay(a.day) - daysUntilDay(b.day),
-  );
+  const sorted = [...items].sort((a, b) => daysUntilDay(a.day) - daysUntilDay(b.day));
   const monthlyTotal = items.reduce((s, r) => s + r.amount, 0);
 
   return (
@@ -118,7 +116,10 @@ export default function RecurringSettingsPage() {
                 >
                   <CategoryIcon catId={r.cat} size={44} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-semibold" style={{ color: 'var(--color-text-1)' }}>
+                    <p
+                      className="truncate text-[15px] font-semibold"
+                      style={{ color: 'var(--color-text-1)' }}
+                    >
                       {r.name}
                     </p>
                     <div className="mt-0.5 flex items-center gap-1.5">
@@ -130,14 +131,18 @@ export default function RecurringSettingsPage() {
                         style={{
                           background: urgent ? 'var(--color-danger)' : 'var(--color-gray-100)',
                           color: urgent ? '#fff' : 'var(--color-text-3)',
-                          fontSize: 10, fontWeight: 800,
+                          fontSize: 10,
+                          fontWeight: 800,
                         }}
                       >
                         {daysUntil === 0 ? '오늘' : `D-${daysUntil}`}
                       </span>
                     </div>
                   </div>
-                  <p className="tnum text-[15px] font-bold" style={{ color: 'var(--color-text-1)' }}>
+                  <p
+                    className="tnum text-[15px] font-bold"
+                    style={{ color: 'var(--color-text-1)' }}
+                  >
                     {fmt(r.amount)}원
                   </p>
                 </button>
@@ -196,148 +201,167 @@ function RecurringEditor({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(item);
-  const valid = draft.name.trim().length > 0 && draft.amount > 0 && draft.day >= 1 && draft.day <= 31;
+  const valid =
+    draft.name.trim().length > 0 && draft.amount > 0 && draft.day >= 1 && draft.day <= 31;
 
   const expCats = Object.values(CATEGORIES).filter((c) => c.kind !== 'income');
 
   return (
     <Sheet open onClose={onCancel}>
-        <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
-          {isNew ? '정기결제 추가' : '정기결제 편집'}
-        </h2>
+      <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
+        {isNew ? '정기결제 추가' : '정기결제 편집'}
+      </h2>
 
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-            이모지
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {DEFAULT_EMOJIS.map((e) => {
-              const sel = draft.emoji === e;
-              return (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setDraft({ ...draft, emoji: e })}
-                  className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                  style={{
-                    background: sel ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                    border: `2px solid ${sel ? 'var(--color-primary)' : 'transparent'}`,
-                  }}
-                >
-                  {e}
-                </button>
-              );
-            })}
-          </div>
+      <div className="mb-3">
+        <label
+          className="mb-1.5 block text-[13px] font-semibold"
+          style={{ color: 'var(--color-text-2)' }}
+        >
+          이모지
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {DEFAULT_EMOJIS.map((e) => {
+            const sel = draft.emoji === e;
+            return (
+              <button
+                key={e}
+                type="button"
+                onClick={() => setDraft({ ...draft, emoji: e })}
+                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
+                style={{
+                  background: sel ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                  border: `2px solid ${sel ? 'var(--color-primary)' : 'transparent'}`,
+                }}
+              >
+                {e}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-            이름 *
+      <div className="mb-3">
+        <label
+          className="mb-1.5 block text-[13px] font-semibold"
+          style={{ color: 'var(--color-text-2)' }}
+        >
+          이름 *
+        </label>
+        <input
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          placeholder="예) 넷플릭스"
+          className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+          style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+        />
+      </div>
+
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <div>
+          <label
+            className="mb-1.5 block text-[13px] font-semibold"
+            style={{ color: 'var(--color-text-2)' }}
+          >
+            월 결제일 *
           </label>
           <input
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="예) 넷플릭스"
-            className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={31}
+            value={draft.day || ''}
+            onChange={(e) =>
+              setDraft({ ...draft, day: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })
+            }
+            className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
           />
         </div>
-
-        <div className="mb-3 grid grid-cols-2 gap-2">
-          <div>
-            <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-              월 결제일 *
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={31}
-              value={draft.day || ''}
-              onChange={(e) =>
-                setDraft({ ...draft, day: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })
-              }
-              className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-              금액 *
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={draft.amount || ''}
-              onChange={(e) => setDraft({ ...draft, amount: Number(e.target.value) || 0 })}
-              placeholder="0"
-              className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-            />
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-            카테고리
+        <div>
+          <label
+            className="mb-1.5 block text-[13px] font-semibold"
+            style={{ color: 'var(--color-text-2)' }}
+          >
+            금액 *
           </label>
-          <div className="grid grid-cols-4 gap-2">
-            {expCats.slice(0, 8).map((c) => {
-              const sel = draft.cat === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setDraft({ ...draft, cat: c.id })}
-                  className="tap flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5"
-                  style={{
-                    background: sel ? `${c.color}22` : 'var(--color-gray-100)',
-                    border: `2px solid ${sel ? c.color : 'transparent'}`,
-                  }}
-                >
-                  <span className="text-base">{c.emoji}</span>
-                  <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
-                    {c.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-2 flex gap-2">
-          {onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="tap h-12 rounded-xl px-4 text-sm font-bold"
-              style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
-            >
-              삭제
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onCancel}
-            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+          <input
+            type="number"
+            inputMode="numeric"
+            value={draft.amount || ''}
+            onChange={(e) => setDraft({ ...draft, amount: Number(e.target.value) || 0 })}
+            placeholder="0"
+            className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-          >
-            취소
-          </button>
+          />
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <label
+          className="mb-1.5 block text-[13px] font-semibold"
+          style={{ color: 'var(--color-text-2)' }}
+        >
+          카테고리
+        </label>
+        <div className="grid grid-cols-4 gap-2">
+          {expCats.slice(0, 8).map((c) => {
+            const sel = draft.cat === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setDraft({ ...draft, cat: c.id })}
+                className="tap flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5"
+                style={{
+                  background: sel ? `${c.color}22` : 'var(--color-gray-100)',
+                  border: `2px solid ${sel ? c.color : 'transparent'}`,
+                }}
+              >
+                <span className="text-base">{c.emoji}</span>
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ color: 'var(--color-text-2)' }}
+                >
+                  {c.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-2 flex gap-2">
+        {onDelete && (
           <button
             type="button"
-            disabled={!valid}
-            onClick={() => onSave(draft)}
-            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
-            style={{
-              background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
-              color: valid ? '#fff' : 'var(--color-text-4)',
-            }}
+            onClick={onDelete}
+            className="tap h-12 rounded-xl px-4 text-sm font-bold"
+            style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
           >
-            저장
+            삭제
           </button>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+          style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={() => onSave(draft)}
+          className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+          style={{
+            background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
+            color: valid ? '#fff' : 'var(--color-text-4)',
+          }}
+        >
+          저장
+        </button>
+      </div>
     </Sheet>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
 import { computeMonthlyPayment, splitMonthlyPayment } from '@/lib/loans';
-import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import { KEYS } from '@/lib/storage-keys';
+import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import type { Account, Loan, Transaction } from '@/lib/types';
 
 const LAST_RUN_KEY = 'asset/auto-loan-last/v1';
@@ -49,12 +49,7 @@ export function ensureAutoLoanPayment() {
   for (let monthBack = 2; monthBack >= 0; monthBack--) {
     const m = new Date(now.getFullYear(), now.getMonth() - monthBack, 1);
     for (const loan of updatedLoans) {
-      if (
-        !loan.autoPayment ||
-        !loan.linkedAccountId ||
-        !loan.paymentDay ||
-        loan.remaining <= 0
-      ) {
+      if (!loan.autoPayment || !loan.linkedAccountId || !loan.paymentDay || loan.remaining <= 0) {
         continue;
       }
 
@@ -71,8 +66,7 @@ export function ensureAutoLoanPayment() {
       if (!acc) continue;
 
       const monthlyPayment =
-        loan.monthlyPayment ??
-        computeMonthlyPayment(loan.principal, loan.rate, loan.termMonths);
+        loan.monthlyPayment ?? computeMonthlyPayment(loan.principal, loan.rate, loan.termMonths);
       const { interest, principal } = splitMonthlyPayment(
         loan.remaining,
         loan.rate,

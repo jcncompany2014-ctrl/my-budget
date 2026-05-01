@@ -17,7 +17,14 @@ const sizing: Record<Size, { px: number; py: number; fz: string }> = {
   md: { px: 12, py: 6, fz: 'var(--text-xs)' },
 };
 
-export default function Pill({ children, tone = 'neutral', active, size = 'md', onClick, className = '' }: Props) {
+export default function Pill({
+  children,
+  tone = 'neutral',
+  active,
+  size = 'md',
+  onClick,
+  className = '',
+}: Props) {
   const s = sizing[size];
   const colors = pillColors(tone, active);
   const Component = onClick ? 'button' : 'span';
@@ -61,7 +68,6 @@ function pillColors(tone: Tone, active?: boolean) {
       return { bg: '#FFF6E5', fg: '#B45309' };
     case 'dark':
       return { bg: 'var(--color-gray-100)', fg: 'var(--color-text-1)' };
-    case 'neutral':
     default:
       return { bg: 'var(--color-gray-100)', fg: 'var(--color-text-2)' };
   }

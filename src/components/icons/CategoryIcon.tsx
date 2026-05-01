@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -38,6 +37,7 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { CATEGORIES } from '@/lib/categories';
 
 /**
@@ -129,7 +129,8 @@ export default function CategoryIcon({
     return (
       <div
         style={{
-          width: size, height: size,
+          width: size,
+          height: size,
           borderRadius: '50%',
           background: `${color}1f`, // 12% alpha tint
           color,
@@ -149,7 +150,8 @@ export default function CategoryIcon({
   return (
     <div
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         borderRadius: '50%',
         background: `${color}1f`,
         display: 'flex',

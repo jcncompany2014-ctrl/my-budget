@@ -1,15 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import { BarChart3 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import CategoryDonut from '@/components/CategoryDonut';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LineChart from '@/components/LineChart';
-import { SkeletonHome } from '@/components/Skeleton';
-import EmptyState from '@/components/ui/EmptyState';
-import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
+import Money from '@/components/Money';
+import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
 import YearHeatmap from '@/components/YearHeatmap';
 import { CATEGORIES } from '@/lib/categories';
 import { expandByCategory, fmt, isExpense } from '@/lib/format';
@@ -84,7 +84,9 @@ export default function StatsPage() {
         return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
       });
       const expense = monthTx.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
-      const income = monthTx.filter((t) => t.amount > 0 && !t.transferPairId).reduce((s, t) => s + t.amount, 0);
+      const income = monthTx
+        .filter((t) => t.amount > 0 && !t.transferPairId)
+        .reduce((s, t) => s + t.amount, 0);
       months.push({
         label: `${m.getMonth() + 1}월`,
         expense,
@@ -107,9 +109,10 @@ export default function StatsPage() {
 
   const expenses = filtered.filter(isExpense);
   const total = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
-  const monthDelta = period === 'month' && lastMonthExpense > 0
-    ? Math.round(((total - lastMonthExpense) / lastMonthExpense) * 100)
-    : null;
+  const monthDelta =
+    period === 'month' && lastMonthExpense > 0
+      ? Math.round(((total - lastMonthExpense) / lastMonthExpense) * 100)
+      : null;
 
   const byCat = useMemo(() => {
     const map = new Map<string, number>();
@@ -158,10 +161,18 @@ export default function StatsPage() {
 
       <section className="px-5 pb-3 pt-1">
         <div className="flex rounded-full p-[3px]" style={{ background: 'var(--color-gray-100)' }}>
-          {([['month', '이번 달'], ['week', '최근 7일']] as const).map(([k, label]) => {
+          {(
+            [
+              ['month', '이번 달'],
+              ['week', '최근 7일'],
+            ] as const
+          ).map(([k, label]) => {
             const active = period === k;
             return (
-              <button key={k} type="button" onClick={() => setPeriod(k)}
+              <button
+                key={k}
+                type="button"
+                onClick={() => setPeriod(k)}
                 className="tap flex-1 rounded-full py-2"
                 style={{
                   background: active ? 'var(--color-card)' : 'transparent',
@@ -169,7 +180,8 @@ export default function StatsPage() {
                   boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                   fontSize: 'var(--text-sm)',
                   fontWeight: 700,
-                }}>
+                }}
+              >
                 {label}
               </button>
             );
@@ -191,18 +203,42 @@ export default function StatsPage() {
           {/* Month-over-month */}
           {period === 'month' && monthDelta !== null && (
             <section className="px-5 pb-2 pt-1">
-              <div className="flex items-center justify-between rounded-2xl px-4 py-3"
-                style={{ background: monthDelta < 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)' }}>
+              <div
+                className="flex items-center justify-between rounded-2xl px-4 py-3"
+                style={{
+                  background:
+                    monthDelta < 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)',
+                }}
+              >
                 <div>
-                  <p style={{ color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                  <p
+                    style={{
+                      color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                      fontSize: 'var(--text-xxs)',
+                      fontWeight: 700,
+                    }}
+                  >
                     지난 달 대비
                   </p>
-                  <p className="mt-0.5" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}>
-                    {monthDelta < 0 ? `${fmt(lastMonthExpense - total)}원 덜 썼어요` : `${fmt(total - lastMonthExpense)}원 더 썼어요`}
+                  <p
+                    className="mt-0.5"
+                    style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}
+                  >
+                    {monthDelta < 0
+                      ? `${fmt(lastMonthExpense - total)}원 덜 썼어요`
+                      : `${fmt(total - lastMonthExpense)}원 더 썼어요`}
                   </p>
                 </div>
-                <p className="tnum" style={{ color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)', fontSize: 'var(--text-base)', fontWeight: 800 }}>
-                  {monthDelta > 0 ? '+' : ''}{monthDelta}%
+                <p
+                  className="tnum"
+                  style={{
+                    color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 800,
+                  }}
+                >
+                  {monthDelta > 0 ? '+' : ''}
+                  {monthDelta}%
                 </p>
               </div>
             </section>
@@ -212,7 +248,9 @@ export default function StatsPage() {
           {anomalies.length > 0 && (
             <section className="px-5 pb-2 pt-1">
               <div className="rounded-2xl px-4 py-3" style={{ background: '#FFF6E5' }}>
-                <p style={{ color: '#B45309', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>이상 지출 감지</p>
+                <p style={{ color: '#B45309', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                  이상 지출 감지
+                </p>
                 <div className="mt-1.5 space-y-0.5">
                   {anomalies.map((a) => {
                     const c = CATEGORIES[a.cat];
@@ -220,8 +258,10 @@ export default function StatsPage() {
                       <div key={a.cat} className="flex items-center gap-2">
                         <CategoryIcon catId={a.cat} size={20} />
                         <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)' }}>
-                          <span style={{ fontWeight: 700 }}>{c?.name ?? a.cat}</span>{' '}
-                          평소 대비 <span className="tnum" style={{ color: '#B45309', fontWeight: 700 }}>+{a.deltaPct}%</span>
+                          <span style={{ fontWeight: 700 }}>{c?.name ?? a.cat}</span> 평소 대비{' '}
+                          <span className="tnum" style={{ color: '#B45309', fontWeight: 700 }}>
+                            +{a.deltaPct}%
+                          </span>
                         </span>
                       </div>
                     );
@@ -235,23 +275,33 @@ export default function StatsPage() {
           {heatmap && (
             <section className="px-5 pb-3 pt-2">
               <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-                <p className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                <p
+                  className="mb-3"
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 700,
+                  }}
+                >
                   일별 지출 히트맵
                 </p>
                 <div className="grid grid-cols-7 gap-1">
                   {heatmap.days.map((dd) => {
                     const intensity = dd.spend / heatmap.max;
                     return (
-                      <div key={dd.day}
+                      <div
+                        key={dd.day}
                         className="flex aspect-square items-center justify-center rounded"
                         style={{
-                          background: intensity > 0
-                            ? `color-mix(in oklab, var(--color-primary) ${Math.round(intensity * 80) + 8}%, var(--color-gray-100))`
-                            : 'var(--color-gray-100)',
+                          background:
+                            intensity > 0
+                              ? `color-mix(in oklab, var(--color-primary) ${Math.round(intensity * 80) + 8}%, var(--color-gray-100))`
+                              : 'var(--color-gray-100)',
                           color: intensity > 0.5 ? '#fff' : 'var(--color-text-3)',
                           fontSize: 'var(--text-xxs)',
                           fontWeight: 700,
-                        }}>
+                        }}
+                      >
                         {dd.day}
                       </div>
                     );
@@ -264,7 +314,14 @@ export default function StatsPage() {
           {/* Weekly trend */}
           <section className="px-5 pb-3 pt-2">
             <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-              <p className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+              <p
+                className="mb-3"
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 700,
+                }}
+              >
                 주간 지출 추이
               </p>
               <div className="flex items-end justify-between gap-2" style={{ height: 80 }}>
@@ -275,17 +332,28 @@ export default function StatsPage() {
                   return (
                     <div key={w.label} className="flex flex-1 flex-col items-center gap-1.5">
                       <div className="flex w-full flex-1 items-end">
-                        <div className="w-full rounded-t-md transition-all"
+                        <div
+                          className="w-full rounded-t-md transition-all"
                           style={{
                             height: `${pct}%`,
                             minHeight: 2,
                             background: isThis ? 'var(--color-primary)' : 'var(--color-gray-200)',
-                          }} />
+                          }}
+                        />
                       </div>
-                      <span className="tnum" style={{ color: 'var(--color-text-3)', fontSize: 9, fontWeight: 600 }}>
+                      <span
+                        className="tnum"
+                        style={{ color: 'var(--color-text-3)', fontSize: 9, fontWeight: 600 }}
+                      >
                         {w.expense > 0 ? `${Math.round(w.expense / 10000)}만` : '−'}
                       </span>
-                      <span style={{ color: isThis ? 'var(--color-primary)' : 'var(--color-text-3)', fontSize: 9, fontWeight: 700 }}>
+                      <span
+                        style={{
+                          color: isThis ? 'var(--color-primary)' : 'var(--color-text-3)',
+                          fontSize: 9,
+                          fontWeight: 700,
+                        }}
+                      >
                         {w.label}
                       </span>
                     </div>
@@ -298,14 +366,29 @@ export default function StatsPage() {
           {/* 6-month trend line */}
           <section className="px-5 pb-3 pt-2">
             <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-              <p className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+              <p
+                className="mb-3"
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 700,
+                }}
+              >
                 6개월 추이
               </p>
               <LineChart
                 labels={sixMonthTrend.map((m) => m.label)}
                 series={[
-                  { label: '지출', values: sixMonthTrend.map((m) => m.expense), color: 'var(--color-danger)' },
-                  { label: '수입', values: sixMonthTrend.map((m) => m.income), color: 'var(--color-primary)' },
+                  {
+                    label: '지출',
+                    values: sixMonthTrend.map((m) => m.expense),
+                    color: 'var(--color-danger)',
+                  },
+                  {
+                    label: '수입',
+                    values: sixMonthTrend.map((m) => m.income),
+                    color: 'var(--color-primary)',
+                  },
                 ]}
                 height={140}
               />
@@ -323,7 +406,14 @@ export default function StatsPage() {
           {/* 12-month heatmap */}
           <section className="px-5 pb-3 pt-2">
             <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-              <p className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+              <p
+                className="mb-3"
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 700,
+                }}
+              >
                 1년 지출 히트맵
               </p>
               <div className="overflow-x-auto no-scrollbar">
@@ -337,33 +427,76 @@ export default function StatsPage() {
           </section>
 
           <section className="px-5 pb-8">
-            <h2 className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+            <h2
+              className="mb-3"
+              style={{
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 700,
+              }}
+            >
               카테고리별
             </h2>
-            <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
+            <div
+              className="overflow-hidden rounded-2xl"
+              style={{ background: 'var(--color-card)' }}
+            >
               {byCat.map((s, i) => {
                 const pct = Math.round((s.value / total) * 100);
                 return (
-                  <div key={s.cat} className="flex items-center gap-3 px-4 py-3"
-                    style={{ borderBottom: i < byCat.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full text-base"
-                      style={{ background: `${s.color}1f` }}>
+                  <div
+                    key={s.cat}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={{
+                      borderBottom:
+                        i < byCat.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                    }}
+                  >
+                    <div
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-base"
+                      style={{ background: `${s.color}1f` }}
+                    >
                       {s.emoji}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between">
-                        <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                        <p
+                          style={{
+                            color: 'var(--color-text-1)',
+                            fontSize: 'var(--text-sm)',
+                            fontWeight: 600,
+                          }}
+                        >
                           {s.name}
                         </p>
-                        <Money value={s.value} sign="never"
-                          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }} />
+                        <Money
+                          value={s.value}
+                          sign="never"
+                          style={{
+                            color: 'var(--color-text-1)',
+                            fontSize: 'var(--text-sm)',
+                            fontWeight: 700,
+                          }}
+                        />
                       </div>
                       <div className="mt-1 flex items-center gap-2">
-                        <div className="relative h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
-                          <div className="absolute inset-y-0 left-0 rounded-full"
-                            style={{ width: `${pct}%`, background: s.color }} />
+                        <div
+                          className="relative h-1.5 flex-1 overflow-hidden rounded-full"
+                          style={{ background: 'var(--color-gray-150)' }}
+                        >
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full"
+                            style={{ width: `${pct}%`, background: s.color }}
+                          />
                         </div>
-                        <span className="tnum text-right" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', minWidth: 32 }}>
+                        <span
+                          className="tnum text-right"
+                          style={{
+                            color: 'var(--color-text-3)',
+                            fontSize: 'var(--text-xxs)',
+                            minWidth: 32,
+                          }}
+                        >
                           {pct}%
                         </span>
                       </div>
@@ -387,31 +520,56 @@ function TopMerchants({ expenses }: { expenses: { merchant: string; amount: numb
     expenses.forEach((t) => {
       map.set(t.merchant, (map.get(t.merchant) ?? 0) + Math.abs(t.amount));
     });
-    return Array.from(map.entries()).map(([merchant, value]) => ({ merchant, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+    return Array.from(map.entries())
+      .map(([merchant, value]) => ({ merchant, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
   }, [expenses]);
 
   if (list.length === 0) return null;
   return (
     <section className="px-5 pb-10">
-      <h2 className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+      <h2
+        className="mb-3"
+        style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+      >
         많이 쓴 곳
       </h2>
       <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
         {list.map((m, i) => (
-          <div key={m.merchant} className="flex items-center justify-between px-4 py-3"
-            style={{ borderBottom: i < list.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
+          <div
+            key={m.merchant}
+            className="flex items-center justify-between px-4 py-3"
+            style={{
+              borderBottom: i < list.length - 1 ? '1px solid var(--color-divider)' : 'none',
+            }}
+          >
             <div className="flex items-center gap-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full font-bold"
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-full font-bold"
                 style={{
                   background: i === 0 ? 'var(--color-primary)' : 'var(--color-gray-150)',
                   color: i === 0 ? '#fff' : 'var(--color-text-2)',
                   fontSize: 'var(--text-xxs)',
-                }}>{i + 1}</div>
-              <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                }}
+              >
+                {i + 1}
+              </div>
+              <p
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 600,
+                }}
+              >
                 {m.merchant}
               </p>
             </div>
-            <Money value={m.value} sign="never" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }} />
+            <Money
+              value={m.value}
+              sign="never"
+              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+            />
           </div>
         ))}
       </div>

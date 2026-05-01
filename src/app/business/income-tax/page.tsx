@@ -11,7 +11,13 @@ import Section from '@/components/ui/Section';
 import { fmt, isExpense } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 
-const REVENUE_CATS = ['biz_sales_card', 'biz_sales_cash', 'biz_sales_xfer', 'biz_sales_app', 'biz_other'];
+const REVENUE_CATS = [
+  'biz_sales_card',
+  'biz_sales_cash',
+  'biz_sales_xfer',
+  'biz_sales_app',
+  'biz_other',
+];
 
 /**
  * 2024 simplified income tax brackets (Korean 종합소득세):
@@ -32,7 +38,7 @@ function estimateIncomeTax(taxableIncome: number) {
   if (t <= 88_000_000) return Math.round(t * 0.24 - 5_220_000);
   if (t <= 150_000_000) return Math.round(t * 0.35 - 14_900_000);
   if (t <= 300_000_000) return Math.round(t * 0.38 - 19_400_000);
-  if (t <= 500_000_000) return Math.round(t * 0.40 - 25_400_000);
+  if (t <= 500_000_000) return Math.round(t * 0.4 - 25_400_000);
   if (t <= 1_000_000_000) return Math.round(t * 0.42 - 35_400_000);
   return Math.round(t * 0.45 - 65_400_000);
 }
@@ -51,12 +57,10 @@ export default function IncomeTaxPage() {
     const revenue = yearTx
       .filter((t) => t.amount > 0 && REVENUE_CATS.includes(t.cat))
       .reduce((s, t) => s + t.amount, 0);
-    const expense = yearTx
-      .filter(isExpense)
-      .reduce((s, t) => s + Math.abs(t.amount), 0);
+    const expense = yearTx.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
     const taxableIncome = Math.max(0, revenue - expense);
     const incomeTax = estimateIncomeTax(taxableIncome);
-    const localTax = Math.round(incomeTax * 0.10); // 지방소득세
+    const localTax = Math.round(incomeTax * 0.1); // 지방소득세
     const total = incomeTax + localTax;
     const effectiveRate = taxableIncome > 0 ? (total / taxableIncome) * 100 : 0;
     return { revenue, expense, taxableIncome, incomeTax, localTax, total, effectiveRate };
@@ -82,22 +86,34 @@ export default function IncomeTaxPage() {
 
       <Section topGap={4} bottomGap={4}>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setYear(year - 1)}
+          <button
+            type="button"
+            onClick={() => setYear(year - 1)}
             className="tap flex h-10 w-10 items-center justify-center rounded-full"
             style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
-            aria-label="이전 해">
+            aria-label="이전 해"
+          >
             <ChevronLeft size={20} strokeWidth={2.4} />
           </button>
-          <span className="flex-1 text-center" style={{
-            color: 'var(--color-text-1)', fontSize: 16, fontWeight: 800, letterSpacing: '-0.02em',
-          }}>
+          <span
+            className="flex-1 text-center"
+            style={{
+              color: 'var(--color-text-1)',
+              fontSize: 16,
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+            }}
+          >
             {year}년 종합소득세
           </span>
-          <button type="button" onClick={() => setYear(Math.min(today.getFullYear(), year + 1))}
+          <button
+            type="button"
+            onClick={() => setYear(Math.min(today.getFullYear(), year + 1))}
             disabled={year >= today.getFullYear()}
             className="tap flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-30"
             style={{ background: 'var(--color-card)', color: 'var(--color-text-1)' }}
-            aria-label="다음 해">
+            aria-label="다음 해"
+          >
             <ChevronRight size={20} strokeWidth={2.4} />
           </button>
         </div>
@@ -107,31 +123,47 @@ export default function IncomeTaxPage() {
         <div
           className="relative overflow-hidden rounded-2xl px-5 py-5"
           style={{
-            background: 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)',
+            background:
+              'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)',
             boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
           }}
         >
-          <div aria-hidden style={{
-            position: 'absolute', top: -40, right: -40,
-            width: 180, height: 180, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
-            pointerEvents: 'none',
-          }} />
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: -40,
+              right: -40,
+              width: 180,
+              height: 180,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+              pointerEvents: 'none',
+            }}
+          />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <p style={{
-                color: 'rgba(255,255,255,0.9)',
-                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-              }}>
+              <p
+                style={{
+                  color: 'rgba(255,255,255,0.9)',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                }}
+              >
                 추정 납부세액 (지방세 포함)
               </p>
               {data.taxableIncome > 0 && (
-                <span style={{
-                  padding: '3px 8px', borderRadius: 999,
-                  background: 'rgba(255,255,255,0.20)',
-                  color: '#fff',
-                  fontSize: 10, fontWeight: 800,
-                }}>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: 999,
+                    background: 'rgba(255,255,255,0.20)',
+                    color: '#fff',
+                    fontSize: 10,
+                    fontWeight: 800,
+                  }}
+                >
                   실효 {data.effectiveRate.toFixed(1)}%
                 </span>
               )}
@@ -141,12 +173,20 @@ export default function IncomeTaxPage() {
               format={(n) => Math.round(n).toLocaleString('ko-KR') + '원'}
               className="mt-1.5 block tracking-tight"
               style={{
-                color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.025em',
+                color: '#fff',
+                fontSize: 28,
+                fontWeight: 900,
+                letterSpacing: '-0.025em',
               }}
             />
-            <p className="tnum mt-1" style={{
-              color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 600,
-            }}>
+            <p
+              className="tnum mt-1"
+              style={{
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            >
               과세표준 {fmt(data.taxableIncome)}원
             </p>
           </div>
@@ -167,7 +207,8 @@ export default function IncomeTaxPage() {
       <Section title="3.3% 원천세 계산기">
         <Card padding={16}>
           <p className="mb-2" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-            프리랜서 거래 시 지급액에서 3.3% 원천징수 후 입금됩니다. 총 지급액을 입력하면 실수령액을 보여줍니다.
+            프리랜서 거래 시 지급액에서 3.3% 원천징수 후 입금됩니다. 총 지급액을 입력하면 실수령액을
+            보여줍니다.
           </p>
           <input
             type="number"
@@ -186,18 +227,46 @@ export default function IncomeTaxPage() {
           {grossNum > 0 && (
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-xl p-3" style={{ background: 'var(--color-danger-soft)' }}>
-                <p style={{ color: 'var(--color-danger)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                <p
+                  style={{
+                    color: 'var(--color-danger)',
+                    fontSize: 'var(--text-xxs)',
+                    fontWeight: 700,
+                  }}
+                >
                   원천징수 (3.3%)
                 </p>
-                <Money value={withholdingTax} sign="never" className="mt-1 block"
-                  style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 800 }} />
+                <Money
+                  value={withholdingTax}
+                  sign="never"
+                  className="mt-1 block"
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 800,
+                  }}
+                />
               </div>
               <div className="rounded-xl p-3" style={{ background: 'var(--color-primary-soft)' }}>
-                <p style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                <p
+                  style={{
+                    color: 'var(--color-primary)',
+                    fontSize: 'var(--text-xxs)',
+                    fontWeight: 700,
+                  }}
+                >
                   실수령액
                 </p>
-                <Money value={netReceived} sign="never" className="mt-1 block"
-                  style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 800 }} />
+                <Money
+                  value={netReceived}
+                  sign="never"
+                  className="mt-1 block"
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 800,
+                  }}
+                />
               </div>
             </div>
           )}
@@ -206,14 +275,22 @@ export default function IncomeTaxPage() {
 
       <Section bottomGap={40}>
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-          ※ 본 화면은 추정치이며, 실제 신고는 홈택스 또는 세무사를 이용하세요. 종합소득공제·세액공제·필요경비율 미반영.
+          ※ 본 화면은 추정치이며, 실제 신고는 홈택스 또는 세무사를 이용하세요.
+          종합소득공제·세액공제·필요경비율 미반영.
         </p>
       </Section>
     </>
   );
 }
 
-function Row({ label, value, muted, highlight, strong, last }: {
+function Row({
+  label,
+  value,
+  muted,
+  highlight,
+  strong,
+  last,
+}: {
   label: string;
   value: number;
   muted?: boolean;
@@ -222,22 +299,35 @@ function Row({ label, value, muted, highlight, strong, last }: {
   last?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3"
+    <div
+      className="flex items-center justify-between px-4 py-3"
       style={{
         borderBottom: last ? 'none' : '1px solid var(--color-divider)',
         background: highlight ? 'var(--color-gray-50)' : undefined,
-      }}>
-      <span style={{
-        color: muted ? 'var(--color-text-3)' : 'var(--color-text-1)',
-        fontSize: 'var(--text-sm)',
-        fontWeight: strong ? 700 : 500,
-      }}>{label}</span>
-      <Money value={value} sign={muted ? 'never' : 'auto'}
+      }}
+    >
+      <span
         style={{
-          color: muted ? 'var(--color-text-2)' : strong ? 'var(--color-primary)' : 'var(--color-text-1)',
+          color: muted ? 'var(--color-text-3)' : 'var(--color-text-1)',
+          fontSize: 'var(--text-sm)',
+          fontWeight: strong ? 700 : 500,
+        }}
+      >
+        {label}
+      </span>
+      <Money
+        value={value}
+        sign={muted ? 'never' : 'auto'}
+        style={{
+          color: muted
+            ? 'var(--color-text-2)'
+            : strong
+              ? 'var(--color-primary)'
+              : 'var(--color-text-1)',
           fontSize: 'var(--text-base)',
           fontWeight: strong ? 800 : 700,
-        }} />
+        }}
+      />
     </div>
   );
 }

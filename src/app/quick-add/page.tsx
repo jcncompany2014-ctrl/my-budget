@@ -3,10 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
-import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
+import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import { useAccounts } from '@/lib/accounts';
 import {
   CATEGORIES,
@@ -28,7 +28,13 @@ import type { Transaction } from '@/lib/types';
 function parseQuick(
   raw: string,
   mode: 'personal' | 'business',
-): null | { amount: number; merchant: string; date: Date; cat: string; type: 'expense' | 'income' } {
+): null | {
+  amount: number;
+  merchant: string;
+  date: Date;
+  cat: string;
+  type: 'expense' | 'income';
+} {
   if (!raw.trim()) return null;
 
   let str = raw.trim();
@@ -87,9 +93,14 @@ function parseQuick(
 
   let cat = suggestCategory(merchant, mode);
   if (!cat) {
-    cat = type === 'expense'
-      ? mode === 'business' ? 'biz_etc' : 'living'
-      : mode === 'business' ? 'biz_other' : 'income';
+    cat =
+      type === 'expense'
+        ? mode === 'business'
+          ? 'biz_etc'
+          : 'living'
+        : mode === 'business'
+          ? 'biz_other'
+          : 'income';
   }
 
   return { amount, merchant, date, cat, type };
@@ -173,7 +184,6 @@ export default function QuickAddPage() {
           <span style={{ color: 'var(--color-text-2)' }}> “급여 3500000 수입”</span>
         </p>
         <input
-          autoFocus
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="입력하기"
@@ -187,10 +197,7 @@ export default function QuickAddPage() {
         />
 
         {parsed && (
-          <div
-            className="mt-3 rounded-2xl p-4"
-            style={{ background: 'var(--color-primary-soft)' }}
-          >
+          <div className="mt-3 rounded-2xl p-4" style={{ background: 'var(--color-primary-soft)' }}>
             <p
               style={{
                 color: 'var(--color-primary)',
@@ -204,7 +211,11 @@ export default function QuickAddPage() {
               <CategoryIcon catId={parsed.cat} size={28} />
               <p
                 className="truncate"
-                style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 700,
+                }}
               >
                 {parsed.merchant}
               </p>
@@ -249,13 +260,15 @@ export default function QuickAddPage() {
         <section className="px-5 pb-10 pt-5">
           <div className="mb-3 flex items-center justify-between">
             <h2
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+              style={{
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 700,
+              }}
             >
               즐겨찾기 거래
             </h2>
-            <span
-              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
-            >
+            <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
               한 번 누르면 즉시 등록
             </span>
           </div>
@@ -298,12 +311,13 @@ export default function QuickAddPage() {
       )}
 
       <section className="px-5 pt-2">
-        <p
-          style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
-        >
-          힌트: <code>억/만/천</code> 단위, <code>오늘/어제/그제</code>, <code>수입</code>·<code>급여</code> 키워드 인식 ·
-          소비처명으로 카테고리 자동 추정 (현재 모드: <span style={{ color: 'var(--color-primary)' }}>{mode === 'business' ? '사업' : '개인'}</span>)
-          {incomeCats.length === 0 || expenseCats.length === 0 ? null : ''}
+        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+          힌트: <code>억/만/천</code> 단위, <code>오늘/어제/그제</code>, <code>수입</code>·
+          <code>급여</code> 키워드 인식 · 소비처명으로 카테고리 자동 추정 (현재 모드:{' '}
+          <span style={{ color: 'var(--color-primary)' }}>
+            {mode === 'business' ? '사업' : '개인'}
+          </span>
+          ){incomeCats.length === 0 || expenseCats.length === 0 ? null : ''}
         </p>
       </section>
     </>

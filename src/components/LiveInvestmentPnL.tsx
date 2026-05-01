@@ -88,8 +88,7 @@ export default function LiveInvestmentPnL() {
         className="tap relative block overflow-hidden rounded-2xl"
         style={{
           background: 'var(--color-card)',
-          boxShadow:
-            '0 1px 2px rgba(20, 28, 40, 0.04), 0 4px 18px rgba(20, 28, 40, 0.06)',
+          boxShadow: '0 1px 2px rgba(20, 28, 40, 0.04), 0 4px 18px rgba(20, 28, 40, 0.06)',
         }}
       >
         {/* Aurora wash — top-right, color-coded, very subtle */}
@@ -109,7 +108,9 @@ export default function LiveInvestmentPnL() {
           aria-hidden
           style={{
             position: 'absolute',
-            left: 0, top: 16, bottom: 16,
+            left: 0,
+            top: 16,
+            bottom: 16,
             width: 3,
             borderRadius: 2,
             background: accent,
@@ -125,20 +126,29 @@ export default function LiveInvestmentPnL() {
                 className="animate-pulse"
                 style={{
                   display: 'inline-block',
-                  width: 6, height: 6, borderRadius: 999,
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
                   background: accent,
                 }}
               />
-              <span style={{
-                color: 'var(--color-text-3)',
-                fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-              }}>
+              <span
+                style={{
+                  color: 'var(--color-text-3)',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                }}
+              >
                 실시간 투자 손익
               </span>
-              <span style={{
-                color: 'var(--color-text-4)',
-                fontSize: 11, fontWeight: 600,
-              }}>
+              <span
+                style={{
+                  color: 'var(--color-text-4)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
                 · {freshness}
               </span>
             </div>
@@ -174,31 +184,43 @@ export default function LiveInvestmentPnL() {
                 lineHeight: 1.05,
               }}
             >
-              {positive ? '+' : '−'}{Math.abs(Math.round(pnl)).toLocaleString('ko-KR')}
+              {positive ? '+' : '−'}
+              {Math.abs(Math.round(pnl)).toLocaleString('ko-KR')}
             </span>
-            <span style={{
-              color: 'var(--color-text-3)',
-              fontSize: 14, fontWeight: 700,
-              marginLeft: 2,
-            }}>
+            <span
+              style={{
+                color: 'var(--color-text-3)',
+                fontSize: 14,
+                fontWeight: 700,
+                marginLeft: 2,
+              }}
+            >
               원
             </span>
           </div>
 
           {/* Top mover line — only if we have one and abs change > 0.1% */}
           {topMover && Math.abs(topMover.change) >= 0.1 && (
-            <p className="mt-1.5 truncate" style={{
-              color: 'var(--color-text-3)',
-              fontSize: 11, fontWeight: 600,
-            }}>
-              <span style={{
-                color: topMover.change >= 0 ? '#00B956' : '#F04452',
-                fontWeight: 800,
-              }}>
+            <p
+              className="mt-1.5 truncate"
+              style={{
+                color: 'var(--color-text-3)',
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            >
+              <span
+                style={{
+                  color: topMover.change >= 0 ? '#00B956' : '#F04452',
+                  fontWeight: 800,
+                }}
+              >
                 {topMover.change >= 0 ? '▲' : '▼'} {topMover.name}
+              </span>{' '}
+              <span className="tnum">
+                {topMover.change >= 0 ? '+' : ''}
+                {topMover.change.toFixed(2)}%
               </span>
-              {' '}
-              <span className="tnum">{topMover.change >= 0 ? '+' : ''}{topMover.change.toFixed(2)}%</span>
               <span style={{ color: 'var(--color-text-4)' }}> 가장 큰 변동</span>
             </p>
           )}
@@ -207,33 +229,56 @@ export default function LiveInvestmentPnL() {
           <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--color-divider)' }}>
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p style={{
-                  color: 'var(--color-text-4)',
-                  fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
-                }}>
+                <p
+                  style={{
+                    color: 'var(--color-text-4)',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                  }}
+                >
                   원금
                 </p>
-                <p className="tnum" style={{
-                  color: 'var(--color-text-2)',
-                  fontSize: 13, fontWeight: 700, marginTop: 2,
-                }}>
+                <p
+                  className="tnum"
+                  style={{
+                    color: 'var(--color-text-2)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    marginTop: 2,
+                  }}
+                >
                   {fmtCompactKRW(totalCostKRW)}
                 </p>
               </div>
-              <div className="flex-1" style={{
-                height: 1, background: 'var(--color-divider)', marginBottom: 6,
-              }} />
+              <div
+                className="flex-1"
+                style={{
+                  height: 1,
+                  background: 'var(--color-divider)',
+                  marginBottom: 6,
+                }}
+              />
               <div className="text-right">
-                <p style={{
-                  color: 'var(--color-text-4)',
-                  fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
-                }}>
+                <p
+                  style={{
+                    color: 'var(--color-text-4)',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                  }}
+                >
                   평가액
                 </p>
-                <p className="tnum" style={{
-                  color: 'var(--color-text-1)',
-                  fontSize: 13, fontWeight: 800, marginTop: 2,
-                }}>
+                <p
+                  className="tnum"
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    marginTop: 2,
+                  }}
+                >
                   {fmtCompactKRW(totalKRW)}
                 </p>
               </div>

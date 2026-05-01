@@ -21,21 +21,26 @@ type BankMeta = {
 };
 
 const BANKS: BankMeta[] = [
-  { bg: '#FFCC00', fg: '#000', label: 'KB',   match: ['kb국민', 'kb', '국민', 'kookmin'] },
+  { bg: '#FFCC00', fg: '#000', label: 'KB', match: ['kb국민', 'kb', '국민', 'kookmin'] },
   { bg: '#0046FF', label: '신한', match: ['신한', 'shinhan'] },
   { bg: '#0090FF', label: '우리', match: ['우리', 'woori'] },
   { bg: '#00857F', label: '하나', match: ['하나', 'hana', 'keb'] },
   { bg: '#27AE60', label: '농협', match: ['농협', 'nh', 'nonghyup'] },
   { bg: '#0064B5', label: '기업', match: ['ibk', '기업'] },
   { bg: '#0166FF', label: 'K뱅', match: ['케이뱅크', 'kbank', '케뱅'] },
-  { bg: '#FAE100', fg: '#000', label: '카뱅', match: ['카카오뱅크', '카카오', 'kakaobank', 'kakao'] },
+  {
+    bg: '#FAE100',
+    fg: '#000',
+    label: '카뱅',
+    match: ['카카오뱅크', '카카오', 'kakaobank', 'kakao'],
+  },
   { bg: '#0064FF', label: '토스', match: ['토스뱅크', '토스', 'toss'] },
   { bg: '#E60013', label: '우체', match: ['우체국', 'epost', 'post'] },
-  { bg: '#007D5B', label: 'SC',   match: ['sc제일', 'sc', '제일', 'standard'] },
+  { bg: '#007D5B', label: 'SC', match: ['sc제일', 'sc', '제일', 'standard'] },
   { bg: '#FF6633', label: '새마', match: ['새마을', '새마을금고', 'mg'] },
   { bg: '#0072BC', label: '수협', match: ['수협', 'suhyup'] },
   { bg: '#0078A8', label: '신협', match: ['신협', 'cu'] },
-  { bg: '#B50000', label: 'DGB',  match: ['dgb', '대구은행', '대구', 'iM뱅크', 'im뱅크'] },
+  { bg: '#B50000', label: 'DGB', match: ['dgb', '대구은행', '대구', 'iM뱅크', 'im뱅크'] },
   { bg: '#035997', label: '부산', match: ['부산', 'busan', 'bnk'] },
   { bg: '#C8102E', label: '광주', match: ['광주', 'kjbank'] },
   { bg: '#008C44', label: '전북', match: ['전북', 'jbbank'] },
@@ -45,7 +50,11 @@ const BANKS: BankMeta[] = [
 ];
 
 function findBank(name: string): BankMeta | null {
-  const norm = name.trim().toLowerCase().replace(/\s+/g, '').replace(/은행|bank/gi, '');
+  const norm = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/은행|bank/gi, '');
   if (!norm) return null;
   for (const b of BANKS) {
     for (const key of b.match) {
@@ -78,7 +87,8 @@ export default function BankIcon({
     return (
       <div
         style={{
-          width: size, height: size,
+          width: size,
+          height: size,
           borderRadius: '50%',
           background: meta.bg,
           color: meta.fg ?? '#fff',
@@ -104,7 +114,8 @@ export default function BankIcon({
   return (
     <div
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         borderRadius: '50%',
         background: `hsl(${hue}, 65%, 45%)`,
         color: '#fff',

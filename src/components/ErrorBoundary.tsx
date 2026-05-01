@@ -35,7 +35,11 @@ export default class ErrorBoundary extends Component<Props, State> {
             <p style={{ fontSize: 40, lineHeight: 1, marginBottom: 12 }}>⚠️</p>
             <p
               className="mb-2"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+              style={{
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 700,
+              }}
             >
               앗, 화면을 그리는 중에 오류가 발생했어요
             </p>

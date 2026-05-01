@@ -19,18 +19,18 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 type Quote = {
-  price: number;          // last/current price in source's native currency
-  change: number;         // 24h change percent (e.g. -1.42)
-  currency: string;       // ISO 4217 (KRW, USD, JPY, EUR, USDT, ...)
-  name: string;           // human-readable name
-  ts: number;             // when this quote was fetched (ms epoch)
+  price: number; // last/current price in source's native currency
+  change: number; // 24h change percent (e.g. -1.42)
+  currency: string; // ISO 4217 (KRW, USD, JPY, EUR, USDT, ...)
+  name: string; // human-readable name
+  ts: number; // when this quote was fetched (ms epoch)
 };
 
 type Source = 'binance' | 'upbit' | 'yahoo';
 const TTL_MS: Record<Source, number> = {
   binance: 20_000, // 20s — crypto moves fast, Binance is generous
   upbit: 20_000,
-  yahoo: 60_000,   // 60s — stocks/FX, lighter source
+  yahoo: 60_000, // 60s — stocks/FX, lighter source
 };
 
 // Per-isolate cache. Key = full id (e.g. "upbit:BTC"), value = quote + expiry.

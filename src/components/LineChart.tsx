@@ -48,13 +48,24 @@ export default function LineChart({ series, labels, height = 140, showAxis = tru
         style={{ display: 'block', touchAction: 'none' }}
         onMouseLeave={() => setHovered(null)}
         onMouseMove={(e) => onPointerMove(e.clientX, e.currentTarget.getBoundingClientRect())}
-        onTouchStart={(e) => onPointerMove(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())}
-        onTouchMove={(e) => onPointerMove(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())}
+        onTouchStart={(e) =>
+          onPointerMove(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())
+        }
+        onTouchMove={(e) =>
+          onPointerMove(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())
+        }
         onTouchEnd={() => setTimeout(() => setHovered(null), 1500)}
       >
         {showAxis && (
           <>
-            <line x1={padX} y1={padY} x2={padX} y2={height - padY} stroke="var(--color-divider)" strokeWidth={1} />
+            <line
+              x1={padX}
+              y1={padY}
+              x2={padX}
+              y2={height - padY}
+              stroke="var(--color-divider)"
+              strokeWidth={1}
+            />
             <line
               x1={padX}
               y1={height - padY}
@@ -121,58 +132,69 @@ export default function LineChart({ series, labels, height = 140, showAxis = tru
         ))}
       </svg>
 
-      {hovered !== null && (() => {
-        // Position tooltip above the hovered x-position, but clamp inside container
-        const xPct = (xAt(hovered) / width) * 100;
-        const left = `clamp(8px, calc(${xPct}% - 60px), calc(100% - 128px))`;
-        return (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left,
-              pointerEvents: 'none',
-              animation: 'fade-in 140ms var(--ease-out)',
-            }}
-          >
+      {hovered !== null &&
+        (() => {
+          // Position tooltip above the hovered x-position, but clamp inside container
+          const xPct = (xAt(hovered) / width) * 100;
+          const left = `clamp(8px, calc(${xPct}% - 60px), calc(100% - 128px))`;
+          return (
             <div
-              className="rounded-xl px-3 py-2"
               style={{
-                background: 'var(--color-text-1)',
-                color: 'var(--color-card)',
-                fontSize: 11,
-                fontWeight: 700,
-                boxShadow: '0 6px 18px rgba(0,0,0,0.22)',
-                minWidth: 110,
+                position: 'absolute',
+                top: 0,
+                left,
+                pointerEvents: 'none',
+                animation: 'fade-in 140ms var(--ease-out)',
               }}
             >
-              <p style={{ opacity: 0.65, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>
-                {labels[hovered]}
-              </p>
-              <div className="mt-1 flex flex-col gap-0.5">
-                {series.map((s, si) => (
-                  <div key={si} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <span style={{
-                        display: 'inline-block', width: 6, height: 6, borderRadius: 3,
-                        background: s.color,
-                      }} />
-                      {s.label && (
-                        <span style={{ opacity: 0.85, fontSize: 10, fontWeight: 600 }}>
-                          {s.label}
-                        </span>
-                      )}
+              <div
+                className="rounded-xl px-3 py-2"
+                style={{
+                  background: 'var(--color-text-1)',
+                  color: 'var(--color-card)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  boxShadow: '0 6px 18px rgba(0,0,0,0.22)',
+                  minWidth: 110,
+                }}
+              >
+                <p
+                  style={{ opacity: 0.65, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}
+                >
+                  {labels[hovered]}
+                </p>
+                <div className="mt-1 flex flex-col gap-0.5">
+                  {series.map((s, si) => (
+                    <div key={si} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: 6,
+                            height: 6,
+                            borderRadius: 3,
+                            background: s.color,
+                          }}
+                        />
+                        {s.label && (
+                          <span style={{ opacity: 0.85, fontSize: 10, fontWeight: 600 }}>
+                            {s.label}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className="tnum"
+                        style={{ color: s.color, fontSize: 12, fontWeight: 800 }}
+                      >
+                        {fmt(s.values[hovered])}
+                      </span>
                     </div>
-                    <span className="tnum" style={{ color: s.color, fontSize: 12, fontWeight: 800 }}>
-                      {fmt(s.values[hovered])}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
     </div>
   );
 }

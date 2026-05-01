@@ -3,8 +3,8 @@
 import { Store } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { useLocations } from '@/lib/locations';
@@ -20,7 +20,12 @@ export default function LocationsPage() {
   const [editing, setEditing] = useState<BusinessLocation | null>(null);
   const [creating, setCreating] = useState(false);
 
-  if (!ready) return <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>로딩 중...</div>;
+  if (!ready)
+    return (
+      <div className="px-6 py-12 text-center" style={{ color: 'var(--color-text-3)' }}>
+        로딩 중...
+      </div>
+    );
 
   const startNew = () => {
     setEditing({
@@ -38,8 +43,12 @@ export default function LocationsPage() {
       <TopBar
         title="사업장"
         right={
-          <button type="button" onClick={() => router.back()} className="tap rounded-full px-3 py-2"
-            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="tap rounded-full px-3 py-2"
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+          >
             완료
           </button>
         }
@@ -65,19 +74,42 @@ export default function LocationsPage() {
               }}
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full"
-                  style={{ background: 'var(--color-gray-150)' }}>🌐</div>
-                <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{ background: 'var(--color-gray-150)' }}
+                >
+                  🌐
+                </div>
+                <span
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 600,
+                  }}
+                >
                   전체 (사업장 무관)
                 </span>
               </div>
-              {!activeId && <span style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>활성</span>}
+              {!activeId && (
+                <span
+                  style={{
+                    color: 'var(--color-primary)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 700,
+                  }}
+                >
+                  활성
+                </span>
+              )}
             </button>
             {items.map((l) => (
               <button
                 key={l.id}
                 type="button"
-                onClick={() => { setEditing(l); setCreating(false); }}
+                onClick={() => {
+                  setEditing(l);
+                  setCreating(false);
+                }}
                 onDoubleClick={() => setActive(l.id)}
                 className="tap flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left"
                 style={{
@@ -86,15 +118,28 @@ export default function LocationsPage() {
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full text-lg"
-                    style={{ background: `${l.color}33` }}>{l.emoji}</div>
-                  <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
+                  <div
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-lg"
+                    style={{ background: `${l.color}33` }}
+                  >
+                    {l.emoji}
+                  </div>
+                  <span
+                    style={{
+                      color: 'var(--color-text-1)',
+                      fontSize: 'var(--text-base)',
+                      fontWeight: 600,
+                    }}
+                  >
                     {l.name}
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setActive(activeId === l.id ? null : l.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActive(activeId === l.id ? null : l.id);
+                  }}
                   className="tap rounded-full px-3 py-1"
                   style={{
                     background: activeId === l.id ? l.color : 'var(--color-gray-100)',
@@ -116,97 +161,186 @@ export default function LocationsPage() {
           type="button"
           onClick={startNew}
           className="tap w-full rounded-2xl border-2 border-dashed py-4"
-          style={{ borderColor: 'var(--color-gray-300)', color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+          style={{
+            borderColor: 'var(--color-gray-300)',
+            color: 'var(--color-text-2)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
         >
           + 사업장 추가
         </button>
       </section>
 
       {editing && (
-        <Editor l={editing} isNew={creating}
+        <Editor
+          l={editing}
+          isNew={creating}
           onSave={(l) => {
-            if (creating) add(l); else update(l.id, l);
+            if (creating) add(l);
+            else update(l.id, l);
             toast.show(creating ? '사업장 추가 완료' : '수정 완료', 'success');
-            setEditing(null); setCreating(false);
+            setEditing(null);
+            setCreating(false);
           }}
-          onDelete={creating ? undefined : () => { remove(editing.id); toast.show('삭제 완료', 'info'); setEditing(null); }}
-          onCancel={() => { setEditing(null); setCreating(false); }}
+          onDelete={
+            creating
+              ? undefined
+              : () => {
+                  remove(editing.id);
+                  toast.show('삭제 완료', 'info');
+                  setEditing(null);
+                }
+          }
+          onCancel={() => {
+            setEditing(null);
+            setCreating(false);
+          }}
         />
       )}
     </>
   );
 }
 
-function Editor({ l, isNew, onSave, onDelete, onCancel }: {
-  l: BusinessLocation; isNew: boolean;
-  onSave: (l: BusinessLocation) => void; onDelete?: () => void; onCancel: () => void;
+function Editor({
+  l,
+  isNew,
+  onSave,
+  onDelete,
+  onCancel,
+}: {
+  l: BusinessLocation;
+  isNew: boolean;
+  onSave: (l: BusinessLocation) => void;
+  onDelete?: () => void;
+  onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(l);
   const valid = draft.name.trim().length > 0;
   return (
     <Sheet open onClose={onCancel}>
-        <h2 className="mb-4" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-          {isNew ? '사업장 추가' : '사업장 편집'}
-        </h2>
+      <h2
+        className="mb-4"
+        style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}
+      >
+        {isNew ? '사업장 추가' : '사업장 편집'}
+      </h2>
 
-        <div className="mb-3">
-          <label className="mb-1.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>이모지</label>
-          <div className="flex flex-wrap gap-2">
-            {EMOJIS.map((e) => (
-              <button key={e} type="button" onClick={() => setDraft({ ...draft, emoji: e })}
-                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                style={{
-                  background: draft.emoji === e ? `${draft.color}33` : 'var(--color-gray-100)',
-                  border: `2px solid ${draft.emoji === e ? draft.color : 'transparent'}`,
-                }}>{e}</button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <label className="mb-1.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>이름 *</label>
-          <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="예) 강남점"
-            className="h-12 w-full rounded-xl px-4 outline-none"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }} />
-        </div>
-
-        <div className="mb-4">
-          <label className="mb-1.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>색상</label>
-          <div className="flex flex-wrap gap-2">
-            {COLORS.map((c) => (
-              <button key={c} type="button" onClick={() => setDraft({ ...draft, color: c })}
-                className="tap h-9 w-9 rounded-full"
-                style={{
-                  background: c,
-                  boxShadow: draft.color === c ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
-                }}
-                aria-label={c} />
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          {onDelete && (
-            <button type="button" onClick={onDelete} className="tap h-12 rounded-xl px-4"
-              style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-              삭제
+      <div className="mb-3">
+        <label
+          className="mb-1.5 block"
+          style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+        >
+          이모지
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {EMOJIS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => setDraft({ ...draft, emoji: e })}
+              className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
+              style={{
+                background: draft.emoji === e ? `${draft.color}33` : 'var(--color-gray-100)',
+                border: `2px solid ${draft.emoji === e ? draft.color : 'transparent'}`,
+              }}
+            >
+              {e}
             </button>
-          )}
-          <button type="button" onClick={onCancel} className="tap h-12 flex-1 rounded-xl"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-            취소
-          </button>
-          <button type="button" disabled={!valid} onClick={() => onSave(draft)} className="tap h-12 flex-1 rounded-xl"
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-3">
+        <label
+          className="mb-1.5 block"
+          style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+        >
+          이름 *
+        </label>
+        <input
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          placeholder="예) 강남점"
+          className="h-12 w-full rounded-xl px-4 outline-none"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 500,
+          }}
+        />
+      </div>
+
+      <div className="mb-4">
+        <label
+          className="mb-1.5 block"
+          style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+        >
+          색상
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setDraft({ ...draft, color: c })}
+              className="tap h-9 w-9 rounded-full"
+              style={{
+                background: c,
+                boxShadow:
+                  draft.color === c ? `0 0 0 2px var(--color-card), 0 0 0 5px ${c}33` : 'none',
+              }}
+              aria-label={c}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="tap h-12 rounded-xl px-4"
             style={{
-              background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
-              color: valid ? '#fff' : 'var(--color-text-4)',
+              background: 'var(--color-danger-soft)',
+              color: 'var(--color-danger)',
               fontSize: 'var(--text-sm)',
               fontWeight: 700,
-            }}>
-            저장
+            }}
+          >
+            삭제
           </button>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={() => onSave(draft)}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
+            color: valid ? '#fff' : 'var(--color-text-4)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          저장
+        </button>
+      </div>
     </Sheet>
   );
 }

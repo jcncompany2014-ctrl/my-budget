@@ -3,10 +3,10 @@
 import { Banknote } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import Money from '@/components/Money';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
+import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
@@ -120,32 +120,47 @@ export default function LoansPage() {
                       {l.emoji}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate" style={{
-                        color: 'var(--color-text-1)',
-                        fontSize: 'var(--text-base)',
-                        fontWeight: 700,
-                      }}>
+                      <p
+                        className="truncate"
+                        style={{
+                          color: 'var(--color-text-1)',
+                          fontSize: 'var(--text-base)',
+                          fontWeight: 700,
+                        }}
+                      >
                         {l.name}
                       </p>
-                      <p className="truncate" style={{
-                        color: 'var(--color-text-3)',
-                        fontSize: 11,
-                      }}>
+                      <p
+                        className="truncate"
+                        style={{
+                          color: 'var(--color-text-3)',
+                          fontSize: 11,
+                        }}
+                      >
                         {l.lender} · 연 {l.rate}% · {l.termMonths}개월
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="tnum tracking-tight" style={{
-                        color: 'var(--color-danger)',
-                        fontSize: 18, fontWeight: 900, letterSpacing: '-0.025em',
-                        lineHeight: 1.1,
-                      }}>
+                      <p
+                        className="tnum tracking-tight"
+                        style={{
+                          color: 'var(--color-danger)',
+                          fontSize: 18,
+                          fontWeight: 900,
+                          letterSpacing: '-0.025em',
+                          lineHeight: 1.1,
+                        }}
+                      >
                         −{fmt(l.remaining)}
                       </p>
-                      <p className="tnum mt-0.5" style={{
-                        color: 'var(--color-text-3)',
-                        fontSize: 10, fontWeight: 600,
-                      }}>
+                      <p
+                        className="tnum mt-0.5"
+                        style={{
+                          color: 'var(--color-text-3)',
+                          fontSize: 10,
+                          fontWeight: 600,
+                        }}
+                      >
                         월 이자 약 {fmt(Math.round(monthlyInterest))}원
                       </p>
                     </div>
@@ -243,231 +258,238 @@ function LoanEditor({
   const [draft, setDraft] = useState(loan);
   const { accounts } = useAccounts();
   const valid = draft.name.trim().length > 0 && draft.principal > 0 && draft.termMonths > 0;
-  const monthly = draft.monthlyPayment ?? computeMonthlyPayment(draft.principal, draft.rate, draft.termMonths);
+  const monthly =
+    draft.monthlyPayment ?? computeMonthlyPayment(draft.principal, draft.rate, draft.termMonths);
 
   return (
     <Sheet open onClose={onCancel}>
-        <h2
-          className="mb-4"
-          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}
-        >
-          {isNew ? '대출 추가' : '대출 편집'}
-        </h2>
+      <h2
+        className="mb-4"
+        style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}
+      >
+        {isNew ? '대출 추가' : '대출 편집'}
+      </h2>
 
-        <Field label="이모지">
-          <div className="flex flex-wrap gap-2">
-            {EMOJIS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setDraft({ ...draft, emoji: e })}
-                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                style={{
-                  background: draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                  border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
-                }}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="이름 *">
-          <input
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="예) 주택담보대출"
-            className="h-12 w-full rounded-xl px-4 outline-none"
-            style={{
-              background: 'var(--color-gray-100)',
-              color: 'var(--color-text-1)',
-              fontSize: 'var(--text-base)',
-              fontWeight: 500,
-            }}
-          />
-        </Field>
-
-        <Field label="대출 기관">
-          <input
-            value={draft.lender}
-            onChange={(e) => setDraft({ ...draft, lender: e.target.value })}
-            placeholder="예) KB국민은행"
-            className="h-12 w-full rounded-xl px-4 outline-none"
-            style={{
-              background: 'var(--color-gray-100)',
-              color: 'var(--color-text-1)',
-              fontSize: 'var(--text-base)',
-              fontWeight: 500,
-            }}
-          />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="원금 *">
-            <NumInput
-              value={draft.principal}
-              onChange={(n) => setDraft({ ...draft, principal: n, remaining: draft.remaining || n })}
-            />
-          </Field>
-          <Field label="잔액">
-            <NumInput value={draft.remaining} onChange={(n) => setDraft({ ...draft, remaining: n })} />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="연 이자율 (%)">
-            <NumInput value={draft.rate} onChange={(n) => setDraft({ ...draft, rate: n })} step="0.01" />
-          </Field>
-          <Field label="기간 (개월)">
-            <NumInput value={draft.termMonths} onChange={(n) => setDraft({ ...draft, termMonths: n })} />
-          </Field>
-        </div>
-
-        <div
-          className="rounded-xl px-4 py-3"
-          style={{ background: 'var(--color-primary-soft)' }}
-        >
-          <p
-            style={{
-              color: 'var(--color-primary)',
-              fontSize: 'var(--text-xxs)',
-              fontWeight: 700,
-            }}
-          >
-            예상 월 상환액
-          </p>
-          <Money
-            value={monthly}
-            sign="never"
-            className="mt-1 block"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xl)', fontWeight: 800 }}
-          />
-        </div>
-
-        <Field label="자동 상환">
-          <button
-            type="button"
-            onClick={() => setDraft({ ...draft, autoPayment: !draft.autoPayment })}
-            className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
-            style={{ background: 'var(--color-gray-100)' }}
-          >
-            <div className="text-left">
-              <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>
-                매월 자동 상환
-              </p>
-              <p style={{ color: 'var(--color-text-3)', fontSize: 11, marginTop: 2 }}>
-                결제일에 출금 계좌에서 차감 + 잔액 자동 갱신
-              </p>
-            </div>
-            <SmallSwitch on={!!draft.autoPayment} />
-          </button>
-        </Field>
-
-        {draft.autoPayment && (
-          <>
-            <Field label="결제일 (1-31)">
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={31}
-                value={draft.paymentDay ?? ''}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    paymentDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
-                  })
-                }
-                placeholder="예) 25"
-                className="tnum h-12 w-full rounded-xl px-4 outline-none"
-                style={{
-                  background: 'var(--color-gray-100)',
-                  color: 'var(--color-text-1)',
-                  fontSize: 'var(--text-base)',
-                  fontWeight: 500,
-                }}
-              />
-              <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-                그 달에 해당 날짜가 없으면 (예: 31일) 그 달의 마지막 날에 처리
-              </p>
-            </Field>
-
-            <Field label="출금 계좌">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {accounts.length === 0 ? (
-                  <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>
-                    먼저 계좌를 추가하세요
-                  </p>
-                ) : (
-                  accounts.map((a) => {
-                    const sel = draft.linkedAccountId === a.id;
-                    return (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => setDraft({ ...draft, linkedAccountId: a.id })}
-                        className="tap shrink-0 rounded-2xl px-4 py-2 text-[13px] font-semibold"
-                        style={{
-                          background: sel ? `${a.color}22` : 'var(--color-gray-100)',
-                          color: sel ? a.color : 'var(--color-text-2)',
-                          border: `1.5px solid ${sel ? a.color : 'transparent'}`,
-                        }}
-                      >
-                        {a.name}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </Field>
-          </>
-        )}
-
-        <div className="mt-4 flex gap-2">
-          {onDelete && (
+      <Field label="이모지">
+        <div className="flex flex-wrap gap-2">
+          {EMOJIS.map((e) => (
             <button
+              key={e}
               type="button"
-              onClick={onDelete}
-              className="tap h-12 rounded-xl px-4"
+              onClick={() => setDraft({ ...draft, emoji: e })}
+              className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
               style={{
-                background: 'var(--color-danger-soft)',
-                color: 'var(--color-danger)',
-                fontSize: 'var(--text-sm)',
-                fontWeight: 700,
+                background:
+                  draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
               }}
             >
-              삭제
+              {e}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onCancel}
-            className="tap h-12 flex-1 rounded-xl"
-            style={{
-              background: 'var(--color-gray-100)',
-              color: 'var(--color-text-1)',
-              fontSize: 'var(--text-sm)',
-              fontWeight: 700,
-            }}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            disabled={!valid}
-            onClick={() => onSave({ ...draft, monthlyPayment: monthly })}
-            className="tap h-12 flex-1 rounded-xl"
-            style={{
-              background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
-              color: valid ? '#fff' : 'var(--color-text-4)',
-              fontSize: 'var(--text-sm)',
-              fontWeight: 700,
-            }}
-          >
-            저장
-          </button>
+          ))}
         </div>
+      </Field>
+
+      <Field label="이름 *">
+        <input
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          placeholder="예) 주택담보대출"
+          className="h-12 w-full rounded-xl px-4 outline-none"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 500,
+          }}
+        />
+      </Field>
+
+      <Field label="대출 기관">
+        <input
+          value={draft.lender}
+          onChange={(e) => setDraft({ ...draft, lender: e.target.value })}
+          placeholder="예) KB국민은행"
+          className="h-12 w-full rounded-xl px-4 outline-none"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 500,
+          }}
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="원금 *">
+          <NumInput
+            value={draft.principal}
+            onChange={(n) => setDraft({ ...draft, principal: n, remaining: draft.remaining || n })}
+          />
+        </Field>
+        <Field label="잔액">
+          <NumInput
+            value={draft.remaining}
+            onChange={(n) => setDraft({ ...draft, remaining: n })}
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="연 이자율 (%)">
+          <NumInput
+            value={draft.rate}
+            onChange={(n) => setDraft({ ...draft, rate: n })}
+            step="0.01"
+          />
+        </Field>
+        <Field label="기간 (개월)">
+          <NumInput
+            value={draft.termMonths}
+            onChange={(n) => setDraft({ ...draft, termMonths: n })}
+          />
+        </Field>
+      </div>
+
+      <div className="rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-soft)' }}>
+        <p
+          style={{
+            color: 'var(--color-primary)',
+            fontSize: 'var(--text-xxs)',
+            fontWeight: 700,
+          }}
+        >
+          예상 월 상환액
+        </p>
+        <Money
+          value={monthly}
+          sign="never"
+          className="mt-1 block"
+          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xl)', fontWeight: 800 }}
+        />
+      </div>
+
+      <Field label="자동 상환">
+        <button
+          type="button"
+          onClick={() => setDraft({ ...draft, autoPayment: !draft.autoPayment })}
+          className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
+          style={{ background: 'var(--color-gray-100)' }}
+        >
+          <div className="text-left">
+            <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>
+              매월 자동 상환
+            </p>
+            <p style={{ color: 'var(--color-text-3)', fontSize: 11, marginTop: 2 }}>
+              결제일에 출금 계좌에서 차감 + 잔액 자동 갱신
+            </p>
+          </div>
+          <SmallSwitch on={!!draft.autoPayment} />
+        </button>
+      </Field>
+
+      {draft.autoPayment && (
+        <>
+          <Field label="결제일 (1-31)">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={31}
+              value={draft.paymentDay ?? ''}
+              onChange={(e) =>
+                setDraft({
+                  ...draft,
+                  paymentDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
+                })
+              }
+              placeholder="예) 25"
+              className="tnum h-12 w-full rounded-xl px-4 outline-none"
+              style={{
+                background: 'var(--color-gray-100)',
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 500,
+              }}
+            />
+            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+              그 달에 해당 날짜가 없으면 (예: 31일) 그 달의 마지막 날에 처리
+            </p>
+          </Field>
+
+          <Field label="출금 계좌">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {accounts.length === 0 ? (
+                <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>먼저 계좌를 추가하세요</p>
+              ) : (
+                accounts.map((a) => {
+                  const sel = draft.linkedAccountId === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setDraft({ ...draft, linkedAccountId: a.id })}
+                      className="tap shrink-0 rounded-2xl px-4 py-2 text-[13px] font-semibold"
+                      style={{
+                        background: sel ? `${a.color}22` : 'var(--color-gray-100)',
+                        color: sel ? a.color : 'var(--color-text-2)',
+                        border: `1.5px solid ${sel ? a.color : 'transparent'}`,
+                      }}
+                    >
+                      {a.name}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </Field>
+        </>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="tap h-12 rounded-xl px-4"
+            style={{
+              background: 'var(--color-danger-soft)',
+              color: 'var(--color-danger)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 700,
+            }}
+          >
+            삭제
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: 'var(--color-gray-100)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={() => onSave({ ...draft, monthlyPayment: monthly })}
+          className="tap h-12 flex-1 rounded-xl"
+          style={{
+            background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',
+            color: valid ? '#fff' : 'var(--color-text-4)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 700,
+          }}
+        >
+          저장
+        </button>
+      </div>
     </Sheet>
   );
 }

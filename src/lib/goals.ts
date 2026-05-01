@@ -2,16 +2,14 @@
 
 import { useMemo } from 'react';
 import { useMode } from '@/components/ModeProvider';
-import { createListStore } from '@/lib/store-factory';
 import { KEYS } from '@/lib/storage-keys';
+import { createListStore } from '@/lib/store-factory';
 import type { SavingsGoal, Scope } from '@/lib/types';
 
 const useGoalsList = createListStore<SavingsGoal>(KEYS.goals, [], {
   validate: (data) =>
     Array.isArray(data)
-      ? (data as SavingsGoal[]).map((g) =>
-          g.scope ? g : { ...g, scope: 'personal' as Scope },
-        )
+      ? (data as SavingsGoal[]).map((g) => (g.scope ? g : { ...g, scope: 'personal' as Scope }))
       : null,
 });
 

@@ -30,7 +30,8 @@ export default function EmptyState({
          Falls back to emoji if no icon supplied. */}
       <div
         style={{
-          width: 64, height: 64,
+          width: 64,
+          height: 64,
           borderRadius: '50%',
           background: Icon ? `${iconColor}1f` : 'var(--color-gray-100)',
           color: iconColor,
@@ -54,13 +55,13 @@ export default function EmptyState({
             }}
           />
         )}
-        {Icon ? <Icon size={28} strokeWidth={2.2} /> : (
+        {Icon ? (
+          <Icon size={28} strokeWidth={2.2} />
+        ) : (
           <span style={{ fontSize: 32, lineHeight: 1 }}>{emoji ?? '📭'}</span>
         )}
       </div>
-      <p style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 700 }}>
-        {title}
-      </p>
+      <p style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 700 }}>{title}</p>
       {hint && (
         <p
           className="max-w-[280px] leading-snug"
@@ -69,8 +70,8 @@ export default function EmptyState({
           {hint}
         </p>
       )}
-      {cta && (
-        cta.href ? (
+      {cta &&
+        (cta.href ? (
           <Link
             href={cta.href}
             className="tap mt-3 inline-flex items-center gap-1 rounded-full px-4 py-2"
@@ -101,8 +102,7 @@ export default function EmptyState({
             {cta.label}
             <span style={{ fontSize: 11, fontWeight: 800 }}>→</span>
           </button>
-        )
-      )}
+        ))}
     </div>
   );
   if (inline) return content;

@@ -21,7 +21,13 @@ export default function CashflowPage() {
     if (!ready) return null;
     const months = period === '3m' ? 3 : period === '6m' ? 6 : 12;
     const now = new Date();
-    const buckets: { label: string; in: number; out: number; transferIn: number; transferOut: number }[] = [];
+    const buckets: {
+      label: string;
+      in: number;
+      out: number;
+      transferIn: number;
+      transferOut: number;
+    }[] = [];
     for (let i = months - 1; i >= 0; i--) {
       const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthTx = tx.filter((t) => {
@@ -71,7 +77,13 @@ export default function CashflowPage() {
 
       <Section topGap={4} bottomGap={4}>
         <div className="flex gap-1.5">
-          {([['3m', '3개월'], ['6m', '6개월'], ['12m', '12개월']] as const).map(([k, l]) => (
+          {(
+            [
+              ['3m', '3개월'],
+              ['6m', '6개월'],
+              ['12m', '12개월'],
+            ] as const
+          ).map(([k, l]) => (
             <Pill key={k} tone="primary" active={period === k} onClick={() => setPeriod(k)}>
               {l}
             </Pill>
@@ -83,54 +95,92 @@ export default function CashflowPage() {
         <div
           className="relative overflow-hidden rounded-2xl px-5 py-5"
           style={{
-            background: total.net >= 0
-              ? 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)'
-              : 'linear-gradient(135deg, #F04452 0%, #C71F2D 100%)',
+            background:
+              total.net >= 0
+                ? 'linear-gradient(135deg, var(--color-primary-grad-from) 0%, var(--color-primary-grad-to) 100%)'
+                : 'linear-gradient(135deg, #F04452 0%, #C71F2D 100%)',
             boxShadow: '0 4px 18px rgba(0,0,0,0.16)',
           }}
         >
-          <div aria-hidden style={{
-            position: 'absolute', top: -40, right: -40,
-            width: 180, height: 180, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
-            pointerEvents: 'none',
-          }} />
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: -40,
+              right: -40,
+              width: 180,
+              height: 180,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.20) 0%, transparent 60%)',
+              pointerEvents: 'none',
+            }}
+          />
           <div className="relative">
-            <p style={{
-              color: 'rgba(255,255,255,0.9)',
-              fontSize: 11, fontWeight: 800, letterSpacing: '0.04em',
-            }}>
+            <p
+              style={{
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+              }}
+            >
               기간 순현금흐름 (영업)
             </p>
-            <p className="tnum mt-1.5 block tracking-tight" style={{
-              color: '#fff', fontSize: 28, fontWeight: 900, letterSpacing: '-0.025em',
-            }}>
-              {total.net >= 0 ? '+' : '−'}{fmt(total.net)}원
+            <p
+              className="tnum mt-1.5 block tracking-tight"
+              style={{
+                color: '#fff',
+                fontSize: 28,
+                fontWeight: 900,
+                letterSpacing: '-0.025em',
+              }}
+            >
+              {total.net >= 0 ? '+' : '−'}
+              {fmt(total.net)}원
             </p>
-            {(total.in + total.out) > 0 && (
-              <div className="mt-3 flex h-[4px] w-full overflow-hidden rounded-full"
-                style={{ background: 'rgba(255,255,255,0.22)' }}>
-                <div style={{
-                  width: `${(total.in / (total.in + total.out)) * 100}%`,
-                  background: 'rgba(255,255,255,0.95)',
-                  transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
-                }} />
-                <div style={{
-                  width: `${(total.out / (total.in + total.out)) * 100}%`,
-                  background: 'rgba(255,255,255,0.36)',
-                }} />
+            {total.in + total.out > 0 && (
+              <div
+                className="mt-3 flex h-[4px] w-full overflow-hidden rounded-full"
+                style={{ background: 'rgba(255,255,255,0.22)' }}
+              >
+                <div
+                  style={{
+                    width: `${(total.in / (total.in + total.out)) * 100}%`,
+                    background: 'rgba(255,255,255,0.95)',
+                    transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                />
+                <div
+                  style={{
+                    width: `${(total.out / (total.in + total.out)) * 100}%`,
+                    background: 'rgba(255,255,255,0.36)',
+                  }}
+                />
               </div>
             )}
             <div className="mt-3 grid grid-cols-2 gap-2 text-white">
               <div>
                 <div className="flex items-center gap-1">
-                  <span style={{
-                    display: 'inline-block', width: 6, height: 6, borderRadius: 3,
-                    background: '#fff', opacity: 0.95,
-                  }} />
-                  <span style={{
-                    opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
-                  }}>유입</span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      background: '#fff',
+                      opacity: 0.95,
+                    }}
+                  />
+                  <span
+                    style={{
+                      opacity: 0.85,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    유입
+                  </span>
                 </div>
                 <p className="tnum mt-0.5" style={{ fontSize: 13, fontWeight: 800 }}>
                   +{fmt(total.in)}
@@ -138,13 +188,26 @@ export default function CashflowPage() {
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <span style={{
-                    display: 'inline-block', width: 6, height: 6, borderRadius: 3,
-                    background: '#fff', opacity: 0.36,
-                  }} />
-                  <span style={{
-                    opacity: 0.85, fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
-                  }}>유출</span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      background: '#fff',
+                      opacity: 0.36,
+                    }}
+                  />
+                  <span
+                    style={{
+                      opacity: 0.85,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    유출
+                  </span>
                 </div>
                 <p className="tnum mt-0.5" style={{ fontSize: 13, fontWeight: 800 }}>
                   −{fmt(total.out)}
@@ -181,18 +244,32 @@ export default function CashflowPage() {
           {data.map((b, i) => {
             const net = b.in - b.out;
             return (
-              <div key={i} className="px-4 py-3"
-                style={{ borderBottom: i < data.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
+              <div
+                key={i}
+                className="px-4 py-3"
+                style={{
+                  borderBottom: i < data.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                }}
+              >
                 <div className="flex items-baseline justify-between">
-                  <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+                  <span
+                    style={{
+                      color: 'var(--color-text-1)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                    }}
+                  >
                     {b.label}
                   </span>
-                  <Money value={net} sign="auto"
+                  <Money
+                    value={net}
+                    sign="auto"
                     style={{
                       color: net >= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
                       fontSize: 'var(--text-sm)',
                       fontWeight: 700,
-                    }} />
+                    }}
+                  />
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs">
                   <span className="tnum" style={{ color: 'var(--color-primary)' }}>

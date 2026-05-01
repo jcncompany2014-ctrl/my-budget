@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createListStore } from '@/lib/store-factory';
 import { KEYS } from '@/lib/storage-keys';
+import { createListStore } from '@/lib/store-factory';
 import type { BusinessLocation } from '@/lib/types';
 
 const useLocationsList = createListStore<BusinessLocation>(KEYS.locations);

@@ -24,18 +24,18 @@ export function parseTransactionsCSV(text: string): Transaction[] {
   const dateI = idx('일자', 'date');
   const timeI = idx('시간', 'time');
   const typeI = idx('구분', 'type');
-  const catI = idx('카테고리', 'cat');
+  const _catI = idx('카테고리', 'cat');
   const merchantI = idx('소비처', '거래처', 'merchant');
   const memoI = idx('메모', 'memo');
   const amountI = idx('금액', 'amount');
-  const accI = idx('계좌', 'account');
+  const _accI = idx('계좌', 'account');
 
   const txs: Transaction[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCSVLine(lines[i]);
     const dateStr = (cols[dateI] ?? '').trim();
     const timeStr = (cols[timeI] ?? '00:00').trim();
-    const amountRaw = (cols[amountI] ?? '0').replace(/[^\d.\-]/g, '');
+    const amountRaw = (cols[amountI] ?? '0').replace(/[^\d.-]/g, '');
     const amount = Number(amountRaw) || 0;
     if (!dateStr || amount === 0) continue;
     const isoDate = parseFlexibleDate(dateStr, timeStr);
@@ -86,16 +86,18 @@ function parseCSVLine(line: string): string[] {
 
 function parseFlexibleDate(dateStr: string, timeStr: string): string | null {
   // Accept YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD
-  const m = dateStr.match(/(\d{4})[\-/.](\d{1,2})[\-/.](\d{1,2})/);
+  const m = dateStr.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
   if (!m) {
     // try Korean: 2025년 5월 30일
     const k = dateStr.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
     if (!k) return null;
-    return new Date(`${k[1]}-${k[2].padStart(2, '0')}-${k[3].padStart(2, '0')}T${timeStr || '00:00'}:00`).toISOString();
+    return new Date(
+      `${k[1]}-${k[2].padStart(2, '0')}-${k[3].padStart(2, '0')}T${timeStr || '00:00'}:00`,
+    ).toISOString();
   }
   const t = timeStr.match(/(\d{1,2}):(\d{1,2})/);
   const isoTime = t ? `${t[1].padStart(2, '0')}:${t[2].padStart(2, '0')}` : '00:00';
   const iso = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}T${isoTime}:00`;
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? null : d.toISOString();
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }

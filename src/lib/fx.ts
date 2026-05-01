@@ -1,7 +1,7 @@
 'use client';
 
-import { createRecordStore } from '@/lib/store-factory';
 import type { Currency } from '@/lib/locale';
+import { createRecordStore } from '@/lib/store-factory';
 
 const KEY = 'asset/fx-rates/v1';
 
@@ -17,12 +17,20 @@ export function useFx() {
   return useFxStore();
 }
 
-export function convertToKRW(amount: number, currency: Currency, rates: Record<string, number>): number {
+export function convertToKRW(
+  amount: number,
+  currency: Currency,
+  rates: Record<string, number>,
+): number {
   const rate = rates[currency] ?? (currency === 'KRW' ? 1 : 0);
   return Math.round(amount * rate);
 }
 
-export function convertFromKRW(krw: number, currency: Currency, rates: Record<string, number>): number {
+export function convertFromKRW(
+  krw: number,
+  currency: Currency,
+  rates: Record<string, number>,
+): number {
   const rate = rates[currency] ?? (currency === 'KRW' ? 1 : 0);
   if (rate === 0) return 0;
   return Math.round(krw / rate);

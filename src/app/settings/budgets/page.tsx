@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
-import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import TopBar from '@/components/TopBar';
 import Sheet from '@/components/ui/Sheet';
 import { useBudgets } from '@/lib/budgets';
 import { expenseCategoriesByScope } from '@/lib/categories';
@@ -62,7 +62,9 @@ export default function BudgetsSettingsPage() {
                 type="button"
                 onClick={() => setEditing(c)}
                 className="tap flex w-full items-center gap-3 px-4 py-3 text-left"
-                style={{ borderBottom: i < cats.length - 1 ? '1px solid var(--color-divider)' : 'none' }}
+                style={{
+                  borderBottom: i < cats.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                }}
               >
                 <CategoryIcon catId={c.id} size={40} />
                 <div className="flex-1">
@@ -123,50 +125,49 @@ function BudgetEditor({
 
   return (
     <Sheet open onClose={onCancel}>
-        <div className="mb-4 flex items-center gap-3">
-          <CategoryIcon catId={category.id} size={48} style={{ borderRadius: 16 }} />
-          <div>
-            <p className="text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
-              {category.name}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-              한 달 한도 (원)
-            </p>
-          </div>
+      <div className="mb-4 flex items-center gap-3">
+        <CategoryIcon catId={category.id} size={48} style={{ borderRadius: 16 }} />
+        <div>
+          <p className="text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
+            {category.name}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
+            한 달 한도 (원)
+          </p>
         </div>
+      </div>
 
-        <input
-          autoFocus
-          type="number"
-          inputMode="numeric"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="0"
-          className="tnum h-14 w-full rounded-xl px-4 text-[20px] font-bold outline-none"
+      <input
+        type="number"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="0"
+        className="tnum h-14 w-full rounded-xl px-4 text-[20px] font-bold outline-none"
+        style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+      />
+      <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
+        0으로 두거나 비우면 예산이 해제돼요
+      </p>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap h-12 flex-1 rounded-xl text-sm font-bold"
           style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-        />
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
-          0으로 두거나 비우면 예산이 해제돼요
-        </p>
-
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
-            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={() => onSave(Number(value) || 0)}
-            className="tap h-12 flex-1 rounded-xl text-sm font-bold"
-            style={{ background: 'var(--color-primary)', color: '#fff' }}
-          >
-            저장
-          </button>
-        </div>
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={() => onSave(Number(value) || 0)}
+          className="tap h-12 flex-1 rounded-xl text-sm font-bold"
+          style={{ background: 'var(--color-primary)', color: '#fff' }}
+        >
+          저장
+        </button>
+      </div>
     </Sheet>
   );
 }

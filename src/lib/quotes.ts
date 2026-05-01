@@ -20,11 +20,11 @@ import { useEffect, useRef, useState } from 'react';
 export type QuoteId = `binance:${string}` | `upbit:${string}` | `yahoo:${string}`;
 
 export type Quote = {
-  price: number;     // native currency
-  change: number;    // 24h % change
-  currency: string;  // KRW / USD / JPY / EUR / ...
+  price: number; // native currency
+  change: number; // 24h % change
+  currency: string; // KRW / USD / JPY / EUR / ...
   name: string;
-  ts: number;        // when fetched (ms epoch)
+  ts: number; // when fetched (ms epoch)
 };
 
 const CACHE_KEY = 'asset/quotes-cache/v1';
@@ -64,7 +64,7 @@ function saveCache(c: CacheShape) {
 
 // In-memory mirror of the localStorage cache. Lets multiple useQuotes()
 // instances share data without thrashing storage.
-let memCache: CacheShape = typeof window !== 'undefined' ? loadCache() : ({} as CacheShape);
+const memCache: CacheShape = typeof window !== 'undefined' ? loadCache() : ({} as CacheShape);
 
 // Set of subscriber callbacks. Each one re-renders when memCache updates.
 const subscribers = new Set<() => void>();
@@ -254,7 +254,7 @@ export function tickerToQuoteId(
     if (/^\d{4}$/.test(t) && currency === 'JPY') return `yahoo:${t}.T` as QuoteId;
     if (/^\d{4,5}$/.test(t) && currency === 'HKD') return `yahoo:${t}.HK` as QuoteId;
     // Letters → US (NYSE/Nasdaq)
-    if (/^[A-Z][A-Z0-9.\-]{0,9}$/.test(t)) return `yahoo:${t}` as QuoteId;
+    if (/^[A-Z][A-Z0-9.-]{0,9}$/.test(t)) return `yahoo:${t}` as QuoteId;
   }
   return null;
 }

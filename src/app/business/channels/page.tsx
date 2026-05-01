@@ -8,13 +8,29 @@ import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 
-const CHANNEL_CATS = ['biz_sales_card', 'biz_sales_cash', 'biz_sales_xfer', 'biz_sales_app', 'biz_other'];
+const CHANNEL_CATS = [
+  'biz_sales_card',
+  'biz_sales_cash',
+  'biz_sales_xfer',
+  'biz_sales_app',
+  'biz_other',
+];
 
 export default function ChannelsPage() {
   const { tx, ready } = useTransactions();
 
   const data = useMemo(() => {
-    if (!ready) return { total: 0, byChannel: [] as { cat: string; name: string; emoji: string; color: string; value: number }[] };
+    if (!ready)
+      return {
+        total: 0,
+        byChannel: [] as {
+          cat: string;
+          name: string;
+          emoji: string;
+          color: string;
+          value: number;
+        }[],
+      };
     const now = new Date();
     const map = new Map<string, number>();
     tx.forEach((t) => {
@@ -25,14 +41,13 @@ export default function ChannelsPage() {
       map.set(t.cat, (map.get(t.cat) ?? 0) + t.amount);
     });
     const total = Array.from(map.values()).reduce((s, v) => s + v, 0);
-    const byChannel = CHANNEL_CATS
-      .map((cat) => ({
-        cat,
-        name: CATEGORIES[cat]?.name ?? cat,
-        emoji: CATEGORIES[cat]?.emoji ?? '💰',
-        color: CATEGORIES[cat]?.color ?? '#94A3B8',
-        value: map.get(cat) ?? 0,
-      }))
+    const byChannel = CHANNEL_CATS.map((cat) => ({
+      cat,
+      name: CATEGORIES[cat]?.name ?? cat,
+      emoji: CATEGORIES[cat]?.emoji ?? '💰',
+      color: CATEGORIES[cat]?.color ?? '#94A3B8',
+      value: map.get(cat) ?? 0,
+    }))
       .filter((c) => c.value > 0)
       .sort((a, b) => b.value - a.value);
     return { total, byChannel };
@@ -43,9 +58,15 @@ export default function ChannelsPage() {
       <TopBar title="매출 채널" />
 
       {data.total === 0 ? (
-        <div className="mx-5 rounded-2xl px-6 py-16 text-center" style={{ background: 'var(--color-card)' }}>
+        <div
+          className="mx-5 rounded-2xl px-6 py-16 text-center"
+          style={{ background: 'var(--color-card)' }}
+        >
           <p className="text-3xl">📈</p>
-          <p className="mt-2" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          <p
+            className="mt-2"
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+          >
             이번 달 매출이 없어요
           </p>
           <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
@@ -55,32 +76,90 @@ export default function ChannelsPage() {
       ) : (
         <>
           <section className="flex justify-center px-5 py-6">
-            <CategoryDonut data={data.byChannel.map((c) => ({ catId: c.cat, name: c.name, emoji: c.emoji, color: c.color, value: c.value }))} total={data.total} />
+            <CategoryDonut
+              data={data.byChannel.map((c) => ({
+                catId: c.cat,
+                name: c.name,
+                emoji: c.emoji,
+                color: c.color,
+                value: c.value,
+              }))}
+              total={data.total}
+            />
           </section>
 
           <section className="px-5 pb-10">
-            <h2 className="mb-3" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+            <h2
+              className="mb-3"
+              style={{
+                color: 'var(--color-text-1)',
+                fontSize: 'var(--text-base)',
+                fontWeight: 700,
+              }}
+            >
               채널별
             </h2>
-            <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
+            <div
+              className="overflow-hidden rounded-2xl"
+              style={{ background: 'var(--color-card)' }}
+            >
               {data.byChannel.map((c, i) => {
                 const pct = Math.round((c.value / data.total) * 100);
                 return (
-                  <div key={c.cat} className="flex items-center gap-3 px-4 py-3"
-                    style={{ borderBottom: i < data.byChannel.length - 1 ? '1px solid var(--color-divider)' : 'none' }}>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full text-base"
-                      style={{ background: `${c.color}1f` }}>{c.emoji}</div>
+                  <div
+                    key={c.cat}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={{
+                      borderBottom:
+                        i < data.byChannel.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                    }}
+                  >
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-base"
+                      style={{ background: `${c.color}1f` }}
+                    >
+                      {c.emoji}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between">
-                        <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>{c.name}</span>
-                        <Money value={c.value} sign="never"
-                          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }} />
+                        <span
+                          style={{
+                            color: 'var(--color-text-1)',
+                            fontSize: 'var(--text-base)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {c.name}
+                        </span>
+                        <Money
+                          value={c.value}
+                          sign="never"
+                          style={{
+                            color: 'var(--color-text-1)',
+                            fontSize: 'var(--text-base)',
+                            fontWeight: 700,
+                          }}
+                        />
                       </div>
                       <div className="mt-1 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--color-gray-150)' }}>
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.color }} />
+                        <div
+                          className="h-1.5 flex-1 overflow-hidden rounded-full"
+                          style={{ background: 'var(--color-gray-150)' }}
+                        >
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${pct}%`, background: c.color }}
+                          />
                         </div>
-                        <span className="tnum" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', minWidth: 32, textAlign: 'right' }}>
+                        <span
+                          className="tnum"
+                          style={{
+                            color: 'var(--color-text-3)',
+                            fontSize: 'var(--text-xxs)',
+                            minWidth: 32,
+                            textAlign: 'right',
+                          }}
+                        >
                           {pct}%
                         </span>
                       </div>
@@ -89,7 +168,10 @@ export default function ChannelsPage() {
                 );
               })}
             </div>
-            <p className="mt-3 px-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+            <p
+              className="mt-3 px-1"
+              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
+            >
               총 매출: <span className="tnum">{fmt(data.total)}원</span>
             </p>
           </section>

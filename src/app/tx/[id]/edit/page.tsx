@@ -5,14 +5,9 @@ import { use, useEffect, useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
-import IconCircle from '@/components/ui/IconCircle';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
-import {
-  CATEGORIES,
-  expenseCategoriesByScope,
-  incomeCategoriesByScope,
-} from '@/lib/categories';
+import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 import type { Scope, Transaction } from '@/lib/types';
@@ -119,10 +114,7 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
       </header>
 
       <section className="px-4 pb-3 pt-4">
-        <div
-          className="flex rounded-full p-[3px]"
-          style={{ background: 'var(--color-gray-100)' }}
-        >
+        <div className="flex rounded-full p-[3px]" style={{ background: 'var(--color-gray-100)' }}>
           {(['expense', 'income'] as const).map((k) => {
             const sel = type === k;
             return (
@@ -141,7 +133,13 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
                   boxShadow: sel ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
                 }}
               >
-                {scope === 'business' ? (k === 'expense' ? '비용' : '매출') : k === 'expense' ? '지출' : '수입'}
+                {scope === 'business'
+                  ? k === 'expense'
+                    ? '비용'
+                    : '매출'
+                  : k === 'expense'
+                    ? '지출'
+                    : '수입'}
               </button>
             );
           })}
@@ -149,7 +147,10 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
       </section>
 
       <Field label="금액">
-        <div className="flex items-baseline gap-2 rounded-xl px-4 py-3" style={{ background: 'var(--color-gray-100)' }}>
+        <div
+          className="flex items-baseline gap-2 rounded-xl px-4 py-3"
+          style={{ background: 'var(--color-gray-100)' }}
+        >
           <input
             type="number"
             inputMode="numeric"
@@ -186,7 +187,10 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
                 }}
               >
                 <CategoryIcon catId={c.id} size={28} />
-                <span className="text-[11px] font-semibold" style={{ color: sel ? c.color : 'var(--color-text-2)' }}>
+                <span
+                  className="text-[11px] font-semibold"
+                  style={{ color: sel ? c.color : 'var(--color-text-2)' }}
+                >
                   {c.name}
                 </span>
               </button>
@@ -245,11 +249,16 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
           className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
           style={{ background: 'var(--color-gray-100)' }}
         >
-          <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+          <span
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+          >
             {splits.length === 0 ? '단일 카테고리' : `${splits.length}개로 분할`}
           </span>
           {splits.length > 0 && (
-            <span className="tnum" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
+            <span
+              className="tnum"
+              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+            >
               합계 {fmt(totalSplit)}원
             </span>
           )}
@@ -364,33 +373,46 @@ function SplitsEditor({
     <>
       <div className="mb-3 rounded-xl p-3" style={{ background: 'var(--color-gray-50)' }}>
         <div className="flex items-baseline justify-between">
-          <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+          <span
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}
+          >
             거래 총액
           </span>
-          <span className="tnum" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}>
+          <span
+            className="tnum"
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
+          >
             {fmt(totalAmount)}원
           </span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
-          <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+          <span
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}
+          >
             잔여
           </span>
           <span
             className="tnum"
             style={{
-              color: remainder === 0 ? 'var(--color-primary)' : remainder < 0 ? 'var(--color-danger)' : 'var(--color-text-2)',
+              color:
+                remainder === 0
+                  ? 'var(--color-primary)'
+                  : remainder < 0
+                    ? 'var(--color-danger)'
+                    : 'var(--color-text-2)',
               fontSize: 'var(--text-sm)',
               fontWeight: 700,
             }}
           >
-            {remainder >= 0 ? '' : '−'}{fmt(remainder)}원
+            {remainder >= 0 ? '' : '−'}
+            {fmt(remainder)}원
           </span>
         </div>
       </div>
 
       <div className="space-y-2">
         {splits.map((s, i) => {
-          const c = CATEGORIES[s.cat];
+          const _c = CATEGORIES[s.cat];
           return (
             <div key={i} className="rounded-xl p-3" style={{ background: 'var(--color-gray-100)' }}>
               <div className="flex items-center gap-2">
@@ -398,7 +420,12 @@ function SplitsEditor({
                   value={s.cat}
                   onChange={(e) => update(i, { cat: e.target.value })}
                   className="flex-1 rounded-lg px-2 py-2 outline-none"
-                  style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+                  style={{
+                    background: 'var(--color-card)',
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: 600,
+                  }}
                 >
                   {cats.map((cc) => (
                     <option key={cc.id} value={cc.id}>
@@ -413,7 +440,12 @@ function SplitsEditor({
                   onChange={(e) => update(i, { amount: Number(e.target.value) || 0 })}
                   placeholder="0"
                   className="tnum w-24 rounded-lg px-2 py-2 text-right outline-none"
-                  style={{ background: 'var(--color-card)', color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+                  style={{
+                    background: 'var(--color-card)',
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: 600,
+                  }}
                 />
                 <button
                   type="button"
@@ -432,7 +464,11 @@ function SplitsEditor({
                   onChange={(e) => update(i, { memo: e.target.value })}
                   placeholder="메모 (선택)"
                   className="flex-1 rounded-lg px-2 py-1.5 outline-none"
-                  style={{ background: 'var(--color-card)', color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}
+                  style={{
+                    background: 'var(--color-card)',
+                    color: 'var(--color-text-2)',
+                    fontSize: 'var(--text-xs)',
+                  }}
                 />
               </div>
             </div>
@@ -455,7 +491,10 @@ function SplitsEditor({
       </button>
 
       {splits.length > 0 && !valid && (
-        <p className="mt-2" style={{ color: 'var(--color-danger)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
+        <p
+          className="mt-2"
+          style={{ color: 'var(--color-danger)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}
+        >
           분할 합계가 거래 총액과 정확히 일치해야 저장돼요
         </p>
       )}
@@ -466,7 +505,10 @@ function SplitsEditor({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section className="px-4 pb-3">
-      <label className="mb-2 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
+      <label
+        className="mb-2 block text-[13px] font-semibold"
+        style={{ color: 'var(--color-text-2)' }}
+      >
         {label}
       </label>
       {children}

@@ -99,57 +99,73 @@ export default function CategoryDonut({ data, total, size = 220, thickness = 28 
         {activeSlice ? (
           <>
             {activeSlice.catId ? (
-              <CategoryIcon
-                catId={activeSlice.catId}
-                size={36}
-                style={{ marginBottom: 8 }}
-              />
+              <CategoryIcon catId={activeSlice.catId} size={36} style={{ marginBottom: 8 }} />
             ) : activeSlice.emoji ? (
               <p style={{ fontSize: 24, lineHeight: 1, marginBottom: 6 }}>{activeSlice.emoji}</p>
             ) : null}
-            <p style={{
-              color: 'var(--color-text-3)',
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
-            }}>
+            <p
+              style={{
+                color: 'var(--color-text-3)',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+              }}
+            >
               {activeSlice.name}
             </p>
             <p
               className="tnum mt-0.5 tracking-tight"
               style={{
                 color: activeSlice.color,
-                fontSize: 22, fontWeight: 900, letterSpacing: '-0.025em',
+                fontSize: 22,
+                fontWeight: 900,
+                letterSpacing: '-0.025em',
               }}
             >
               {fmt(activeSlice.value)}원
             </p>
-            <p style={{
-              color: 'var(--color-text-3)',
-              fontSize: 11, fontWeight: 700, marginTop: 2,
-            }}>
+            <p
+              style={{
+                color: 'var(--color-text-3)',
+                fontSize: 11,
+                fontWeight: 700,
+                marginTop: 2,
+              }}
+            >
               {Math.round(activeSlice.fraction * 100)}%
             </p>
           </>
         ) : (
           <>
-            <p style={{
-              color: 'var(--color-text-3)',
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
-            }}>
+            <p
+              style={{
+                color: 'var(--color-text-3)',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+              }}
+            >
               이번 달 지출
             </p>
             <p
               className="tnum mt-1 tracking-tight"
               style={{
                 color: 'var(--color-text-1)',
-                fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em',
+                fontSize: 26,
+                fontWeight: 900,
+                letterSpacing: '-0.03em',
               }}
             >
               {fmt(total)}
             </p>
-            <p style={{
-              color: 'var(--color-text-3)',
-              fontSize: 11, fontWeight: 600, marginTop: -2,
-            }}>
+            <p
+              style={{
+                color: 'var(--color-text-3)',
+                fontSize: 11,
+                fontWeight: 600,
+                marginTop: -2,
+              }}
+            >
               원 · {data.length}개 카테고리
             </p>
           </>

@@ -1,8 +1,8 @@
 'use client';
 
-import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
-import { KEYS } from '@/lib/storage-keys';
 import type { BusinessProfile } from '@/lib/business-profile';
+import { KEYS } from '@/lib/storage-keys';
+import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import type { Employee, Transaction } from '@/lib/types';
 
 const LAST_RUN_KEY = 'asset/auto-payroll-last/v1';
@@ -60,7 +60,9 @@ export function ensureAutoPayroll() {
     const dayInMonth = Math.min(profile.payrollDay, new Date(tm.year, tm.month + 1, 0).getDate());
     const dateIso = new Date(tm.year, tm.month, dayInMonth, 9, 0, 0).toISOString();
     for (const e of active) {
-      const grossWithBenefits = Math.round(e.baseSalary * (1 + (profile.socialInsuranceRate ?? 10) / 100));
+      const grossWithBenefits = Math.round(
+        e.baseSalary * (1 + (profile.socialInsuranceRate ?? 10) / 100),
+      );
       newTxs.push({
         id: `payroll-${tm.year}-${tm.month}-${e.id}`,
         date: dateIso,

@@ -54,7 +54,9 @@ export default function UpcomingRecurring() {
                     style={{
                       background: urgent ? 'var(--color-danger)' : 'var(--color-gray-100)',
                       color: urgent ? '#fff' : 'var(--color-text-2)',
-                      fontSize: 10, fontWeight: 800, letterSpacing: '-0.01em',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: '-0.01em',
                     }}
                   >
                     {r.daysUntil === 0 ? '오늘' : `D-${r.daysUntil}`}

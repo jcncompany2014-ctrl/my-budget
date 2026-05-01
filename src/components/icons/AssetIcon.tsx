@@ -1,8 +1,8 @@
-import type { CSSProperties } from 'react';
 import { Briefcase } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import type { Investment } from '@/lib/types';
 import CryptoIcon from './CryptoIcon';
 import CurrencyIcon from './CurrencyIcon';
-import type { Investment } from '@/lib/types';
 
 /**
  * Smart icon picker for an Investment.
@@ -34,7 +34,8 @@ export default function AssetIcon({
   return (
     <div
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         borderRadius: '50%',
         background: color || '#8B95A1',
         color: 'white',

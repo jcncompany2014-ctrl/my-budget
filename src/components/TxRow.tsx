@@ -22,13 +22,7 @@ const fmtTime = (iso: string) =>
     hour12: false,
   });
 
-export default function TxRow({
-  tx,
-  showTime,
-  showAccount,
-  borderBottom = true,
-  compact,
-}: Props) {
+export default function TxRow({ tx, showTime, showAccount, borderBottom = true, compact }: Props) {
   const cat = CATEGORIES[tx.cat];
   const { accounts } = useAccounts();
   const account = accounts.find((a) => a.id === tx.acc);

@@ -7,16 +7,18 @@ import type { Scope, Transaction } from '@/lib/types';
  * Pick the most-used category for a given merchant in past transactions.
  * Falls back to suggestCategory heuristic if no history.
  */
-export function autoCategorize(merchant: string, scope: Scope, history: Transaction[]): string | null {
+export function autoCategorize(
+  merchant: string,
+  scope: Scope,
+  history: Transaction[],
+): string | null {
   const m = merchant.trim();
   if (!m) return null;
 
   // Find historical txs with same merchant in same scope
   const lower = m.toLowerCase();
   const sameMerchant = history.filter(
-    (t) =>
-      (t.scope ?? 'personal') === scope &&
-      t.merchant.toLowerCase() === lower,
+    (t) => (t.scope ?? 'personal') === scope && t.merchant.toLowerCase() === lower,
   );
   if (sameMerchant.length === 0) {
     // Try fuzzy: contains
@@ -50,7 +52,11 @@ function mostCommonCat(txs: Transaction[]): string | null {
 /**
  * Suggest a typical amount for given merchant based on history (median).
  */
-export function suggestAmount(merchant: string, scope: Scope, history: Transaction[]): number | null {
+export function suggestAmount(
+  merchant: string,
+  scope: Scope,
+  history: Transaction[],
+): number | null {
   const m = merchant.trim().toLowerCase();
   if (!m) return null;
   const matches = history.filter(
@@ -97,7 +103,7 @@ export function detectRecurringPatterns(history: Transaction[]): {
   history.forEach((t) => {
     const k = (t.scope ?? 'personal') + '::' + t.merchant.toLowerCase();
     if (!groups.has(k)) groups.set(k, []);
-    groups.get(k)!.push(t);
+    groups.get(k)?.push(t);
   });
 
   const out: ReturnType<typeof detectRecurringPatterns> = [];
@@ -109,10 +115,12 @@ export function detectRecurringPatterns(history: Transaction[]): {
     const sameAmount = txs.filter((t) => Math.abs(Math.abs(t.amount) - med) <= 100);
     if (sameAmount.length < 3) return;
     // Within last 4 months
-    const months = new Set(sameAmount.map((t) => {
-      const d = new Date(t.date);
-      return d.getFullYear() * 12 + d.getMonth();
-    }));
+    const months = new Set(
+      sameAmount.map((t) => {
+        const d = new Date(t.date);
+        return d.getFullYear() * 12 + d.getMonth();
+      }),
+    );
     if (months.size < 3) return;
     const daysOfMonth = sameAmount.map((t) => new Date(t.date).getDate());
     out.push({

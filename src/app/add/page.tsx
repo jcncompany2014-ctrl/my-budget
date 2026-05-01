@@ -9,19 +9,15 @@ import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
 import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categorize';
-import { buildTransferLegs } from '@/lib/transfers';
 import { useBusinessProfile } from '@/lib/business-profile';
+import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import { applyRules, useCategoryRules } from '@/lib/category-rules';
-import {
-  CATEGORIES,
-  expenseCategoriesByScope,
-  incomeCategoriesByScope,
-} from '@/lib/categories';
 import { useFavorites } from '@/lib/favorites';
 import { fmt, fmtShort } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useLocations } from '@/lib/locations';
 import { useAllTransactions } from '@/lib/storage';
+import { buildTransferLegs } from '@/lib/transfers';
 import type { Transaction } from '@/lib/types';
 import { useVendors } from '@/lib/vendors';
 
@@ -314,9 +310,7 @@ function AddPage() {
         >
           취소
         </button>
-        <div
-          className="flex flex-col items-center gap-1"
-        >
+        <div className="flex flex-col items-center gap-1">
           <span
             className="rounded-full px-2 py-0.5 text-[10px] font-bold"
             style={{
@@ -449,7 +443,10 @@ function AddPage() {
           </section>
 
           <section className="px-4 pb-3">
-            <label className="mb-2.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
+            <label
+              className="mb-2.5 block text-[13px] font-semibold"
+              style={{ color: 'var(--color-text-2)' }}
+            >
               카테고리
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -483,7 +480,10 @@ function AddPage() {
           </section>
 
           <section className="px-4 pb-3">
-            <label className="mb-2.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
+            <label
+              className="mb-2.5 block text-[13px] font-semibold"
+              style={{ color: 'var(--color-text-2)' }}
+            >
               {merchantLabel}
             </label>
             <input
@@ -524,7 +524,13 @@ function AddPage() {
 
           <section className="px-4 pb-3">
             <div className="mb-2.5 flex items-baseline justify-between">
-              <label style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+              <label
+                style={{
+                  color: 'var(--color-text-2)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 600,
+                }}
+              >
                 메모
               </label>
               <span
@@ -566,16 +572,27 @@ function AddPage() {
               style={{ background: 'var(--color-gray-100)' }}
             >
               <div>
-                <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                <p
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: 600,
+                  }}
+                >
                   저장하고 계속 입력
                 </p>
-                <p className="mt-0.5" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
+                <p
+                  className="mt-0.5"
+                  style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
+                >
                   여러 거래 빠르게 입력할 때
                 </p>
               </div>
               <span
                 className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                style={{ background: continueAfterSave ? 'var(--color-primary)' : 'var(--color-gray-300)' }}
+                style={{
+                  background: continueAfterSave ? 'var(--color-primary)' : 'var(--color-gray-300)',
+                }}
               >
                 <span
                   className="absolute h-5 w-5 rounded-full bg-white shadow transition-transform"
@@ -589,7 +606,14 @@ function AddPage() {
             <>
               {vendors.filter((v) => v.scope === 'business').length > 0 && (
                 <section className="px-4 pb-3">
-                  <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                  <label
+                    className="mb-2.5 block"
+                    style={{
+                      color: 'var(--color-text-2)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 600,
+                    }}
+                  >
                     거래처
                   </label>
                   <div className="flex gap-2 overflow-x-auto pb-1">
@@ -606,33 +630,42 @@ function AddPage() {
                     >
                       없음
                     </button>
-                    {vendors.filter((v) => v.scope === 'business').map((v) => {
-                      const sel = vendorId === v.id;
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => setVendorId(v.id)}
-                          className="tap shrink-0 rounded-2xl px-4 py-2"
-                          style={{
-                            background: sel ? `${v.color}22` : 'var(--color-gray-100)',
-                            color: sel ? v.color : 'var(--color-text-2)',
-                            border: `1.5px solid ${sel ? v.color : 'transparent'}`,
-                            fontSize: 'var(--text-xs)',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {v.name}
-                        </button>
-                      );
-                    })}
+                    {vendors
+                      .filter((v) => v.scope === 'business')
+                      .map((v) => {
+                        const sel = vendorId === v.id;
+                        return (
+                          <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => setVendorId(v.id)}
+                            className="tap shrink-0 rounded-2xl px-4 py-2"
+                            style={{
+                              background: sel ? `${v.color}22` : 'var(--color-gray-100)',
+                              color: sel ? v.color : 'var(--color-text-2)',
+                              border: `1.5px solid ${sel ? v.color : 'transparent'}`,
+                              fontSize: 'var(--text-xs)',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {v.name}
+                          </button>
+                        );
+                      })}
                   </div>
                 </section>
               )}
 
               {locations.length > 0 && (
                 <section className="px-4 pb-3">
-                  <label className="mb-2.5 block" style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                  <label
+                    className="mb-2.5 block"
+                    style={{
+                      color: 'var(--color-text-2)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 600,
+                    }}
+                  >
                     사업장
                   </label>
                   <div className="flex gap-2 overflow-x-auto pb-1">
@@ -680,7 +713,9 @@ function AddPage() {
                     onClick={() => setOutstanding(!outstanding)}
                     className="tap inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
                     style={{
-                      background: outstanding ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                      background: outstanding
+                        ? 'var(--color-primary-soft)'
+                        : 'var(--color-gray-100)',
                       color: outstanding ? 'var(--color-primary)' : 'var(--color-text-3)',
                       fontSize: 'var(--text-xs)',
                       fontWeight: 700,
@@ -693,7 +728,9 @@ function AddPage() {
                     onClick={() => setHasReceipt(!hasReceipt)}
                     className="tap inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
                     style={{
-                      background: hasReceipt ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
+                      background: hasReceipt
+                        ? 'var(--color-primary-soft)'
+                        : 'var(--color-gray-100)',
                       color: hasReceipt ? 'var(--color-primary)' : 'var(--color-text-3)',
                       fontSize: 'var(--text-xs)',
                       fontWeight: 700,
@@ -706,20 +743,51 @@ function AddPage() {
 
               {(cat === 'biz_sales_card' || cat === 'biz_sales_app') && Number(amount) > 0 && (
                 <section className="px-4 pb-3">
-                  <div className="rounded-xl px-3 py-2" style={{ background: 'var(--color-primary-soft)' }}>
-                    <p style={{ color: 'var(--color-primary)', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
+                  <div
+                    className="rounded-xl px-3 py-2"
+                    style={{ background: 'var(--color-primary-soft)' }}
+                  >
+                    <p
+                      style={{
+                        color: 'var(--color-primary)',
+                        fontSize: 'var(--text-xxs)',
+                        fontWeight: 700,
+                      }}
+                    >
                       {cat === 'biz_sales_card' ? '카드 수수료 추정' : '배달앱 수수료 추정'}
                     </p>
-                    <p className="tnum mt-1" style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-                      약 {fmt(
+                    <p
+                      className="tnum mt-1"
+                      style={{
+                        color: 'var(--color-text-1)',
+                        fontSize: 'var(--text-sm)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      약{' '}
+                      {fmt(
                         Math.round(
                           (Number(amount) *
-                            (cat === 'biz_sales_card' ? bizProfile.cardFeeRate : bizProfile.deliveryFeeRate)) /
+                            (cat === 'biz_sales_card'
+                              ? bizProfile.cardFeeRate
+                              : bizProfile.deliveryFeeRate)) /
                             100,
                         ),
-                      )}원 ({cat === 'biz_sales_card' ? bizProfile.cardFeeRate : bizProfile.deliveryFeeRate}%)
-                      <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 500 }}>
-                        {' '}· 메모에 자동 기록
+                      )}
+                      원 (
+                      {cat === 'biz_sales_card'
+                        ? bizProfile.cardFeeRate
+                        : bizProfile.deliveryFeeRate}
+                      %)
+                      <span
+                        style={{
+                          color: 'var(--color-text-3)',
+                          fontSize: 'var(--text-xxs)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {' '}
+                        · 메모에 자동 기록
                       </span>
                     </p>
                   </div>
@@ -729,7 +797,10 @@ function AddPage() {
           )}
 
           <section className="px-4 pb-4">
-            <label className="mb-2.5 block text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
+            <label
+              className="mb-2.5 block text-[13px] font-semibold"
+              style={{ color: 'var(--color-text-2)' }}
+            >
               계좌
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -807,4 +878,3 @@ function AddPage() {
     </div>
   );
 }
-

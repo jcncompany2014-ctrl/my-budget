@@ -2,8 +2,8 @@
 
 import { useMemo } from 'react';
 import { useMode } from '@/components/ModeProvider';
-import { createListStore } from '@/lib/store-factory';
 import { KEYS } from '@/lib/storage-keys';
+import { createListStore } from '@/lib/store-factory';
 import type { LineOfCredit } from '@/lib/types';
 
 /** Monthly interest amount on the current outstanding balance. */

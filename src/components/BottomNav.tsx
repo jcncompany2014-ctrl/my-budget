@@ -10,8 +10,7 @@ type Tab = {
   icon: (active: boolean) => React.ReactNode;
 };
 
-const stroke = (active: boolean) =>
-  active ? 'var(--color-primary)' : 'var(--color-text-3)';
+const stroke = (active: boolean) => (active ? 'var(--color-primary)' : 'var(--color-text-3)');
 
 const TABS: Tab[] = [
   {
@@ -105,7 +104,8 @@ export default function BottomNav() {
           onClick={() => setMenuOpen(true)}
           className="tap relative -mt-7 flex h-14 w-14 items-center justify-center rounded-full"
           style={{
-            background: 'linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))',
+            background:
+              'linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))',
             boxShadow:
               '0 4px 14px rgba(0, 0, 0, 0.18), 0 8px 24px var(--color-primary-soft), inset 0 1px 0 rgba(255,255,255,0.18)',
           }}
@@ -178,13 +178,7 @@ function NavItem({ tab, active }: { tab: Tab; active: boolean }) {
   );
 }
 
-function ActionMenu({
-  onClose,
-  onPick,
-}: {
-  onClose: () => void;
-  onPick: (href: string) => void;
-}) {
+function ActionMenu({ onClose, onPick }: { onClose: () => void; onPick: (href: string) => void }) {
   return (
     <div
       className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40"
@@ -205,10 +199,30 @@ function ActionMenu({
         />
 
         <div className="grid grid-cols-2 gap-2">
-          <Action icon={<MinusIcon />} label="지출" tone="danger" onClick={() => onPick('/add?type=expense')} />
-          <Action icon={<PlusIcon />} label="수입" tone="primary" onClick={() => onPick('/add?type=income')} />
-          <Action icon={<TransferIcon />} label="이체" tone="neutral" onClick={() => onPick('/transfer')} />
-          <Action icon={<BoltIcon />} label="빠른 입력" tone="neutral" onClick={() => onPick('/quick-add')} />
+          <Action
+            icon={<MinusIcon />}
+            label="지출"
+            tone="danger"
+            onClick={() => onPick('/add?type=expense')}
+          />
+          <Action
+            icon={<PlusIcon />}
+            label="수입"
+            tone="primary"
+            onClick={() => onPick('/add?type=income')}
+          />
+          <Action
+            icon={<TransferIcon />}
+            label="이체"
+            tone="neutral"
+            onClick={() => onPick('/transfer')}
+          />
+          <Action
+            icon={<BoltIcon />}
+            label="빠른 입력"
+            tone="neutral"
+            onClick={() => onPick('/quick-add')}
+          />
         </div>
 
         <button
@@ -293,7 +307,13 @@ function MinusIcon() {
 function TransferIcon() {
   return (
     <svg viewBox="0 0 24 24" width={22} height={22} fill="none" aria-hidden>
-      <path d="M7 8h11l-3-3M17 16H6l3 3" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M7 8h11l-3-3M17 16H6l3 3"
+        stroke="currentColor"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

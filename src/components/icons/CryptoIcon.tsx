@@ -20,7 +20,8 @@ const COINS: Record<string, CoinMeta> = {
     bg: '#F7931A',
     mark: (
       <text
-        x="16" y="22.5"
+        x="16"
+        y="22.5"
         textAnchor="middle"
         fontFamily='-apple-system, "SF Pro Display", system-ui, "Helvetica Neue", Arial, sans-serif'
         fontSize="22"
@@ -55,7 +56,17 @@ const COINS: Record<string, CoinMeta> = {
   USDC: {
     bg: '#2775CA',
     mark: (
-      <text x="16" y="22" textAnchor="middle" fontFamily="system-ui" fontSize="20" fontWeight="900" fill="white">$</text>
+      <text
+        x="16"
+        y="22"
+        textAnchor="middle"
+        fontFamily="system-ui"
+        fontSize="20"
+        fontWeight="900"
+        fill="white"
+      >
+        $
+      </text>
     ),
   },
   BNB: {
@@ -98,7 +109,18 @@ const COINS: Record<string, CoinMeta> = {
   DOGE: {
     bg: '#C2A633',
     mark: (
-      <text x="16" y="22.5" textAnchor="middle" fontFamily="Georgia, serif" fontSize="20" fontWeight="900" fontStyle="italic" fill="white">D</text>
+      <text
+        x="16"
+        y="22.5"
+        textAnchor="middle"
+        fontFamily="Georgia, serif"
+        fontSize="20"
+        fontWeight="900"
+        fontStyle="italic"
+        fill="white"
+      >
+        D
+      </text>
     ),
   },
   ADA: {
@@ -180,7 +202,17 @@ const COINS: Record<string, CoinMeta> = {
   SHIB: {
     bg: '#FFA409',
     mark: (
-      <text x="16" y="22" textAnchor="middle" fontFamily="system-ui" fontSize="13" fontWeight="900" fill="white">SHIB</text>
+      <text
+        x="16"
+        y="22"
+        textAnchor="middle"
+        fontFamily="system-ui"
+        fontSize="13"
+        fontWeight="900"
+        fill="white"
+      >
+        SHIB
+      </text>
     ),
   },
   ATOM: {
@@ -215,7 +247,8 @@ export default function CryptoIcon({
     return (
       <div
         style={{
-          width: size, height: size,
+          width: size,
+          height: size,
           borderRadius: '50%',
           background: `hsl(${hue}, 70%, 45%)`,
           color: 'white',
@@ -238,7 +271,8 @@ export default function CryptoIcon({
   return (
     <div
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         borderRadius: '50%',
         background: meta.bg,
         display: 'flex',
@@ -248,12 +282,7 @@ export default function CryptoIcon({
         ...style,
       }}
     >
-      <svg
-        viewBox="0 0 32 32"
-        width={size}
-        height={size}
-        style={{ display: 'block' }}
-      >
+      <svg viewBox="0 0 32 32" width={size} height={size} style={{ display: 'block' }}>
         {meta.mark}
       </svg>
     </div>
