@@ -48,6 +48,54 @@ export function detectAnomalies(tx: Transaction[]) {
 }
 
 /**
+ * Single-transaction outlier detection.
+ *
+ * Per-category mean + stddev over the trailing 60 days; flags any tx where
+ * |amount| is more than `threshold` standard deviations above the mean.
+ * Only categories with at least `minSamples` recent transactions qualify so
+ * a brand-new category doesn't read as outlier-by-default.
+ *
+ * Returns the most extreme outlier (highest z-score) only — UI surfaces it
+ * one-at-a-time so the alert stays meaningful.
+ */
+export function detectOutlierTransaction(
+  tx: Transaction[],
+  opts: { threshold?: number; minSamples?: number; windowDays?: number } = {},
+): { tx: Transaction; zScore: number; catAvg: number } | null {
+  const threshold = opts.threshold ?? 3;
+  const minSamples = opts.minSamples ?? 5;
+  const windowDays = opts.windowDays ?? 60;
+
+  const cutoff = Date.now() - windowDays * 86400000;
+  const recent = tx.filter(
+    (t) => new Date(t.date).getTime() >= cutoff && isExp(t) && Math.abs(t.amount) > 0,
+  );
+
+  const byCat = new Map<string, Transaction[]>();
+  for (const t of recent) {
+    if (!byCat.has(t.cat)) byCat.set(t.cat, []);
+    byCat.get(t.cat)?.push(t);
+  }
+
+  let best: { tx: Transaction; zScore: number; catAvg: number } | null = null;
+  byCat.forEach((txs) => {
+    if (txs.length < minSamples) return;
+    const amounts = txs.map((t) => Math.abs(t.amount));
+    const mean = amounts.reduce((s, a) => s + a, 0) / amounts.length;
+    const variance = amounts.reduce((s, a) => s + (a - mean) ** 2, 0) / amounts.length;
+    const std = Math.sqrt(variance);
+    if (std < 1) return; // tiny variance — every tx looks the same; not informative
+    for (const t of txs) {
+      const z = (Math.abs(t.amount) - mean) / std;
+      if (z >= threshold && (!best || z > best.zScore)) {
+        best = { tx: t, zScore: z, catAvg: mean };
+      }
+    }
+  });
+  return best;
+}
+
+/**
  * Forecast: project month-end expense from current pace.
  */
 export function forecastMonthEnd(tx: Transaction[]) {

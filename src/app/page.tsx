@@ -25,7 +25,12 @@ import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
-import { budgetAlerts, detectAnomalies, weeklyDigest } from '@/lib/insights';
+import {
+  budgetAlerts,
+  detectAnomalies,
+  detectOutlierTransaction,
+  weeklyDigest,
+} from '@/lib/insights';
 import { useLoans } from '@/lib/loans';
 import { useProfile } from '@/lib/profile';
 import { useTransactions } from '@/lib/storage';
@@ -221,6 +226,7 @@ function PersonalHome({
   const budgetUsed = budgetEntries.reduce((s, [k]) => s + (spentByCat.get(k) ?? 0), 0);
 
   const anomalies = useMemo(() => detectAnomalies(tx), [tx]);
+  const outlier = useMemo(() => detectOutlierTransaction(tx), [tx]);
   const alerts = useMemo(() => budgetAlerts(tx, budgets), [tx, budgets]);
   const weekly = useMemo(() => weeklyDigest(tx), [tx]);
 
@@ -283,7 +289,13 @@ function PersonalHome({
       <LiveInvestmentPnL />
 
       {/* Insights — anomalies, budget alerts, weekly */}
-      <InsightsRow anomalies={anomalies} alerts={alerts} weekly={weekly} currentExpense={expense} />
+      <InsightsRow
+        anomalies={anomalies}
+        outlier={outlier}
+        alerts={alerts}
+        weekly={weekly}
+        currentExpense={expense}
+      />
 
       {/* Budget */}
       <section className="px-5 pb-3">
@@ -1092,11 +1104,13 @@ function RecentTransactions({ tx, businessLabel }: { tx: Transaction[]; business
 
 function InsightsRow({
   anomalies,
+  outlier,
   alerts,
   weekly,
   currentExpense,
 }: {
   anomalies: ReturnType<typeof detectAnomalies>;
+  outlier: ReturnType<typeof detectOutlierTransaction>;
   alerts: ReturnType<typeof budgetAlerts>;
   weekly: ReturnType<typeof weeklyDigest>;
   currentExpense: number;
@@ -1120,7 +1134,7 @@ function InsightsRow({
     });
   });
 
-  // Anomalies
+  // Anomalies (category-level monthly spike)
   anomalies.slice(0, 1).forEach((a) => {
     const cat = CATEGORIES[a.cat];
     cards.push({
@@ -1130,6 +1144,17 @@ function InsightsRow({
       body: `평소보다 +${a.deltaPct}%`,
     });
   });
+
+  // Outlier (single big transaction inside a category — z-score)
+  if (outlier) {
+    const cat = CATEGORIES[outlier.tx.cat];
+    cards.push({
+      tone: 'warn',
+      Icon: AlertCircle,
+      title: `${cat?.name ?? outlier.tx.cat} 큰 거래`,
+      body: `${outlier.tx.merchant} ${fmtKRW(Math.abs(outlier.tx.amount))} (평균 ${fmtKRW(Math.round(outlier.catAvg))})`,
+    });
+  }
 
   // Weekly
   if (weekly.thisWeek > 0 && weekly.lastWeek > 0) {

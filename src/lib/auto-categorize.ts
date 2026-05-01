@@ -36,8 +36,17 @@ export function autoCategorize(
 }
 
 function mostCommonCat(txs: Transaction[]): string | null {
+  // Recency-weighted vote. A merchant the user re-categorized last week should
+  // win over a stale category they used five months ago. Weight decays with a
+  // 180-day half-life-ish exponential (clamped so very old txs still count a
+  // bit instead of going to zero).
+  const now = Date.now();
   const counts = new Map<string, number>();
-  txs.forEach((t) => counts.set(t.cat, (counts.get(t.cat) ?? 0) + 1));
+  for (const t of txs) {
+    const ageDays = (now - new Date(t.date).getTime()) / 86400000;
+    const weight = Math.max(0.2, Math.exp(-ageDays / 180));
+    counts.set(t.cat, (counts.get(t.cat) ?? 0) + weight);
+  }
   let best: string | null = null;
   let max = 0;
   counts.forEach((c, cat) => {
