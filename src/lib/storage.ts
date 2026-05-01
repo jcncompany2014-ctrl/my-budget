@@ -13,6 +13,17 @@ function normalize(list: Transaction[]): Transaction[] {
   return list.map((t) => (t.scope ? t : { ...t, scope: 'personal' }));
 }
 
+// ─── Module-level singleton ───
+// Many components call useAllTransactions independently. Without a shared
+// cache each one parses the entire transaction array on mount, and an
+// add/remove only updates its own useState — other consumers see stale data
+// until they remount. The singleton fixes both: one parse, one source of
+// truth, listener fan-out on writes.
+
+let cachedTx: Transaction[] | null = null;
+const txListeners = new Set<() => void>();
+const EMPTY_TX: Transaction[] = [];
+
 function loadFromStorage(): Transaction[] {
   if (typeof window === 'undefined') return normalize(SEED_TRANSACTIONS);
   try {
@@ -29,6 +40,17 @@ function saveToStorage(tx: Transaction[]) {
   window.localStorage.setItem(KEY, JSON.stringify(tx));
 }
 
+function getCachedTx(): Transaction[] {
+  if (cachedTx === null) cachedTx = loadFromStorage();
+  return cachedTx;
+}
+
+function commitTx(next: Transaction[]) {
+  cachedTx = next;
+  saveToStorage(next);
+  txListeners.forEach((fn) => fn());
+}
+
 export function useTransactions() {
   const { mode } = useMode();
   const all = useAllTransactions();
@@ -40,25 +62,25 @@ export function useTransactions() {
 }
 
 export function useAllTransactions() {
-  const [tx, setTx] = useState<Transaction[]>([]);
+  const [tx, setTx] = useState<Transaction[]>(EMPTY_TX);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const data = loadFromStorage();
-    setTx(data);
+    setTx(getCachedTx());
     setReady(true);
     if (typeof window !== 'undefined' && !window.localStorage.getItem(KEY)) {
-      saveToStorage(data);
+      saveToStorage(cachedTx!);
     }
+    const refresh = () => setTx(getCachedTx());
+    txListeners.add(refresh);
+    return () => {
+      txListeners.delete(refresh);
+    };
   }, []);
 
   const add = (t: Transaction) => {
     applyTxToAccounts(t);
-    setTx((prev) => {
-      const next = [t, ...prev];
-      saveToStorage(next);
-      return next;
-    });
+    commitTx([t, ...getCachedTx()]);
   };
 
   /**
@@ -66,50 +88,37 @@ export function useAllTransactions() {
    * Returns the removed transaction(s) for undo support.
    */
   const remove = (id: string): Transaction[] => {
-    let removed: Transaction[] = [];
-    setTx((prev) => {
-      const target = prev.find((t) => t.id === id);
-      if (!target) return prev;
-      const idsToRemove = target.transferPairId ? transferPairIds(target, prev) : [id];
-      removed = prev.filter((t) => idsToRemove.includes(t.id));
-      removed.forEach((t) => reverseTxFromAccounts(t));
-      const next = prev.filter((t) => !idsToRemove.includes(t.id));
-      saveToStorage(next);
-      return next;
-    });
+    const cur = getCachedTx();
+    const target = cur.find((t) => t.id === id);
+    if (!target) return [];
+    const idsToRemove = target.transferPairId ? transferPairIds(target, cur) : [id];
+    const removed = cur.filter((t) => idsToRemove.includes(t.id));
+    removed.forEach((t) => reverseTxFromAccounts(t));
+    commitTx(cur.filter((t) => !idsToRemove.includes(t.id)));
     return removed;
   };
 
   const update = (id: string, patch: Partial<Transaction>) => {
-    setTx((prev) => {
-      const cur = prev.find((t) => t.id === id);
-      if (!cur) return prev;
-      const oldAmount = cur.amount;
-      const oldAcc = cur.acc;
-      const merged = { ...cur, ...patch };
-      // Sync account balances if amount or account changed
-      if (patch.amount !== undefined && patch.amount !== oldAmount) {
-        // Reverse old, apply new
-        reverseTxFromAccounts(cur);
-        applyTxToAccounts(merged);
-      } else if (patch.acc !== undefined && patch.acc !== oldAcc) {
-        reverseTxFromAccounts(cur);
-        applyTxToAccounts(merged);
-      }
-      const next = prev.map((t) => (t.id === id ? merged : t));
-      saveToStorage(next);
-      return next;
-    });
+    const cur = getCachedTx();
+    const target = cur.find((t) => t.id === id);
+    if (!target) return;
+    const oldAmount = target.amount;
+    const oldAcc = target.acc;
+    const merged = { ...target, ...patch };
+    if (patch.amount !== undefined && patch.amount !== oldAmount) {
+      reverseTxFromAccounts(target);
+      applyTxToAccounts(merged);
+    } else if (patch.acc !== undefined && patch.acc !== oldAcc) {
+      reverseTxFromAccounts(target);
+      applyTxToAccounts(merged);
+    }
+    commitTx(cur.map((t) => (t.id === id ? merged : t)));
   };
 
   /** Restore a previously removed transaction (used by undo). */
   const restore = (txs: Transaction[]) => {
     txs.forEach((t) => applyTxToAccounts(t));
-    setTx((prev) => {
-      const next = [...txs, ...prev];
-      saveToStorage(next);
-      return next;
-    });
+    commitTx([...txs, ...getCachedTx()]);
   };
 
   return { tx, ready, add, remove, update, restore };

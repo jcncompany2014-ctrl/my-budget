@@ -16,12 +16,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideNav = HIDE_NAV_PREFIXES.some((p) => pathname.startsWith(p));
 
   useEffect(() => {
-    // Run idempotent maintenance once per app load
-    ensureAutoBackup();
-    ensureAutoPayroll();
-    ensureAutoRecurring();
-    ensureAutoLoanPayment();
-    ensureAutoCreditLine();
+    // Run idempotent maintenance after first paint, not on the critical path.
+    // Each ensureAutoX reads several large localStorage values and may write
+    // back; doing all of them synchronously inside the layout's useEffect
+    // delayed visible content on slower devices. requestIdleCallback yields
+    // until the browser has spare time (or the timeout fires).
+    const run = () => {
+      ensureAutoBackup();
+      ensureAutoPayroll();
+      ensureAutoRecurring();
+      ensureAutoLoanPayment();
+      ensureAutoCreditLine();
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      w.requestIdleCallback(run, { timeout: 1500 });
+    } else {
+      setTimeout(run, 50);
+    }
   }, []);
 
   return (

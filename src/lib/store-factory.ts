@@ -17,37 +17,57 @@ type StoreOptions<T> = {
 
 const subscribers = new Map<string, Set<() => void>>();
 
-function subscribe(key: string, fn: () => void) {
+export function subscribeToKey(key: string, fn: () => void) {
   if (!subscribers.has(key)) subscribers.set(key, new Set());
   subscribers.get(key)!.add(fn);
   return () => subscribers.get(key)?.delete(fn);
+}
+
+function subscribe(key: string, fn: () => void) {
+  return subscribeToKey(key, fn);
 }
 
 function notify(key: string) {
   subscribers.get(key)?.forEach((fn) => fn());
 }
 
+// Module-level parse cache. N components reading the same key share one
+// JSON.parse instead of doing N parses per page render. Invalidated on
+// every writeRaw and on cross-tab storage events.
+const parseCache = new Map<string, unknown>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key && parseCache.has(e.key)) {
+      parseCache.delete(e.key);
+      notify(e.key);
+    }
+  });
+}
+
 function readRaw<T>(key: string, opts: StoreOptions<T>): T {
   if (typeof window === 'undefined') return opts.defaultValue;
+  if (parseCache.has(key)) return parseCache.get(key) as T;
+  let result: T = opts.defaultValue;
   try {
     const raw = window.localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (opts.validate) {
         const v = opts.validate(parsed);
-        if (v !== null) return v;
-        return opts.defaultValue;
+        result = v !== null ? v : opts.defaultValue;
+      } else {
+        result = parsed as T;
       }
-      return parsed as T;
-    }
-    if (opts.migrateFrom) {
+    } else if (opts.migrateFrom) {
       for (const m of opts.migrateFrom) {
         const legacy = window.localStorage.getItem(m.key);
         if (legacy) {
           try {
             const migrated = m.migrate(JSON.parse(legacy));
             window.localStorage.setItem(key, JSON.stringify(migrated));
-            return migrated;
+            result = migrated;
+            break;
           } catch {
             // skip
           }
@@ -55,14 +75,16 @@ function readRaw<T>(key: string, opts: StoreOptions<T>): T {
       }
     }
   } catch {
-    // fall through
+    // fall through with default
   }
-  return opts.defaultValue;
+  parseCache.set(key, result);
+  return result;
 }
 
 function writeRaw<T>(key: string, value: T) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(key, JSON.stringify(value));
+  parseCache.set(key, value);
   notify(key);
 }
 
