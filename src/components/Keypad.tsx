@@ -13,12 +13,16 @@ export default function Keypad({ value, onChange }: Props) {
       navigator.vibrate?.(8);
     }
     if (k === 'del') {
-      onChange(value.length <= 1 ? '0' : value.slice(0, -1));
+      onChange(value.slice(0, -1));
       return;
     }
-    if (value === '0') {
-      onChange(k === '00' ? '0' : k);
-    } else if (value.length < 12) {
+    // Empty or single-zero state: first digit replaces; ignore leading '00'
+    if (value === '' || value === '0') {
+      if (k === '00') return;
+      onChange(k);
+      return;
+    }
+    if (value.length < 12) {
       onChange(value + k);
     }
   };

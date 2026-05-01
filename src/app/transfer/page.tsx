@@ -20,7 +20,7 @@ export default function TransferPage() {
   const { accounts } = useAllAccounts();
   const { add } = useAllTransactions();
 
-  const [amount, setAmount] = useState('0');
+  const [amount, setAmount] = useState('');
   const [fromId, setFromId] = useState<string>('');
   const [toId, setToId] = useState<string>('');
   const [memo, setMemo] = useState('');
@@ -69,16 +69,30 @@ export default function TransferPage() {
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
           이체할 금액
         </p>
-        <Money
-          value={Number(amount)}
-          sign="never"
-          className="mt-2 block tracking-tight"
-          style={{
-            fontSize: 'var(--text-3xl)',
-            fontWeight: 800,
-            color: amount === '0' ? 'var(--color-text-4)' : 'var(--color-text-1)',
-          }}
-        />
+        {Number(amount) > 0 ? (
+          <Money
+            value={Number(amount)}
+            sign="never"
+            className="mt-2 block tracking-tight"
+            style={{
+              fontSize: 'var(--text-3xl)',
+              fontWeight: 800,
+              color: 'var(--color-text-1)',
+            }}
+          />
+        ) : (
+          <p
+            className="mt-2 block tracking-tight"
+            style={{
+              fontSize: 28,
+              fontWeight: 500,
+              color: 'var(--color-text-4)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            얼마를 이체할까요?
+          </p>
+        )}
         {fromAcc && toAcc && Number(amount) > 0 && (
           <p
             className="mt-2 text-center"

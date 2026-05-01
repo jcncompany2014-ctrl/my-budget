@@ -51,7 +51,7 @@ function AddPage() {
   const incomeList = useMemo(() => incomeCategoriesByScope(mode), [mode]);
 
   const [type, setType] = useState<TxType>(initialType);
-  const [amount, setAmount] = useState('0');
+  const [amount, setAmount] = useState('');
   const [cat, setCat] = useState<string>(expenseList[0]?.id ?? 'food');
   const [merchant, setMerchant] = useState('');
   const [memo, setMemo] = useState('');
@@ -215,7 +215,7 @@ function AddPage() {
           },
         });
         if (continueAfterSave) {
-          setAmount('0');
+          setAmount('');
           setMerchant('');
           setMemo('');
           setMemoTouched(false);
@@ -269,7 +269,7 @@ function AddPage() {
       },
     });
     if (continueAfterSave) {
-      setAmount('0');
+      setAmount('');
       setMerchant('');
       setMemo('');
       setMemoTouched(false);
@@ -282,7 +282,7 @@ function AddPage() {
   };
 
   const addQuick = (n: number) => {
-    setAmount(String((amount === '0' ? 0 : Number(amount)) + n));
+    setAmount(String((Number(amount) || 0) + n));
   };
 
   const promptCopy = useMemo(() => {
@@ -356,18 +356,30 @@ function AddPage() {
             <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-3)' }}>
               {promptCopy}
             </p>
-            <p
-              className="tnum mt-2 text-[44px] font-extrabold tracking-tight"
-              style={{ color: amount === '0' ? 'var(--color-text-4)' : 'var(--color-text-1)' }}
-            >
-              {fmt(Number(amount))}
-              <span className="ml-1 text-[28px]" style={{ color: 'var(--color-text-3)' }}>
-                원
-              </span>
+            <p className="tnum mt-2 text-[44px] font-extrabold tracking-tight">
+              {Number(amount) > 0 ? (
+                <>
+                  <span style={{ color: 'var(--color-text-1)' }}>{fmt(Number(amount))}</span>
+                  <span className="ml-1 text-[28px]" style={{ color: 'var(--color-text-3)' }}>
+                    원
+                  </span>
+                </>
+              ) : (
+                <span
+                  style={{
+                    color: 'var(--color-text-4)',
+                    fontSize: 28,
+                    fontWeight: 500,
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  얼마인가요?
+                </span>
+              )}
             </p>
           </section>
 
-          {amountHint !== null && amount === '0' && (
+          {amountHint !== null && !amount && (
             <div className="px-4 pb-2 text-center">
               <button
                 type="button"
@@ -438,7 +450,7 @@ function AddPage() {
               style={{ color: type === 'expense' ? 'var(--color-text-1)' : 'var(--color-primary)' }}
             >
               {type === 'expense' ? '−' : '+'}
-              {fmt(Number(amount))}원
+              {fmt(Number(amount) || 0)}원
             </p>
           </section>
 
