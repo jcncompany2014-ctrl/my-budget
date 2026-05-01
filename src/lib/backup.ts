@@ -10,6 +10,7 @@ import type {
   Employee,
   Favorite,
   Investment,
+  LineOfCredit,
   Loan,
   RecurringItem,
   SavingsGoal,
@@ -18,7 +19,7 @@ import type {
 } from '@/lib/types';
 
 export type BackupFile = {
-  version: 4;
+  version: 5;
   exportedAt: string;
   profile?: { name: string };
   businessProfile?: unknown;
@@ -28,6 +29,7 @@ export type BackupFile = {
   goals: SavingsGoal[];
   recurring: RecurringItem[];
   loans?: Loan[];
+  creditLines?: LineOfCredit[];
   vendors?: Vendor[];
   employees?: Employee[];
   locations?: BusinessLocation[];
@@ -57,7 +59,7 @@ function writeIf(key: string, val: unknown) {
 
 export function exportAll(): BackupFile {
   return {
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     profile: read<{ name: string }>(KEYS.profile, { name: '' }),
     businessProfile: read<unknown>(KEYS.businessProfile, null),
@@ -67,6 +69,7 @@ export function exportAll(): BackupFile {
     goals: read<SavingsGoal[]>(KEYS.goals, []),
     recurring: read<RecurringItem[]>(KEYS.recurring, []),
     loans: read<Loan[]>(KEYS.loans, []),
+    creditLines: read<LineOfCredit[]>(KEYS.creditLines, []),
     vendors: read<Vendor[]>(KEYS.vendors, []),
     employees: read<Employee[]>(KEYS.employees, []),
     locations: read<BusinessLocation[]>(KEYS.locations, []),
@@ -99,6 +102,7 @@ type ImportResult = {
   goals: number;
   recurring: number;
   loans: number;
+  creditLines: number;
   vendors: number;
   employees: number;
   locations: number;
@@ -117,6 +121,7 @@ const ARRAY_ENTITIES: Array<{
   { bodyKey: 'goals', storageKey: KEYS.goals, resultKey: 'goals' },
   { bodyKey: 'recurring', storageKey: KEYS.recurring, resultKey: 'recurring' },
   { bodyKey: 'loans', storageKey: KEYS.loans, resultKey: 'loans' },
+  { bodyKey: 'creditLines', storageKey: KEYS.creditLines, resultKey: 'creditLines' },
   { bodyKey: 'vendors', storageKey: KEYS.vendors, resultKey: 'vendors' },
   { bodyKey: 'employees', storageKey: KEYS.employees, resultKey: 'employees' },
   { bodyKey: 'locations', storageKey: KEYS.locations, resultKey: 'locations' },
@@ -135,27 +140,33 @@ export function importBackup(file: File): Promise<ImportResult> {
         const text = reader.result as string;
         const parsed = JSON.parse(text);
 
-        let transactions: Transaction[] = [];
+        let transactions: Transaction[] | null = null;
         let body: Record<string, unknown> = {};
         if (Array.isArray(parsed)) {
           transactions = parsed as Transaction[];
         } else if (parsed && typeof parsed === 'object') {
           body = parsed;
-          transactions = Array.isArray(parsed.transactions) ? parsed.transactions : [];
+          transactions = Array.isArray(parsed.transactions) ? parsed.transactions : null;
         } else {
           reject(new Error('잘못된 백업 파일이에요'));
           return;
         }
 
-        writeIf(KEYS.transactions, transactions);
+        // Only overwrite transactions when the backup actually contains them.
+        // Earlier versions wrote an empty array on missing-or-malformed input,
+        // which silently wiped every transaction the user had.
+        if (transactions !== null) {
+          writeIf(KEYS.transactions, transactions);
+        }
 
         const result: ImportResult = {
-          transactions: transactions.length,
+          transactions: transactions?.length ?? 0,
           accounts: 0,
           budgets: 0,
           goals: 0,
           recurring: 0,
           loans: 0,
+          creditLines: 0,
           vendors: 0,
           employees: 0,
           locations: 0,
@@ -208,6 +219,10 @@ export function clearAll() {
   window.localStorage.removeItem('asset/auto-backup/v1');
   window.localStorage.removeItem('asset/auto-backup-meta/v1');
   window.localStorage.removeItem('asset/auto-payroll-last/v1');
+  window.localStorage.removeItem('asset/auto-recurring-last/v1');
+  window.localStorage.removeItem('asset/auto-loan-last/v1');
+  window.localStorage.removeItem('asset/auto-credit-line-last/v1');
   window.localStorage.removeItem('asset/smart-dismissed/v1');
   window.localStorage.removeItem('asset/install-hint-dismissed');
+  window.localStorage.removeItem('asset/audit-log/v1'); // legacy
 }

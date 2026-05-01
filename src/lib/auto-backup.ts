@@ -49,6 +49,7 @@ const RESTORE_MAP: Array<[string, string]> = [
   ['goals', KEYS.goals],
   ['recurring', KEYS.recurring],
   ['loans', KEYS.loans],
+  ['creditLines', KEYS.creditLines],
   ['vendors', KEYS.vendors],
   ['employees', KEYS.employees],
   ['locations', KEYS.locations],
