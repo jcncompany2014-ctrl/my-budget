@@ -26,6 +26,7 @@ import {
   Repeat,
   Search,
   Shield,
+  ShieldCheck,
   Sparkles,
   Star,
   Store,
@@ -478,6 +479,13 @@ export default function SettingsPage() {
               toast.show('자동 백업이 없어요', 'info');
             }
           }}
+        />
+        <Row
+          icon={ShieldCheck}
+          iconBg="#14B8A6"
+          label="데이터 무결성 검사"
+          subtitle="누락된 참조·잔액 표류·이체 짝 점검"
+          onClick={() => router.push('/settings/data-check')}
         />
         <Row
           icon={AlertTriangle}
