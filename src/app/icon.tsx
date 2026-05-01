@@ -8,29 +8,28 @@ export default function Icon() {
     (
       <div
         style={{
-          background: 'linear-gradient(135deg, #00C75A 0%, #008C40 100%)',
+          background: 'linear-gradient(135deg, #00D964 0%, #00A050 100%)',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: 110,
+          borderRadius: 112,
         }}
       >
-        {/* Stylized ₩ — two Vs (W) with two crossbars */}
+        {/* ₩ — clean W with two horizontal bars cleared of W stem overlap */}
         <svg viewBox="0 0 100 100" width={340} height={340}>
-          {/* drop shadow */}
-          <g style={{ filter: 'drop-shadow(0 2px 0 rgba(0,0,0,0.18))' }}>
+          <g style={{ filter: 'drop-shadow(0 3px 0 rgba(0,0,0,0.16))' }}>
             <path
-              d="M16 26 L36 76 L50 38 L64 76 L84 26"
+              d="M14 24 L34 78 L50 36 L66 78 L86 24"
               fill="none"
               stroke="#fff"
-              strokeWidth={11}
+              strokeWidth={12}
               strokeLinejoin="round"
               strokeLinecap="round"
             />
-            <line x1={18} y1={42} x2={82} y2={42} stroke="#fff" strokeWidth={7} strokeLinecap="round" />
-            <line x1={18} y1={58} x2={82} y2={58} stroke="#fff" strokeWidth={7} strokeLinecap="round" />
+            <line x1={26} y1={44} x2={74} y2={44} stroke="#fff" strokeWidth={8} strokeLinecap="round" />
+            <line x1={30} y1={56} x2={70} y2={56} stroke="#fff" strokeWidth={8} strokeLinecap="round" />
           </g>
         </svg>
       </div>

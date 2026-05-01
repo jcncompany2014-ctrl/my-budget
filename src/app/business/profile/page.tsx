@@ -43,9 +43,27 @@ export default function BusinessProfilePage() {
       />
 
       <Section topGap={4} bottomGap={4}>
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          상호·등록번호·수수료율 등을 입력하면 자동 계산이 더 정확해져요.
-        </p>
+        <div className="rounded-2xl p-4" style={{ background: 'var(--color-primary-soft)' }}>
+          <p
+            style={{
+              color: 'var(--color-primary)',
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+            }}
+          >
+            이 정보가 쓰이는 곳
+          </p>
+          <ul
+            className="mt-2 space-y-1.5"
+            style={{ color: 'var(--color-text-2)', fontSize: 13, fontWeight: 500 }}
+          >
+            <li>· 부가세·종합소득세 자동 계산 (과세 구분 기준)</li>
+            <li>· 카드/배달앱 매출 입력 시 수수료를 거래 메모에 자동 기록</li>
+            <li>· 손익계산서·세무 일정 페이지의 상호·대표자 표시</li>
+            <li>· 자동 인건비 직원 등록 시 월 기본급 합산</li>
+          </ul>
+        </div>
       </Section>
 
       <Section title="기본 정보">

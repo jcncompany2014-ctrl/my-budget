@@ -1,5 +1,6 @@
 'use client';
 
+import { AlertCircle, Check, Info } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 type ToastVariant = 'success' | 'info' | 'error';
@@ -83,9 +84,12 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         ? { bg: 'var(--color-danger)', text: '#fff' }
         : { bg: 'var(--color-text-1)', text: 'var(--color-card)' };
 
+  const Icon =
+    toast.variant === 'success' ? Check : toast.variant === 'error' ? AlertCircle : Info;
+
   return (
     <div
-      className="pointer-events-auto flex items-center gap-3 rounded-full pl-5 pr-2 py-2 shadow-lg transition-all duration-300"
+      className="pointer-events-auto flex items-center gap-2 rounded-full pl-2 pr-2 py-2 shadow-lg transition-all duration-300"
       style={{
         background: tone.bg,
         color: tone.text,
@@ -93,7 +97,16 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         transform: visible ? 'translateY(0)' : 'translateY(10px)',
       }}
     >
-      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{toast.message}</span>
+      <span
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+        style={{ background: 'rgba(255,255,255,0.22)', color: tone.text }}
+        aria-hidden
+      >
+        <Icon size={14} strokeWidth={3} />
+      </span>
+      <span className="pl-0.5 pr-1" style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+        {toast.message}
+      </span>
       {toast.action && (
         <button
           type="button"
