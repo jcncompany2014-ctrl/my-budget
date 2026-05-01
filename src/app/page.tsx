@@ -4,10 +4,19 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
+  BarChart3,
+  CalendarDays,
+  CircleDollarSign,
+  Coins,
+  Handshake,
+  LineChart,
   type LucideIcon,
   Minus,
+  Receipt,
+  Store,
   TrendingDown,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
@@ -717,129 +726,31 @@ function BusinessHome({
 
       {/* Quick links */}
       <section className="grid grid-cols-3 gap-2 px-5 pb-3">
-        <Link
-          href="/business/channels"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22 }}>📈</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            매출 채널
-          </p>
-        </Link>
-        <Link
-          href="/business/pnl"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22 }}>📊</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            손익계산서
-          </p>
-        </Link>
-        <Link
-          href="/business/ar-ap"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22 }}>🧾</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            외상
-          </p>
-        </Link>
+        <BizTile href="/business/channels" icon={LineChart} color="#3182F6" label="매출 채널" />
+        <BizTile href="/business/pnl" icon={BarChart3} color="#8B5CF6" label="손익계산서" />
+        <BizTile href="/business/ar-ap" icon={Receipt} color="#F59E0B" label="외상" />
       </section>
 
       <section className="grid grid-cols-3 gap-2 px-5 pb-3">
-        <Link
-          href="/business/vendors"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22, lineHeight: 1 }}>🤝</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            거래처
-          </p>
-        </Link>
-        <Link
-          href="/settings/employees"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22, lineHeight: 1 }}>👥</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            인건비
-          </p>
-        </Link>
-        <Link
-          href="/settings/locations"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22, lineHeight: 1 }}>🏪</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            사업장
-          </p>
-        </Link>
+        <BizTile href="/business/vendors" icon={Handshake} color="#0EA5E9" label="거래처" />
+        <BizTile href="/settings/employees" icon={Users} color="#3182F6" label="인건비" />
+        <BizTile href="/settings/locations" icon={Store} color="#FF8A1F" label="사업장" />
       </section>
 
       <section className="grid grid-cols-3 gap-2 px-5 pb-3">
-        <Link
-          href="/business/cashflow"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22, lineHeight: 1 }}>💹</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            현금흐름
-          </p>
-        </Link>
-        <Link
+        <BizTile href="/business/cashflow" icon={Coins} color="#10B981" label="현금흐름" />
+        <BizTile
           href="/business/income-tax"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22, lineHeight: 1 }}>💰</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            소득세
-          </p>
-        </Link>
-        <Link
+          icon={CircleDollarSign}
+          color="#00B956"
+          label="소득세"
+        />
+        <BizTile
           href="/business/tax-calendar"
-          className="tap rounded-2xl px-3 py-4 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ fontSize: 22, lineHeight: 1 }}>📅</p>
-          <p
-            className="mt-1"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-          >
-            세무 일정
-          </p>
-        </Link>
+          icon={CalendarDays}
+          color="#EF4444"
+          label="세무 일정"
+        />
       </section>
 
       <UpcomingRecurring />
@@ -973,6 +884,37 @@ function HeroCard({
         </Link>
       </div>
     </section>
+  );
+}
+
+function BizTile({
+  href,
+  icon: Icon,
+  color,
+  label,
+}: {
+  href: string;
+  icon: LucideIcon;
+  color: string;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="tap flex flex-col items-center gap-2 rounded-2xl px-3 py-4"
+      style={{ background: 'var(--color-card)' }}
+    >
+      <span
+        aria-hidden
+        className="flex h-10 w-10 items-center justify-center rounded-full"
+        style={{ background: `${color}1f`, color }}
+      >
+        <Icon size={20} strokeWidth={2.2} />
+      </span>
+      <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 700 }}>
+        {label}
+      </span>
+    </Link>
   );
 }
 
