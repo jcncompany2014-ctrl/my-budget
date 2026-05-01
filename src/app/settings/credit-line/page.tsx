@@ -8,6 +8,7 @@ import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
+import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { computeMonthlyInterest, useCreditLines } from '@/lib/credit-lines';
@@ -15,7 +16,6 @@ import { fmt } from '@/lib/format';
 import type { LineOfCredit } from '@/lib/types';
 
 const COLORS = ['#DC2626', '#BE185D', '#7C3AED', '#3182F6', '#0891B2', '#EA580C'];
-const EMOJIS = ['💳', '🏦', '💼', '🪪', '💸', '📉'];
 
 export default function CreditLinePage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function CreditLinePage() {
     setEditing({
       id: 'loc-' + Date.now().toString(36),
       name: '',
-      emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+      emoji: 'lucide:CreditCard',
       scope: mode,
       bank: '',
       limit: 0,
@@ -111,10 +111,10 @@ export default function CreditLinePage() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl"
-                      style={{ background: `${l.color}1f` }}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                      style={{ background: `${l.color}1f`, color: l.color }}
                     >
-                      {l.emoji}
+                      <IconDisplay value={l.emoji} size={22} color={l.color} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p
@@ -259,24 +259,13 @@ function Editor({
         {isNew ? '마이너스 통장 추가' : '마이너스 통장 편집'}
       </h2>
 
-      <Field label="이모지">
-        <div className="flex flex-wrap gap-2">
-          {EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => setDraft({ ...draft, emoji: e })}
-              className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-              style={{
-                background:
-                  draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
-              }}
-            >
-              {e}
-            </button>
-          ))}
-        </div>
+      <Field label="아이콘">
+        <IconPicker
+          set="creditLines"
+          value={draft.emoji}
+          onChange={(v) => setDraft({ ...draft, emoji: v })}
+          color={draft.color}
+        />
       </Field>
 
       <Field label="이름 *">

@@ -8,6 +8,7 @@ import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
+import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { useChallenges } from '@/lib/challenges';
@@ -39,7 +40,7 @@ export default function ChallengesPage() {
     setEditing({
       id: 'ch-' + Date.now().toString(36),
       name: '',
-      emoji: '🎯',
+      emoji: 'lucide:Target',
       scope: mode,
       cat: undefined,
       limit: 0,
@@ -178,7 +179,7 @@ function ChallengeCard({
       style={{ background: 'var(--color-card)' }}
     >
       <div className="flex items-center gap-3">
-        <span style={{ fontSize: 26 }}>{challenge.emoji}</span>
+        <IconDisplay value={challenge.emoji} size={26} />
         <div className="flex-1">
           <p
             style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 700 }}
@@ -252,24 +253,12 @@ function Editor({
         {isNew ? '챌린지 추가' : '챌린지 편집'}
       </h2>
 
-      <Field label="이모지">
-        <div className="flex flex-wrap gap-2">
-          {['🎯', '⛳', '🥇', '🏃', '💪', '🔥', '🚀', '✨'].map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => setDraft({ ...draft, emoji: e })}
-              className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-              style={{
-                background:
-                  draft.emoji === e ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                border: `2px solid ${draft.emoji === e ? 'var(--color-primary)' : 'transparent'}`,
-              }}
-            >
-              {e}
-            </button>
-          ))}
-        </div>
+      <Field label="아이콘">
+        <IconPicker
+          set="challenges"
+          value={draft.emoji}
+          onChange={(v) => setDraft({ ...draft, emoji: v })}
+        />
       </Field>
       <Field label="이름 *">
         <input

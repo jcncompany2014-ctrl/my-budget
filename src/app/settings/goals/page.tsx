@@ -7,6 +7,7 @@ import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
+import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { fmt } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
@@ -23,7 +24,6 @@ const COLORS = [
   '#EF4444',
   '#06B6D4',
 ];
-const EMOJIS = ['🎯', '🏝️', '💻', '🛟', '🚗', '🏠', '✈️', '💍', '🎓', '👶'];
 
 export default function GoalsSettingsPage() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function GoalsSettingsPage() {
     setEditing({
       id: 'g-' + Date.now().toString(36),
       name: '',
-      emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+      emoji: 'lucide:Target',
       target: 0,
       current: 0,
       due: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().slice(0, 10),
@@ -128,10 +128,10 @@ export default function GoalsSettingsPage() {
                   )}
                   <div className="relative flex items-center gap-3">
                     <div
-                      className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl"
-                      style={{ background: `${g.color}1f` }}
+                      className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                      style={{ background: `${g.color}1f`, color: g.color }}
                     >
-                      {g.emoji}
+                      <IconDisplay value={g.emoji} size={24} color={g.color} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
@@ -284,27 +284,14 @@ function GoalEditor({
           className="mb-1.5 block text-[13px] font-semibold"
           style={{ color: 'var(--color-text-2)' }}
         >
-          이모지
+          아이콘
         </label>
-        <div className="flex flex-wrap gap-2">
-          {EMOJIS.map((e) => {
-            const sel = draft.emoji === e;
-            return (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setDraft({ ...draft, emoji: e })}
-                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                style={{
-                  background: sel ? `${draft.color}33` : 'var(--color-gray-100)',
-                  border: `2px solid ${sel ? draft.color : 'transparent'}`,
-                }}
-              >
-                {e}
-              </button>
-            );
-          })}
-        </div>
+        <IconPicker
+          set="goals"
+          value={draft.emoji}
+          onChange={(v) => setDraft({ ...draft, emoji: v })}
+          color={draft.color}
+        />
       </div>
 
       <div className="mb-3">

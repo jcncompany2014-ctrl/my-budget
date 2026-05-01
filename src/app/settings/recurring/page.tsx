@@ -8,13 +8,12 @@ import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
+import { IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { daysUntilDay, useRecurring } from '@/lib/recurring';
 import type { RecurringItem } from '@/lib/types';
-
-const DEFAULT_EMOJIS = ['🎬', '🎵', '🤖', '▶️', '🌬️', '🏢', '📱', '☁️', '📺', '🎮'];
 
 export default function RecurringSettingsPage() {
   const router = useRouter();
@@ -48,7 +47,7 @@ export default function RecurringSettingsPage() {
     setEditing({
       id: 'r-' + Date.now().toString(36),
       name: '',
-      emoji: DEFAULT_EMOJIS[Math.floor(Math.random() * DEFAULT_EMOJIS.length)],
+      emoji: 'lucide:Tv',
       amount: 0,
       day: new Date().getDate(),
       cat: mode === 'business' ? 'biz_etc' : 'subs',
@@ -217,27 +216,13 @@ function RecurringEditor({
           className="mb-1.5 block text-[13px] font-semibold"
           style={{ color: 'var(--color-text-2)' }}
         >
-          이모지
+          아이콘
         </label>
-        <div className="flex flex-wrap gap-2">
-          {DEFAULT_EMOJIS.map((e) => {
-            const sel = draft.emoji === e;
-            return (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setDraft({ ...draft, emoji: e })}
-                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                style={{
-                  background: sel ? 'var(--color-primary-soft)' : 'var(--color-gray-100)',
-                  border: `2px solid ${sel ? 'var(--color-primary)' : 'transparent'}`,
-                }}
-              >
-                {e}
-              </button>
-            );
-          })}
-        </div>
+        <IconPicker
+          set="recurring"
+          value={draft.emoji}
+          onChange={(v) => setDraft({ ...draft, emoji: v })}
+        />
       </div>
 
       <div className="mb-3">

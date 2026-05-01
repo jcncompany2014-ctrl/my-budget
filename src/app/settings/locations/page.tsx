@@ -6,12 +6,12 @@ import { useState } from 'react';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
+import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useLocations } from '@/lib/locations';
 import type { BusinessLocation } from '@/lib/types';
 
 const COLORS = ['#3182F6', '#00B956', '#F472B6', '#FF8A1F', '#8B5CF6', '#14B8A6'];
-const EMOJIS = ['🏪', '🏢', '🏬', '🏭', '🏨', '🏠', '🍴', '☕'];
 
 export default function LocationsPage() {
   const router = useRouter();
@@ -31,7 +31,7 @@ export default function LocationsPage() {
     setEditing({
       id: 'loc-' + Date.now().toString(36),
       name: '',
-      emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+      emoji: 'lucide:Store',
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       active: true,
     });
@@ -119,10 +119,10 @@ export default function LocationsPage() {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-lg"
-                    style={{ background: `${l.color}33` }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full"
+                    style={{ background: `${l.color}33`, color: l.color }}
                   >
-                    {l.emoji}
+                    <IconDisplay value={l.emoji} size={18} color={l.color} />
                   </div>
                   <span
                     style={{
@@ -231,24 +231,14 @@ function Editor({
           className="mb-1.5 block"
           style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
         >
-          이모지
+          아이콘
         </label>
-        <div className="flex flex-wrap gap-2">
-          {EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => setDraft({ ...draft, emoji: e })}
-              className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-              style={{
-                background: draft.emoji === e ? `${draft.color}33` : 'var(--color-gray-100)',
-                border: `2px solid ${draft.emoji === e ? draft.color : 'transparent'}`,
-              }}
-            >
-              {e}
-            </button>
-          ))}
-        </div>
+        <IconPicker
+          set="locations"
+          value={draft.emoji}
+          onChange={(v) => setDraft({ ...draft, emoji: v })}
+          color={draft.color}
+        />
       </div>
 
       <div className="mb-3">
