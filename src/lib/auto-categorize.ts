@@ -1,11 +1,22 @@
 'use client';
 
+import { classifyBayes, getBayesModel } from '@/lib/bayes';
 import { suggestCategory } from '@/lib/categories';
 import type { Scope, Transaction } from '@/lib/types';
 
+const BAYES_MIN_HISTORY = 10;
+const BAYES_MIN_CONFIDENCE = 0.1;
+
 /**
- * Pick the most-used category for a given merchant in past transactions.
- * Falls back to suggestCategory heuristic if no history.
+ * Resolve a category for the given merchant. Layered strategy, fastest +
+ * highest-confidence signals first:
+ *
+ *   1. Exact merchant match in history → recency-weighted vote.
+ *   2. Naive Bayes over the user's history (≥10 txs) — generalizes to
+ *      unseen merchants that share tokens with seen ones (e.g. a new
+ *      branch of a known chain).
+ *   3. Fuzzy contains match.
+ *   4. Built-in merchant→category heuristic table.
  */
 export function autoCategorize(
   merchant: string,
@@ -15,24 +26,34 @@ export function autoCategorize(
   const m = merchant.trim();
   if (!m) return null;
 
-  // Find historical txs with same merchant in same scope
   const lower = m.toLowerCase();
   const sameMerchant = history.filter(
     (t) => (t.scope ?? 'personal') === scope && t.merchant.toLowerCase() === lower,
   );
-  if (sameMerchant.length === 0) {
-    // Try fuzzy: contains
-    const fuzzy = history.filter(
-      (t) =>
-        (t.scope ?? 'personal') === scope &&
-        (t.merchant.toLowerCase().includes(lower) || lower.includes(t.merchant.toLowerCase())),
-    );
-    if (fuzzy.length > 0) {
-      return mostCommonCat(fuzzy);
-    }
-    return suggestCategory(m, scope);
+  if (sameMerchant.length > 0) {
+    return mostCommonCat(sameMerchant);
   }
-  return mostCommonCat(sameMerchant);
+
+  // Naive Bayes — only if there's enough signal to be worth training
+  if (history.length >= BAYES_MIN_HISTORY) {
+    const model = getBayesModel(history, scope);
+    const result = classifyBayes(m, model);
+    if (result && result.confidence >= BAYES_MIN_CONFIDENCE) {
+      return result.cat;
+    }
+  }
+
+  // Fuzzy fallback
+  const fuzzy = history.filter(
+    (t) =>
+      (t.scope ?? 'personal') === scope &&
+      (t.merchant.toLowerCase().includes(lower) || lower.includes(t.merchant.toLowerCase())),
+  );
+  if (fuzzy.length > 0) {
+    return mostCommonCat(fuzzy);
+  }
+
+  return suggestCategory(m, scope);
 }
 
 function mostCommonCat(txs: Transaction[]): string | null {
