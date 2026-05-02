@@ -202,11 +202,15 @@ export default function BusinessProfilePage() {
         <div className="space-y-2 rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
           <Field label="카드 수수료 (%)">
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.1"
+              pattern="[0-9.]*"
               value={draft.cardFeeRate || ''}
-              onChange={(e) => setDraft({ ...draft, cardFeeRate: Number(e.target.value) || 0 })}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^0-9.]/g, '');
+                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
+                setDraft({ ...draft, cardFeeRate: Number(cleaned) || 0 });
+              }}
               placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
@@ -219,11 +223,15 @@ export default function BusinessProfilePage() {
           </Field>
           <Field label="배달앱 수수료 (%)">
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.1"
+              pattern="[0-9.]*"
               value={draft.deliveryFeeRate || ''}
-              onChange={(e) => setDraft({ ...draft, deliveryFeeRate: Number(e.target.value) || 0 })}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^0-9.]/g, '');
+                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
+                setDraft({ ...draft, deliveryFeeRate: Number(cleaned) || 0 });
+              }}
               placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
@@ -236,13 +244,15 @@ export default function BusinessProfilePage() {
           </Field>
           <Field label="4대보험 부담률 (%)">
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.1"
+              pattern="[0-9.]*"
               value={draft.socialInsuranceRate || ''}
-              onChange={(e) =>
-                setDraft({ ...draft, socialInsuranceRate: Number(e.target.value) || 0 })
-              }
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^0-9.]/g, '');
+                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
+                setDraft({ ...draft, socialInsuranceRate: Number(cleaned) || 0 });
+              }}
               placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{

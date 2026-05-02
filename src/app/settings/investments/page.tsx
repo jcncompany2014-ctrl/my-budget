@@ -815,11 +815,11 @@ function Editor({
       <div className="grid grid-cols-2 gap-2">
         <Field label={`평균 매수가 (${productCcy})`}>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
-            step="any"
+            pattern="[0-9.]*"
             value={draft.avgPrice || ''}
-            onChange={(e) => handleAvgPriceChange(e.target.value)}
+            onChange={(e) => handleAvgPriceChange(e.target.value.replace(/[^0-9.]/g, ''))}
             placeholder="0"
             className="tnum h-12 w-full rounded-xl px-4 outline-none"
             style={{
@@ -833,11 +833,11 @@ function Editor({
         {isCrypto ? (
           <Field label={`투입 자본 (${productCcy})`}>
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="any"
+              pattern="[0-9.]*"
               value={marginInput}
-              onChange={(e) => handleMarginChange(e.target.value)}
+              onChange={(e) => handleMarginChange(e.target.value.replace(/[^0-9.]/g, ''))}
               placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
@@ -860,11 +860,15 @@ function Editor({
         ) : (
           <Field label="수량 (주)">
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="any"
+              pattern="[0-9.]*"
               value={draft.shares || ''}
-              onChange={(e) => setDraft({ ...draft, shares: Number(e.target.value) || 0 })}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^0-9.]/g, '');
+                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
+                setDraft({ ...draft, shares: Number(cleaned) || 0 });
+              }}
               placeholder="0"
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{

@@ -524,13 +524,21 @@ function NumInput({
   onChange: (n: number) => void;
   step?: string;
 }) {
+  // step like "0.01" or "0.1" → allow decimals (uses text+inputMode=decimal so iOS shows the . key)
+  const decimal = !!step && step.includes('.');
   return (
     <input
-      type="number"
-      inputMode="numeric"
+      type="text"
+      inputMode={decimal ? 'decimal' : 'numeric'}
+      pattern={decimal ? '[0-9.]*' : '[0-9]*'}
       value={value || ''}
-      onChange={(e) => onChange(Number(e.target.value) || 0)}
-      step={step}
+      onChange={(e) => {
+        const allowed = decimal ? /[^0-9.]/g : /[^0-9]/g;
+        const raw = e.target.value.replace(allowed, '');
+        const cleaned =
+          decimal && (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
+        onChange(Number(cleaned) || 0);
+      }}
       placeholder="0"
       className="tnum h-12 w-full rounded-xl px-4 outline-none"
       style={{
