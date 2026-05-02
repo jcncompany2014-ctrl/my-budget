@@ -8,6 +8,7 @@ import {
   Briefcase,
   Building2,
   Car,
+  CircleDollarSign,
   Coffee,
   CreditCard,
   Cross,
@@ -39,6 +40,7 @@ import {
 } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { CATEGORIES } from '@/lib/categories';
+import { ICON_MAP } from '../ui/IconPicker';
 
 /**
  * Lucide-icon mapping for every category id.
@@ -146,7 +148,54 @@ export default function CategoryIcon({
     );
   }
 
-  // Fallback to legacy emoji for custom categories
+  // Custom-category fallback: use the category's stored icon string.
+  // 'lucide:Name' resolves through ICON_MAP, anything else renders as emoji glyph.
+  // If neither is set, fall back to a neutral money icon.
+  const stored = cat?.emoji ?? '';
+  if (stored.startsWith('lucide:')) {
+    const key = stored.slice('lucide:'.length);
+    const CustomIcon = ICON_MAP[key];
+    if (CustomIcon) {
+      return (
+        <div
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            background: `${color}1f`,
+            color,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            ...style,
+          }}
+        >
+          <CustomIcon size={size * 0.52} strokeWidth={2.2} />
+        </div>
+      );
+    }
+  }
+  if (!stored) {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: `${color}1f`,
+          color,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          ...style,
+        }}
+      >
+        <CircleDollarSign size={size * 0.52} strokeWidth={2.2} />
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -162,7 +211,7 @@ export default function CategoryIcon({
         ...style,
       }}
     >
-      {cat?.emoji ?? '💰'}
+      {stored}
     </div>
   );
 }

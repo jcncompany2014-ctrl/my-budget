@@ -1,5 +1,6 @@
 'use client';
 
+import { Check, Globe, Lightbulb, Star } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import DatePickerSection from '@/components/DatePickerSection';
@@ -7,6 +8,7 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import Keypad from '@/components/Keypad';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
+import { IconDisplay } from '@/components/ui/IconPicker';
 import { useAccounts } from '@/lib/accounts';
 import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categorize';
 import { useBusinessProfile } from '@/lib/business-profile';
@@ -392,7 +394,8 @@ function AddPage() {
                   fontWeight: 700,
                 }}
               >
-                💡 평소 {fmt(amountHint)}원
+                <Lightbulb size={12} strokeWidth={2.4} />
+                <span>평소 {fmt(amountHint)}원</span>
               </button>
             </div>
           )}
@@ -684,7 +687,7 @@ function AddPage() {
                     <button
                       type="button"
                       onClick={() => setLocationId('')}
-                      className="tap shrink-0 rounded-2xl px-4 py-2"
+                      className="tap inline-flex shrink-0 items-center gap-1 rounded-2xl px-4 py-2"
                       style={{
                         background: !locationId ? 'var(--color-primary)' : 'var(--color-gray-100)',
                         color: !locationId ? '#fff' : 'var(--color-text-2)',
@@ -692,7 +695,8 @@ function AddPage() {
                         fontWeight: 700,
                       }}
                     >
-                      🌐 전체
+                      <Globe size={13} strokeWidth={2.4} aria-hidden />
+                      <span>전체</span>
                     </button>
                     {locations.map((l) => {
                       const sel = locationId === l.id;
@@ -701,7 +705,7 @@ function AddPage() {
                           key={l.id}
                           type="button"
                           onClick={() => setLocationId(l.id)}
-                          className="tap shrink-0 rounded-2xl px-4 py-2"
+                          className="tap inline-flex shrink-0 items-center gap-1 rounded-2xl px-4 py-2"
                           style={{
                             background: sel ? `${l.color}22` : 'var(--color-gray-100)',
                             color: sel ? l.color : 'var(--color-text-2)',
@@ -710,7 +714,12 @@ function AddPage() {
                             fontWeight: 700,
                           }}
                         >
-                          {l.emoji} {l.name}
+                          <IconDisplay
+                            value={l.emoji}
+                            size={13}
+                            color={sel ? l.color : 'var(--color-text-2)'}
+                          />
+                          <span>{l.name}</span>
                         </button>
                       );
                     })}
@@ -733,7 +742,8 @@ function AddPage() {
                       fontWeight: 700,
                     }}
                   >
-                    {outstanding ? '✓' : ''} 외상 (미수/미지급)
+                    {outstanding && <Check size={12} strokeWidth={3} aria-hidden />}
+                    <span>외상 (미수/미지급)</span>
                   </button>
                   <button
                     type="button"
@@ -748,7 +758,8 @@ function AddPage() {
                       fontWeight: 700,
                     }}
                   >
-                    {hasReceipt ? '✓' : ''} 증빙 있음
+                    {hasReceipt && <Check size={12} strokeWidth={3} aria-hidden />}
+                    <span>증빙 있음</span>
                   </button>
                 </div>
               </section>
@@ -859,17 +870,15 @@ function AddPage() {
             <button
               type="button"
               onClick={() => submit(true)}
-              className="tap h-14 w-16 rounded-2xl"
+              className="tap flex h-14 w-16 items-center justify-center rounded-2xl"
               style={{
                 background: 'var(--color-primary-soft)',
                 color: 'var(--color-primary)',
-                fontSize: 'var(--text-xs)',
-                fontWeight: 700,
               }}
               aria-label="즐겨찾기로 저장"
               title="즐겨찾기로 저장"
             >
-              ⭐
+              <Star size={22} strokeWidth={2.2} fill="currentColor" />
             </button>
             <button
               type="button"

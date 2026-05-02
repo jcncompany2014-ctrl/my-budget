@@ -21,52 +21,6 @@ export const PALETTE = [
   '#0064FF',
 ];
 
-export const ACCOUNT_EMOJIS = ['🏦', '💳', '💵', '💰', '💼', '🏧', '🪙', '📊'];
-export const GOAL_EMOJIS = ['🎯', '🏝️', '💻', '🛟', '🚗', '🏠', '✈️', '💍', '🎓', '👶', '💎', '🎮'];
-export const LOAN_EMOJIS = ['🏦', '🏠', '🚗', '🎓', '💼', '💳', '🏢', '📚'];
-export const RECURRING_EMOJIS = [
-  '🎬',
-  '🎵',
-  '🤖',
-  '▶️',
-  '🌬️',
-  '🏢',
-  '📱',
-  '☁️',
-  '📺',
-  '🎮',
-  '📰',
-  '🍔',
-];
-export const CHALLENGE_EMOJIS = ['🎯', '⛳', '🥇', '🏃', '💪', '🔥', '🚀', '✨', '🏆', '⭐'];
-export const LOCATION_EMOJIS = ['🏪', '🏢', '🏬', '🏭', '🏨', '🏠', '🍴', '☕', '🛒', '🚪'];
-export const CATEGORY_EMOJIS = [
-  '💰',
-  '🍕',
-  '🎁',
-  '🎮',
-  '📦',
-  '🚗',
-  '🏠',
-  '🎵',
-  '✈️',
-  '⚡',
-  '💼',
-  '🛒',
-  '👶',
-  '🎓',
-  '🏥',
-  '🧧',
-  '🍷',
-  '🎨',
-  '📚',
-  '⚽',
-  '🎤',
-  '🌱',
-  '🐶',
-  '🍦',
-];
-
 export const QUICK_AMOUNTS = [1000, 5000, 10000, 50000, 100000];
 
 export const TYPOGRAPHY = {

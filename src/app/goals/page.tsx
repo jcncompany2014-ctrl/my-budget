@@ -1,11 +1,14 @@
 'use client';
 
+import { Sparkles, Target } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Confetti from '@/components/Confetti';
 import LineChart from '@/components/LineChart';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
+import { IconDisplay } from '@/components/ui/IconPicker';
 import { fmt } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
 
@@ -55,21 +58,13 @@ export default function GoalsPage() {
 
       <section className="px-5 pb-10 pt-2">
         {!ready ? null : goals.length === 0 ? (
-          <Link
-            href="/settings/goals"
-            className="tap flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">🎯</p>
-            <p
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              아직 목표가 없어요
-            </p>
-            <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              여행, 비상금 같은 첫 목표를 만들어 보세요
-            </p>
-          </Link>
+          <EmptyState
+            icon={Target}
+            iconColor="#1FBA6E"
+            title="아직 목표가 없어요"
+            hint="여행, 비상금 같은 첫 목표를 만들어 보세요"
+            cta={{ href: '/settings/goals', label: '목표 만들기' }}
+          />
         ) : (
           <div className="space-y-3">
             {goals.map((g) => {
@@ -89,13 +84,14 @@ export default function GoalsPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl"
-                        style={{ background: `${g.color}1f` }}
+                        className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                        style={{ background: `${g.color}1f`, color: g.color }}
                       >
-                        {g.emoji}
+                        <IconDisplay value={g.emoji} size={24} color={g.color} />
                       </div>
                       <div>
                         <p
+                          className="flex items-center gap-1.5"
                           style={{
                             color: 'var(--color-text-1)',
                             fontSize: 'var(--text-base)',
@@ -103,7 +99,9 @@ export default function GoalsPage() {
                           }}
                         >
                           {g.name}
-                          {completed && <span className="ml-1.5">🎉</span>}
+                          {completed && (
+                            <Sparkles size={14} strokeWidth={2.4} color={g.color} aria-hidden />
+                          )}
                         </p>
                         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
                           목표일 · {dDay(g.due)}

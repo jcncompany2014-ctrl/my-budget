@@ -1,5 +1,7 @@
 'use client';
 
+import { Delete } from 'lucide-react';
+
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'] as const;
 
 type Props = {
@@ -44,10 +46,11 @@ export default function Keypad({ value, onChange }: Props) {
           key={k}
           type="button"
           onClick={() => press(k)}
-          className="tap h-14 rounded-xl text-[26px] font-medium tracking-tight"
+          className="tap flex h-14 items-center justify-center rounded-xl text-[26px] font-medium tracking-tight"
           style={{ color: 'var(--color-text-1)' }}
+          aria-label={k === 'del' ? '지우기' : k}
         >
-          {k === 'del' ? '⌫' : k}
+          {k === 'del' ? <Delete size={26} strokeWidth={2.2} /> : k}
         </button>
       ))}
     </div>

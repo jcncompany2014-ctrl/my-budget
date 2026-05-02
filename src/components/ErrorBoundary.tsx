@@ -1,5 +1,6 @@
 'use client';
 
+import { AlertTriangle } from 'lucide-react';
 import { Component, type ReactNode } from 'react';
 
 type Props = { children: ReactNode };
@@ -32,7 +33,13 @@ export default class ErrorBoundary extends Component<Props, State> {
             className="w-full max-w-[440px] rounded-2xl p-6 text-center"
             style={{ background: 'var(--color-card)' }}
           >
-            <p style={{ fontSize: 40, lineHeight: 1, marginBottom: 12 }}>⚠️</p>
+            <span
+              aria-hidden
+              className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full"
+              style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
+            >
+              <AlertTriangle size={28} strokeWidth={2.2} />
+            </span>
             <p
               className="mb-2"
               style={{

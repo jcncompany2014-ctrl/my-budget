@@ -1,5 +1,6 @@
 'use client';
 
+import { LineChart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AssetIcon from '@/components/icons/AssetIcon';
@@ -8,6 +9,7 @@ import Money from '@/components/Money';
 import { SkeletonList } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { useInvestments } from '@/lib/investments';
@@ -216,24 +218,12 @@ export default function InvestmentsPage() {
 
       <section className="px-5 pb-3 pt-2">
         {list.length === 0 ? (
-          <div
-            className="rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">📈</p>
-            <p
-              className="mt-2"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              투자 자산을 추가해 보세요
-            </p>
-            <p
-              className="mt-1"
-              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
-            >
-              주 통화로 평단을 입력하면 KRW 환산까지 실시간으로
-            </p>
-          </div>
+          <EmptyState
+            icon={LineChart}
+            iconColor="#00B956"
+            title="투자 자산을 추가해 보세요"
+            hint="주 통화로 평단을 입력하면 KRW 환산까지 실시간으로"
+          />
         ) : (
           <div className="space-y-2">
             {enriched.map((e) => {

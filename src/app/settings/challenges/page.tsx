@@ -3,6 +3,7 @@
 import { Trophy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
@@ -296,7 +297,7 @@ function Editor({
                 key={c.id}
                 type="button"
                 onClick={() => setDraft({ ...draft, cat: c.id })}
-                className="tap rounded-full px-3 py-1.5"
+                className="tap inline-flex items-center gap-1 rounded-full px-3 py-1.5"
                 style={{
                   background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
                   color: sel ? '#fff' : 'var(--color-text-2)',
@@ -304,7 +305,8 @@ function Editor({
                   fontWeight: 700,
                 }}
               >
-                {c.emoji} {c.name}
+                <CategoryIcon catId={c.id} bare size={13} />
+                <span>{c.name}</span>
               </button>
             );
           })}

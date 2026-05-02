@@ -6,6 +6,7 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import { IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import { useCustomCategories } from '@/lib/customCategories';
@@ -26,24 +27,6 @@ const COLORS = [
   '#0EA5E9',
   '#94A3B8',
   '#1FBA6E',
-];
-const EMOJIS = [
-  '💰',
-  '🍕',
-  '🎁',
-  '🎮',
-  '📦',
-  '🚗',
-  '🏠',
-  '🎵',
-  '✈️',
-  '⚡',
-  '💼',
-  '🛒',
-  '👶',
-  '🎓',
-  '🏥',
-  '🧧',
 ];
 
 export default function CategoriesPage() {
@@ -77,7 +60,7 @@ export default function CategoriesPage() {
     setEditing({
       id: 'cc-' + Date.now().toString(36),
       name: '',
-      emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+      emoji: 'lucide:Banknote',
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       scope: mode,
       kind: tab === 'income' ? 'income' : undefined,
@@ -161,12 +144,7 @@ export default function CategoriesPage() {
                     i < visible.custom.length - 1 ? '1px solid var(--color-divider)' : 'none',
                 }}
               >
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-lg"
-                  style={{ background: `${c.color}1f` }}
-                >
-                  {c.emoji}
-                </div>
+                <CategoryIcon catId={c.id} size={40} />
                 <div className="flex-1">
                   <p
                     style={{
@@ -312,25 +290,14 @@ function CategoryEditor({
           className="mb-1.5 block"
           style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
         >
-          이모지
+          아이콘
         </label>
-        <div className="flex flex-wrap gap-2">
-          {COLORS.length &&
-            EMOJIS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setDraft({ ...draft, emoji: e })}
-                className="tap flex h-10 w-10 items-center justify-center rounded-full text-xl"
-                style={{
-                  background: draft.emoji === e ? `${draft.color}33` : 'var(--color-gray-100)',
-                  border: `2px solid ${draft.emoji === e ? draft.color : 'transparent'}`,
-                }}
-              >
-                {e}
-              </button>
-            ))}
-        </div>
+        <IconPicker
+          set="categories"
+          value={draft.emoji}
+          onChange={(v) => setDraft({ ...draft, emoji: v })}
+          color={draft.color}
+        />
       </div>
 
       <div className="mb-3">
@@ -382,7 +349,7 @@ function CategoryEditor({
                 key={p.id}
                 type="button"
                 onClick={() => setDraft({ ...draft, parent: p.id })}
-                className="tap rounded-full px-3 py-1.5"
+                className="tap inline-flex items-center gap-1 rounded-full px-3 py-1.5"
                 style={{
                   background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
                   color: sel ? '#fff' : 'var(--color-text-2)',
@@ -390,7 +357,8 @@ function CategoryEditor({
                   fontWeight: 700,
                 }}
               >
-                {p.emoji} {p.name}
+                <CategoryIcon catId={p.id} bare size={13} />
+                <span>{p.name}</span>
               </button>
             );
           })}

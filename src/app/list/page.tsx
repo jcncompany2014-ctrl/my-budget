@@ -1,5 +1,6 @@
 'use client';
 
+import { Inbox } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
@@ -8,6 +9,7 @@ import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
+import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { fmt, isExpense } from '@/lib/format';
@@ -306,20 +308,12 @@ export default function ListPage() {
       {/* Day groups */}
       <section className="space-y-3 px-5 pb-24">
         {groupedByDay.length === 0 && (
-          <div
-            className="flex flex-col items-center gap-2 rounded-2xl px-6 py-16 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">📭</p>
-            <p
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              내역이 없어요
-            </p>
-            <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              아래 + 버튼으로 거래를 추가하세요
-            </p>
-          </div>
+          <EmptyState
+            icon={Inbox}
+            iconColor="#94A3B8"
+            title="내역이 없어요"
+            hint="아래 + 버튼으로 거래를 추가하세요"
+          />
         )}
         {groupedByDay.map(([day, items]) => {
           const total = items.reduce((s, t) => s + (isExpense(t) ? Math.abs(t.amount) : 0), 0);

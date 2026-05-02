@@ -1,11 +1,13 @@
 'use client';
 
+import { Ruler } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import type { CategoryRule } from '@/lib/category-rules';
 import { useCategoryRules } from '@/lib/category-rules';
@@ -107,7 +109,7 @@ export default function CategoryRulesPage() {
             >
               {cats.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.emoji} {c.name}
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -131,24 +133,12 @@ export default function CategoryRulesPage() {
 
       <section className="px-5 pb-10 pt-2">
         {items.length === 0 ? (
-          <div
-            className="rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p style={{ fontSize: 32, lineHeight: 1 }}>📐</p>
-            <p
-              className="mt-2"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              규칙이 없어요
-            </p>
-            <p
-              className="mt-1"
-              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
-            >
-              위에서 첫 규칙을 추가하세요
-            </p>
-          </div>
+          <EmptyState
+            icon={Ruler}
+            iconColor="#EC4899"
+            title="규칙이 없어요"
+            hint="위에서 첫 규칙을 추가하세요"
+          />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {items.map((r: CategoryRule, i: number) => {
@@ -187,7 +177,7 @@ export default function CategoryRulesPage() {
                   >
                     {cats.map((cc) => (
                       <option key={cc.id} value={cc.id}>
-                        {cc.emoji} {cc.name}
+                        {cc.name}
                       </option>
                     ))}
                   </select>

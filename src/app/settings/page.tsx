@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Banknote,
   BarChart3,
+  Briefcase,
   CalendarDays,
   CalendarRange,
   CircleDollarSign,
@@ -17,6 +18,7 @@ import {
   FileText,
   Globe,
   HardDrive,
+  Home,
   Info,
   Languages,
   LayoutGrid,
@@ -393,16 +395,23 @@ export default function SettingsPage() {
       {/* 다른 모드 안내 */}
       <section className="px-5 pb-1">
         <p
-          className="px-1 py-2"
+          className="flex items-center gap-1.5 px-1 py-2"
           style={{
             color: 'var(--color-text-3)',
             fontSize: 11,
             fontWeight: 500,
           }}
         >
-          {mode === 'personal'
-            ? '💼 사업 모드로 전환하면 거래처·직원·세무 메뉴가 보여요'
-            : '🏠 개인 모드로 전환하면 예산·저축 목표·정기결제 메뉴가 보여요'}
+          {mode === 'personal' ? (
+            <Briefcase size={12} strokeWidth={2.4} aria-hidden />
+          ) : (
+            <Home size={12} strokeWidth={2.4} aria-hidden />
+          )}
+          <span>
+            {mode === 'personal'
+              ? '사업 모드로 전환하면 거래처·직원·세무 메뉴가 보여요'
+              : '개인 모드로 전환하면 예산·저축 목표·정기결제 메뉴가 보여요'}
+          </span>
         </p>
       </section>
 

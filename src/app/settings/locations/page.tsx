@@ -1,6 +1,6 @@
 'use client';
 
-import { Store } from 'lucide-react';
+import { Globe, Store } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useToast } from '@/components/Toast';
@@ -76,9 +76,9 @@ export default function LocationsPage() {
               <div className="flex items-center gap-3">
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-full"
-                  style={{ background: 'var(--color-gray-150)' }}
+                  style={{ background: 'var(--color-gray-150)', color: 'var(--color-text-2)' }}
                 >
-                  🌐
+                  <Globe size={18} strokeWidth={2.2} />
                 </div>
                 <span
                   style={{

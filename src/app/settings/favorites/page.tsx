@@ -2,6 +2,7 @@
 
 import { Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
@@ -40,9 +41,13 @@ export default function FavoritesPage() {
       />
 
       <section className="px-5 pb-3 pt-1">
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          거래 추가 화면 ⭐ 버튼으로 등록할 수 있어요. 빠른 입력에서 한 번 누르면 즉시 거래
-          추가됩니다.
+        <p
+          className="inline-flex flex-wrap items-center gap-1"
+          style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+        >
+          거래 추가 화면
+          <Star size={12} strokeWidth={2.4} fill="currentColor" aria-hidden />
+          버튼으로 등록할 수 있어요. 빠른 입력에서 한 번 누르면 즉시 거래 추가됩니다.
         </p>
       </section>
 
@@ -52,7 +57,7 @@ export default function FavoritesPage() {
             icon={Star}
             iconColor="#F59E0B"
             title="즐겨찾기가 없어요"
-            hint="거래 추가 화면에서 ⭐ 버튼을 누르면 한 번에 등록됩니다"
+            hint="거래 추가 화면의 별 버튼을 누르면 한 번에 등록됩니다"
           />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
@@ -64,7 +69,7 @@ export default function FavoritesPage() {
                   borderBottom: i < list.length - 1 ? '1px solid var(--color-divider)' : 'none',
                 }}
               >
-                <span style={{ fontSize: 22 }}>{f.emoji}</span>
+                <CategoryIcon catId={f.cat} size={32} />
                 <div className="min-w-0 flex-1">
                   <p
                     style={{

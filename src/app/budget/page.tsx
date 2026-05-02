@@ -1,11 +1,13 @@
 'use client';
 
+import { BarChart3, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
@@ -87,18 +89,12 @@ export default function BudgetPage() {
           </h2>
 
           {businessBreakdown.arr.length === 0 ? (
-            <div
-              className="flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center"
-              style={{ background: 'var(--color-card)' }}
-            >
-              <p className="text-3xl">🧾</p>
-              <p className="text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
-                사업 비용 거래를 추가해 보세요
-              </p>
-              <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-                + 버튼으로 임대료, 인건비, 매입을 기록하면 분석돼요
-              </p>
-            </div>
+            <EmptyState
+              icon={Receipt}
+              iconColor="#F59E0B"
+              title="사업 비용 거래를 추가해 보세요"
+              hint="+ 버튼으로 임대료, 인건비, 매입을 기록하면 분석돼요"
+            />
           ) : (
             <div
               className="overflow-hidden rounded-2xl"
@@ -186,19 +182,13 @@ export default function BudgetPage() {
 
       {!budgetsReady ? null : personalBudgets.length === 0 ? (
         <section className="px-5 pb-10 pt-4">
-          <Link
-            href="/settings/budgets"
-            className="tap flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">📊</p>
-            <p className="text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
-              예산을 설정해 보세요
-            </p>
-            <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-              카테고리별로 한 달 한도를 정해두면 진행률이 보여요
-            </p>
-          </Link>
+          <EmptyState
+            icon={BarChart3}
+            iconColor="#FF8A1F"
+            title="예산을 설정해 보세요"
+            hint="카테고리별로 한 달 한도를 정해두면 진행률이 보여요"
+            cta={{ href: '/settings/budgets', label: '예산 설정' }}
+          />
         </section>
       ) : (
         <>

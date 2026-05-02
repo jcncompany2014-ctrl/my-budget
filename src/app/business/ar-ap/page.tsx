@@ -1,9 +1,11 @@
 'use client';
 
+import { Briefcase, Receipt } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
+import EmptyState from '@/components/ui/EmptyState';
 import { useTransactions } from '@/lib/storage';
 
 type Tab = 'receivable' | 'payable';
@@ -71,24 +73,12 @@ export default function ArApPage() {
 
       <section className="px-5 pb-10 pt-2">
         {items.length === 0 ? (
-          <div
-            className="rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">{tab === 'receivable' ? '🧾' : '💼'}</p>
-            <p
-              className="mt-2"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              {tab === 'receivable' ? '받을 돈이 없어요' : '줄 돈이 없어요'}
-            </p>
-            <p
-              className="mt-1"
-              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
-            >
-              거래 편집에서 외상으로 표시할 수 있어요
-            </p>
-          </div>
+          <EmptyState
+            icon={tab === 'receivable' ? Receipt : Briefcase}
+            iconColor={tab === 'receivable' ? '#3182F6' : '#EF4444'}
+            title={tab === 'receivable' ? '받을 돈이 없어요' : '줄 돈이 없어요'}
+            hint="거래 편집에서 외상으로 표시할 수 있어요"
+          />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {items.map((t, i) => (

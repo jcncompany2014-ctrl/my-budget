@@ -1,10 +1,12 @@
 'use client';
 
+import { Handshake } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
 import { useTransactions } from '@/lib/storage';
 import { useVendors } from '@/lib/vendors';
 
@@ -55,30 +57,12 @@ export default function BusinessVendorsPage() {
 
       <section className="px-5 pb-10 pt-2">
         {ranked.length === 0 ? (
-          <div
-            className="rounded-2xl px-6 py-16 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">🤝</p>
-            <p
-              className="mt-2"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            >
-              거래처를 등록하고 거래 추가 시 연결하세요
-            </p>
-            <Link
-              href="/settings/vendors"
-              className="mt-3 inline-block rounded-full px-4 py-2"
-              style={{
-                background: 'var(--color-primary)',
-                color: '#fff',
-                fontSize: 'var(--text-xs)',
-                fontWeight: 700,
-              }}
-            >
-              거래처 등록
-            </Link>
-          </div>
+          <EmptyState
+            icon={Handshake}
+            iconColor="#0EA5E9"
+            title="거래처를 등록하고 거래 추가 시 연결하세요"
+            cta={{ href: '/settings/vendors', label: '거래처 등록' }}
+          />
         ) : (
           <div className="space-y-2">
             {ranked.map((v) => {

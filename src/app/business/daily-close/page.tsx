@@ -6,6 +6,7 @@ import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
 import Card from '@/components/ui/Card';
+import { IconDisplay } from '@/components/ui/IconPicker';
 import Section from '@/components/ui/Section';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
@@ -69,8 +70,12 @@ export default function DailyClosePage() {
           }}
         />
         {activeLoc && (
-          <p className="mt-2" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-            🏪 {activeLoc.name} 사업장 기준
+          <p
+            className="mt-2 flex items-center gap-1"
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+          >
+            <IconDisplay value={activeLoc.emoji} size={14} color="var(--color-text-3)" />
+            <span>{activeLoc.name} 사업장 기준</span>
           </p>
         )}
       </Section>

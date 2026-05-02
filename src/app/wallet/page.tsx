@@ -1,5 +1,6 @@
 'use client';
 
+import { Landmark, LineChart } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import CountUp from '@/components/CountUp';
@@ -10,6 +11,8 @@ import Money from '@/components/Money';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
+import { IconDisplay } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { useCreditLines } from '@/lib/credit-lines';
@@ -249,27 +252,17 @@ export default function WalletPage() {
 
       {accounts.length === 0 && modeLoans.length === 0 && (
         <section className="px-5 pt-3">
-          <Link
-            href="/settings/accounts"
-            className="tap flex flex-col items-center gap-2 rounded-2xl px-6 py-12 text-center"
-            style={{ background: 'var(--color-card)' }}
-          >
-            <p className="text-3xl">🏦</p>
-            <p
-              style={{
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 700,
-              }}
-            >
-              {mode === 'business' ? '사업 계좌' : '개인 계좌'}를 추가해 보세요
-            </p>
-            <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              {mode === 'business'
+          <EmptyState
+            icon={Landmark}
+            iconColor="#3182F6"
+            title={`${mode === 'business' ? '사업 계좌' : '개인 계좌'}를 추가해 보세요`}
+            hint={
+              mode === 'business'
                 ? '사업 통장, 사업용 카드, 사업장 현금 등'
-                : '은행, 카드, 현금, 투자 계좌까지 등록 가능'}
-            </p>
-          </Link>
+                : '은행, 카드, 현금, 투자 계좌까지 등록 가능'
+            }
+            cta={{ href: '/settings/accounts', label: '계좌 추가' }}
+          />
         </section>
       )}
 
@@ -360,10 +353,10 @@ export default function WalletPage() {
               style={{ background: 'var(--color-card)' }}
             >
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-white"
-                style={{ background: '#8B95A1', fontSize: 'var(--text-base)' }}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white"
+                style={{ background: '#8B95A1' }}
               >
-                📈
+                <LineChart size={22} strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
                 <p
@@ -425,10 +418,10 @@ export default function WalletPage() {
               style={{ background: 'var(--color-card)' }}
             >
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl"
-                style={{ background: `${l.color}1f` }}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                style={{ background: `${l.color}1f`, color: l.color }}
               >
-                {l.emoji}
+                <IconDisplay value={l.emoji} size={22} color={l.color} />
               </div>
               <div className="min-w-0 flex-1">
                 <p

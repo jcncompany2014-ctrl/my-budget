@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import { Inbox, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 
 type Props = {
@@ -57,8 +57,10 @@ export default function EmptyState({
         )}
         {Icon ? (
           <Icon size={28} strokeWidth={2.2} />
+        ) : emoji ? (
+          <span style={{ fontSize: 32, lineHeight: 1 }}>{emoji}</span>
         ) : (
-          <span style={{ fontSize: 32, lineHeight: 1 }}>{emoji ?? '📭'}</span>
+          <Inbox size={28} strokeWidth={2.2} color="var(--color-text-3)" />
         )}
       </div>
       <p style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 700 }}>{title}</p>

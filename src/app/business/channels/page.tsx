@@ -1,9 +1,12 @@
 'use client';
 
+import { LineChart } from 'lucide-react';
 import { useMemo } from 'react';
 import CategoryDonut from '@/components/CategoryDonut';
+import CategoryIcon from '@/components/icons/CategoryIcon';
 import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
+import EmptyState from '@/components/ui/EmptyState';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
@@ -26,7 +29,6 @@ export default function ChannelsPage() {
         byChannel: [] as {
           cat: string;
           name: string;
-          emoji: string;
           color: string;
           value: number;
         }[],
@@ -44,7 +46,6 @@ export default function ChannelsPage() {
     const byChannel = CHANNEL_CATS.map((cat) => ({
       cat,
       name: CATEGORIES[cat]?.name ?? cat,
-      emoji: CATEGORIES[cat]?.emoji ?? '💰',
       color: CATEGORIES[cat]?.color ?? '#94A3B8',
       value: map.get(cat) ?? 0,
     }))
@@ -58,20 +59,13 @@ export default function ChannelsPage() {
       <TopBar title="매출 채널" />
 
       {data.total === 0 ? (
-        <div
-          className="mx-5 rounded-2xl px-6 py-16 text-center"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p className="text-3xl">📈</p>
-          <p
-            className="mt-2"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-          >
-            이번 달 매출이 없어요
-          </p>
-          <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-            카드/현금/계좌/배달앱 매출을 입력하면 분석이 시작돼요
-          </p>
+        <div className="px-5">
+          <EmptyState
+            icon={LineChart}
+            iconColor="#3182F6"
+            title="이번 달 매출이 없어요"
+            hint="카드/현금/계좌/배달앱 매출을 입력하면 분석이 시작돼요"
+          />
         </div>
       ) : (
         <>
@@ -80,7 +74,6 @@ export default function ChannelsPage() {
               data={data.byChannel.map((c) => ({
                 catId: c.cat,
                 name: c.name,
-                emoji: c.emoji,
                 color: c.color,
                 value: c.value,
               }))}
@@ -114,12 +107,7 @@ export default function ChannelsPage() {
                         i < data.byChannel.length - 1 ? '1px solid var(--color-divider)' : 'none',
                     }}
                   >
-                    <div
-                      className="flex h-10 w-10 items-center justify-center rounded-full text-base"
-                      style={{ background: `${c.color}1f` }}
-                    >
-                      {c.emoji}
-                    </div>
+                    <CategoryIcon catId={c.cat} size={40} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between">
                         <span

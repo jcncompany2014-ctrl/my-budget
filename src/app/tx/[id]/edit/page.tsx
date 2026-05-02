@@ -429,7 +429,7 @@ function SplitsEditor({
                 >
                   {cats.map((cc) => (
                     <option key={cc.id} value={cc.id}>
-                      {cc.emoji} {cc.name}
+                      {cc.name}
                     </option>
                   ))}
                 </select>

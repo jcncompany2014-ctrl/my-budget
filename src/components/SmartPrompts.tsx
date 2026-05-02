@@ -226,7 +226,7 @@ export default function SmartPrompts() {
                       const item: RecurringItem = {
                         id: 'r-' + Date.now().toString(36),
                         name: s.merchant,
-                        emoji: '🔁',
+                        emoji: 'lucide:Repeat',
                         amount: s.amount,
                         day,
                         cat: s.cat,

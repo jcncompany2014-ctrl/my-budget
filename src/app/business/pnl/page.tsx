@@ -1,5 +1,6 @@
 'use client';
 
+import { Store } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import CountUp from '@/components/CountUp';
 import CategoryIcon from '@/components/icons/CategoryIcon';
@@ -9,6 +10,7 @@ import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import Card from '@/components/ui/Card';
 import IconCircle from '@/components/ui/IconCircle';
+import { IconDisplay } from '@/components/ui/IconPicker';
 import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
 import { CATEGORIES } from '@/lib/categories';
@@ -334,7 +336,11 @@ export default function PnLPage() {
                     background={loc ? `${loc.color}1f` : 'var(--color-gray-150)'}
                     fontSize={16}
                   >
-                    {loc?.emoji ?? '🏪'}
+                    {loc ? (
+                      <IconDisplay value={loc.emoji} size={18} color={loc.color} />
+                    ) : (
+                      <Store size={18} strokeWidth={2.2} color="var(--color-text-3)" />
+                    )}
                   </IconCircle>
                   <div className="min-w-0 flex-1">
                     <p

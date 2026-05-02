@@ -128,7 +128,6 @@ export default function StatsPage() {
         catId: cat,
         value,
         name: CATEGORIES[cat]?.name ?? '기타',
-        emoji: CATEGORIES[cat]?.emoji ?? '💰',
         color: CATEGORIES[cat]?.color ?? '#94A3B8',
       }))
       .sort((a, b) => b.value - a.value);
@@ -452,12 +451,7 @@ export default function StatsPage() {
                         i < byCat.length - 1 ? '1px solid var(--color-divider)' : 'none',
                     }}
                   >
-                    <div
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-base"
-                      style={{ background: `${s.color}1f` }}
-                    >
-                      {s.emoji}
-                    </div>
+                    <CategoryIcon catId={s.catId} size={36} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between">
                         <p

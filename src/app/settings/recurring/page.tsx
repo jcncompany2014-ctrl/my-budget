@@ -302,7 +302,7 @@ function RecurringEditor({
                   border: `2px solid ${sel ? c.color : 'transparent'}`,
                 }}
               >
-                <span className="text-base">{c.emoji}</span>
+                <CategoryIcon catId={c.id} bare size={16} />
                 <span
                   className="text-[10px] font-semibold"
                   style={{ color: 'var(--color-text-2)' }}

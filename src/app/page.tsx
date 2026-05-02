@@ -12,8 +12,11 @@ import {
   LineChart,
   type LucideIcon,
   Minus,
+  NotebookPen,
   Receipt,
+  ShoppingBag,
   Store,
+  Target,
   TrendingDown,
   TrendingUp,
   Users,
@@ -29,6 +32,7 @@ import { SkeletonHome } from '@/components/Skeleton';
 import SmartPrompts from '@/components/SmartPrompts';
 import TxRow from '@/components/TxRow';
 import UpcomingRecurring from '@/components/UpcomingRecurring';
+import { IconDisplay } from '@/components/ui/IconPicker';
 import { useAccounts } from '@/lib/accounts';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
@@ -131,7 +135,7 @@ export default function HomePage() {
       {/* Greeting */}
       <section className="px-5 pb-3 pt-2">
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
-          {profile.name ? `안녕하세요, ${profile.name}님 👋` : '안녕하세요 👋'}
+          {profile.name ? `안녕하세요, ${profile.name}님` : '안녕하세요'}
         </p>
         <h1
           className="mt-0.5 tracking-tight"
@@ -315,7 +319,8 @@ function PersonalHome({
         >
           {budgetEntries.length === 0 ? (
             <EmptyInline
-              icon="📊"
+              icon={BarChart3}
+              iconColor="#FF8A1F"
               title="예산을 설정해 보세요"
               hint="카테고리별 한 달 한도를 정하면 진행률이 보여요"
             />
@@ -404,7 +409,8 @@ function PersonalHome({
           </div>
           {topCats.length === 0 ? (
             <EmptyInline
-              icon="🛒"
+              icon={ShoppingBag}
+              iconColor="#F472B6"
               title="이번 달 지출이 없어요"
               hint="+ 버튼으로 첫 거래를 추가하세요"
             />
@@ -527,7 +533,8 @@ function PersonalHome({
           </Link>
           {goals.length === 0 ? (
             <EmptyInline
-              icon="🎯"
+              icon={Target}
+              iconColor="#1FBA6E"
               title="첫 목표를 만들어 보세요"
               hint="제주도 여행, 비상금 같은 목표"
               cta={{ href: '/settings/goals', label: '목표 만들기' }}
@@ -545,10 +552,10 @@ function PersonalHome({
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <div
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-base"
-                        style={{ background: `${g.color}22` }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full"
+                        style={{ background: `${g.color}22`, color: g.color }}
                       >
-                        {g.emoji}
+                        <IconDisplay value={g.emoji} size={16} color={g.color} />
                       </div>
                       <p
                         style={{
@@ -962,19 +969,27 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
 }
 
 function EmptyInline({
-  icon,
+  icon: Icon,
+  iconColor = 'var(--color-text-3)',
   title,
   hint,
   cta,
 }: {
-  icon: string;
+  icon: LucideIcon;
+  iconColor?: string;
   title: string;
   hint?: string;
   cta?: { href: string; label: string };
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 py-4 text-center">
-      <p className="text-2xl">{icon}</p>
+    <div className="flex flex-col items-center gap-1.5 py-4 text-center">
+      <span
+        aria-hidden
+        className="flex h-10 w-10 items-center justify-center rounded-full"
+        style={{ background: `${iconColor}1f`, color: iconColor }}
+      >
+        <Icon size={20} strokeWidth={2.2} />
+      </span>
       <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
         {title}
       </p>
@@ -1017,7 +1032,8 @@ function RecentTransactions({ tx, businessLabel }: { tx: Transaction[]; business
         {tx.length === 0 ? (
           <div className="px-5 pb-6">
             <EmptyInline
-              icon={businessLabel ? '🧾' : '📝'}
+              icon={businessLabel ? Receipt : NotebookPen}
+              iconColor={businessLabel ? '#F59E0B' : '#3182F6'}
               title={businessLabel ? '첫 거래를 기록해 보세요' : '첫 거래를 추가해 보세요'}
               hint={
                 businessLabel ? '매출/비용 둘 다 추적할 수 있어요' : '가운데 + 버튼을 누르면 시작'
