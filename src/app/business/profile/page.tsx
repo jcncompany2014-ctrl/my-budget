@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import DecimalInput from '@/components/ui/DecimalInput';
 import Section from '@/components/ui/Section';
 import type { BusinessProfile } from '@/lib/business-profile';
 import { useBusinessProfile } from '@/lib/business-profile';
@@ -201,17 +202,9 @@ export default function BusinessProfilePage() {
       <Section title="수수료율">
         <div className="space-y-2 rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
           <Field label="카드 수수료 (%)">
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="[0-9.]*"
-              value={draft.cardFeeRate || ''}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9.]/g, '');
-                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
-                setDraft({ ...draft, cardFeeRate: Number(cleaned) || 0 });
-              }}
-              placeholder="0"
+            <DecimalInput
+              value={draft.cardFeeRate}
+              onChange={(n) => setDraft({ ...draft, cardFeeRate: n })}
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',
@@ -222,17 +215,9 @@ export default function BusinessProfilePage() {
             />
           </Field>
           <Field label="배달앱 수수료 (%)">
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="[0-9.]*"
-              value={draft.deliveryFeeRate || ''}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9.]/g, '');
-                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
-                setDraft({ ...draft, deliveryFeeRate: Number(cleaned) || 0 });
-              }}
-              placeholder="0"
+            <DecimalInput
+              value={draft.deliveryFeeRate}
+              onChange={(n) => setDraft({ ...draft, deliveryFeeRate: n })}
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',
@@ -243,17 +228,9 @@ export default function BusinessProfilePage() {
             />
           </Field>
           <Field label="4대보험 부담률 (%)">
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="[0-9.]*"
-              value={draft.socialInsuranceRate || ''}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9.]/g, '');
-                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
-                setDraft({ ...draft, socialInsuranceRate: Number(cleaned) || 0 });
-              }}
-              placeholder="0"
+            <DecimalInput
+              value={draft.socialInsuranceRate}
+              onChange={(n) => setDraft({ ...draft, socialInsuranceRate: n })}
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',

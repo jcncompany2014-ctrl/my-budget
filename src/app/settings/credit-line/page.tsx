@@ -7,6 +7,7 @@ import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import DecimalInput from '@/components/ui/DecimalInput';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
@@ -334,18 +335,9 @@ function Editor({
       </div>
 
       <Field label="연 이자율 (%)">
-        <input
-          type="text"
-          inputMode="decimal"
-          pattern="[0-9.]*"
-          value={draft.rate || ''}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/[^0-9.]/g, '');
-            const dots = raw.match(/\./g)?.length ?? 0;
-            const cleaned = dots > 1 ? raw.replace(/\.+$/, '') : raw;
-            setDraft({ ...draft, rate: Number(cleaned) || 0 });
-          }}
-          placeholder="0"
+        <DecimalInput
+          value={draft.rate}
+          onChange={(n) => setDraft({ ...draft, rate: n })}
           className="tnum h-12 w-full rounded-xl px-4 outline-none"
           style={{
             background: 'var(--color-gray-100)',

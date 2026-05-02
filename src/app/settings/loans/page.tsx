@@ -7,6 +7,7 @@ import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import DecimalInput from '@/components/ui/DecimalInput';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
@@ -524,20 +525,32 @@ function NumInput({
   onChange: (n: number) => void;
   step?: string;
 }) {
-  // step like "0.01" or "0.1" → allow decimals (uses text+inputMode=decimal so iOS shows the . key)
+  // step like "0.01" or "0.1" → use DecimalInput which handles trailing-dot UX
   const decimal = !!step && step.includes('.');
+  if (decimal) {
+    return (
+      <DecimalInput
+        value={value}
+        onChange={onChange}
+        className="tnum h-12 w-full rounded-xl px-4 outline-none"
+        style={{
+          background: 'var(--color-gray-100)',
+          color: 'var(--color-text-1)',
+          fontSize: 'var(--text-base)',
+          fontWeight: 500,
+        }}
+      />
+    );
+  }
   return (
     <input
       type="text"
-      inputMode={decimal ? 'decimal' : 'numeric'}
-      pattern={decimal ? '[0-9.]*' : '[0-9]*'}
+      inputMode="numeric"
+      pattern="[0-9]*"
       value={value || ''}
       onChange={(e) => {
-        const allowed = decimal ? /[^0-9.]/g : /[^0-9]/g;
-        const raw = e.target.value.replace(allowed, '');
-        const cleaned =
-          decimal && (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
-        onChange(Number(cleaned) || 0);
+        const raw = e.target.value.replace(/[^0-9]/g, '');
+        onChange(Number(raw) || 0);
       }}
       placeholder="0"
       className="tnum h-12 w-full rounded-xl px-4 outline-none"

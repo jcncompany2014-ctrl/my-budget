@@ -9,6 +9,7 @@ import Money from '@/components/Money';
 import { SkeletonList } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import DecimalInput from '@/components/ui/DecimalInput';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
@@ -814,13 +815,9 @@ function Editor({
 
       <div className="grid grid-cols-2 gap-2">
         <Field label={`평균 매수가 (${productCcy})`}>
-          <input
-            type="text"
-            inputMode="decimal"
-            pattern="[0-9.]*"
-            value={draft.avgPrice || ''}
-            onChange={(e) => handleAvgPriceChange(e.target.value.replace(/[^0-9.]/g, ''))}
-            placeholder="0"
+          <DecimalInput
+            value={draft.avgPrice ?? 0}
+            onChange={(n) => handleAvgPriceChange(String(n))}
             className="tnum h-12 w-full rounded-xl px-4 outline-none"
             style={{
               background: 'var(--color-gray-100)',
@@ -859,17 +856,9 @@ function Editor({
           </Field>
         ) : (
           <Field label="수량 (주)">
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="[0-9.]*"
-              value={draft.shares || ''}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9.]/g, '');
-                const cleaned = (raw.match(/\./g)?.length ?? 0) > 1 ? raw.replace(/\.+$/, '') : raw;
-                setDraft({ ...draft, shares: Number(cleaned) || 0 });
-              }}
-              placeholder="0"
+            <DecimalInput
+              value={draft.shares ?? 0}
+              onChange={(n) => setDraft({ ...draft, shares: n })}
               className="tnum h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',
