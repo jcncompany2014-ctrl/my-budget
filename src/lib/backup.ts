@@ -19,7 +19,7 @@ import type {
 } from '@/lib/types';
 
 export type BackupFile = {
-  version: 5;
+  version: 6;
   exportedAt: string;
   profile?: { name: string };
   businessProfile?: unknown;
@@ -38,6 +38,14 @@ export type BackupFile = {
   challenges?: Challenge[];
   customCategories?: CustomCategory[];
   categoryRules?: unknown[];
+  // v6 — settings previously excluded from backup
+  activeLocation?: string | null;
+  yearlyGoals?: unknown;
+  events?: unknown[];
+  mode?: unknown;
+  language?: unknown;
+  currency?: unknown;
+  taxpayerType?: unknown;
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -59,7 +67,7 @@ function writeIf(key: string, val: unknown) {
 
 export function exportAll(): BackupFile {
   return {
-    version: 5,
+    version: 6,
     exportedAt: new Date().toISOString(),
     profile: read<{ name: string }>(KEYS.profile, { name: '' }),
     businessProfile: read<unknown>(KEYS.businessProfile, null),
@@ -78,6 +86,13 @@ export function exportAll(): BackupFile {
     challenges: read<Challenge[]>(KEYS.challenges, []),
     customCategories: read<CustomCategory[]>(KEYS.customCategories, []),
     categoryRules: read<unknown[]>('asset/category-rules/v1', []),
+    activeLocation: read<string | null>(KEYS.activeLocation, null),
+    yearlyGoals: read<unknown>(KEYS.yearlyGoals, null),
+    events: read<unknown[]>(KEYS.events, []),
+    mode: read<unknown>(KEYS.mode, null),
+    language: read<unknown>(KEYS.language, null),
+    currency: read<unknown>(KEYS.currency, null),
+    taxpayerType: read<unknown>(KEYS.taxpayerType, null),
   };
 }
 
@@ -197,6 +212,28 @@ export function importBackup(file: File): Promise<ImportResult> {
         }
         if (Array.isArray(body.categoryRules)) {
           writeIf('asset/category-rules/v1', body.categoryRules);
+        }
+        // v6 settings restore
+        if (body.activeLocation !== undefined && body.activeLocation !== null) {
+          writeIf(KEYS.activeLocation, body.activeLocation);
+        }
+        if (body.yearlyGoals !== undefined && body.yearlyGoals !== null) {
+          writeIf(KEYS.yearlyGoals, body.yearlyGoals);
+        }
+        if (Array.isArray(body.events)) {
+          writeIf(KEYS.events, body.events);
+        }
+        if (body.mode !== undefined && body.mode !== null) {
+          writeIf(KEYS.mode, body.mode);
+        }
+        if (body.language !== undefined && body.language !== null) {
+          writeIf(KEYS.language, body.language);
+        }
+        if (body.currency !== undefined && body.currency !== null) {
+          writeIf(KEYS.currency, body.currency);
+        }
+        if (body.taxpayerType !== undefined && body.taxpayerType !== null) {
+          writeIf(KEYS.taxpayerType, body.taxpayerType);
         }
 
         resolve(result);
