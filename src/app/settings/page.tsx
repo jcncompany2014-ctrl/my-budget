@@ -48,6 +48,7 @@ import TopBar from '@/components/TopBar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { ensureAutoBackup, lastAutoBackupAt, restoreLastAutoBackup } from '@/lib/auto-backup';
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
+import { previousMonthKey } from '@/lib/closing';
 import { parseTransactionsCSV } from '@/lib/csv-import';
 import { useCurrency, useLanguage } from '@/lib/locale';
 import { useProfile } from '@/lib/profile';
@@ -416,6 +417,13 @@ export default function SettingsPage() {
       </section>
 
       <Section title="리포트">
+        <Row
+          icon={Sparkles}
+          iconBg="#2E3561"
+          label="월말 결산"
+          subtitle="지난 달 저축률·단골·무지출 데이"
+          onClick={() => router.push(`/reports/closing/${previousMonthKey()}`)}
+        />
         <Row
           icon={CalendarRange}
           iconBg="#3182F6"

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
+import ClosingBanner from '@/components/ClosingBanner';
 import CountUp from '@/components/CountUp';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LiveInvestmentPnL from '@/components/LiveInvestmentPnL';
@@ -151,6 +152,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      <ClosingBanner />
       <SmartPrompts />
 
       {mode === 'personal' ? (
