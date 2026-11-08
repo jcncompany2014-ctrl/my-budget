@@ -4,6 +4,7 @@ import { Repeat } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
@@ -113,7 +114,7 @@ export default function RecurringSettingsPage() {
                   className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
                   style={{ background: 'var(--color-card)' }}
                 >
-                  <CategoryIcon catId={r.cat} size={44} />
+                  <MerchantAvatar merchant={r.name} catId={r.cat} size={44} />
                   <div className="min-w-0 flex-1">
                     <p
                       className="truncate text-[15px] font-semibold"

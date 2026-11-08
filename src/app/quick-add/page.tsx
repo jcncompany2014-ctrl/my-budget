@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
@@ -272,7 +272,7 @@ function QuickAddPage() {
               해석 미리보기
             </p>
             <div className="mt-1 flex items-center gap-2">
-              <CategoryIcon catId={parsed.cat} size={28} />
+              <MerchantAvatar merchant={parsed.merchant} catId={parsed.cat} size={28} />
               <p
                 className="truncate"
                 style={{
@@ -345,7 +345,7 @@ function QuickAddPage() {
                 className="tap flex items-center gap-3 rounded-2xl px-4 py-3 text-left"
                 style={{ background: 'var(--color-card)' }}
               >
-                <CategoryIcon catId={f.cat} size={32} />
+                <MerchantAvatar merchant={f.name} catId={f.cat} size={32} />
                 <div className="min-w-0 flex-1">
                   <p
                     className="truncate"

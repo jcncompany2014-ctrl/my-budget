@@ -14,7 +14,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
@@ -314,7 +314,7 @@ function LogRow({
           className="tap flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           {live ? (
-            <CategoryIcon catId={tx.cat} size={36} />
+            <MerchantAvatar merchant={tx.merchant} catId={tx.cat} size={36} badge />
           ) : (
             <span
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"

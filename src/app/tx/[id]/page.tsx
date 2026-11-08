@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -153,7 +154,13 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
       </header>
 
       <section className="px-6 pb-8 pt-6 text-center">
-        <CategoryIcon catId={item.cat} size={72} style={{ margin: '0 auto 16px' }} />
+        {isTransferCategory(item.cat) || item.transferPairId ? (
+          <CategoryIcon catId={item.cat} size={72} style={{ margin: '0 auto 16px' }} />
+        ) : (
+          <div className="mb-4 flex justify-center">
+            <MerchantAvatar merchant={item.merchant} catId={item.cat} size={72} />
+          </div>
+        )}
         <p
           style={{
             color: 'var(--color-text-3)',

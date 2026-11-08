@@ -1,3 +1,4 @@
+import { findBrand } from '@/lib/brands';
 import type { Category, Scope } from '@/lib/types';
 
 export const CATEGORIES: Record<string, Category> = {
@@ -274,6 +275,9 @@ export function suggestCategory(merchant: string, scope: Scope): string | null {
   if (scope === 'business') return null; // business default to no suggest
   const m = merchant.trim();
   if (!m) return null;
+  // A recognized franchise knows its own category ("APPLE.COM/BILL" → 구독).
+  const brandCat = findBrand(m)?.cat;
+  if (brandCat) return brandCat;
   for (const [pattern, catId] of MERCHANT_HINTS) {
     if (pattern.test(m)) return catId;
   }

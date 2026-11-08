@@ -2,7 +2,7 @@
 
 import { Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
@@ -69,7 +69,7 @@ export default function FavoritesPage() {
                   borderBottom: i < list.length - 1 ? '1px solid var(--color-divider)' : 'none',
                 }}
               >
-                <CategoryIcon catId={f.cat} size={32} />
+                <MerchantAvatar merchant={f.name} catId={f.cat} size={32} />
                 <div className="min-w-0 flex-1">
                   <p
                     style={{

@@ -3,6 +3,7 @@
 import { Inbox } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { SkeletonHome } from '@/components/Skeleton';
@@ -378,7 +379,7 @@ export default function ListPage() {
                           </svg>
                         )}
                       </div>
-                      <CategoryIcon catId={t.cat} size={36} />
+                      <MerchantAvatar merchant={t.merchant} catId={t.cat} size={36} />
                       <div className="min-w-0 flex-1">
                         <p
                           className="truncate"

@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
-import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -760,7 +760,9 @@ function TestPanel({ inboxKey }: { inboxKey: string }) {
           {ok ? (
             <>
               <div className="flex items-center gap-2.5">
-                {preview.cat && <CategoryIcon catId={preview.cat} size={32} />}
+                {preview.cat && (
+                  <MerchantAvatar merchant={ok.merchant} catId={preview.cat} size={32} badge />
+                )}
                 <div className="min-w-0 flex-1">
                   <p
                     className="truncate"

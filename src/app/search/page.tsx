@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import Highlight from '@/components/Highlight';
-import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
@@ -420,7 +420,7 @@ export default function SearchPage() {
                       borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
                     }}
                   >
-                    <CategoryIcon catId={t.cat} size={40} />
+                    <MerchantAvatar merchant={t.merchant} catId={t.cat} size={40} badge />
                     <div className="min-w-0 flex-1">
                       <p
                         className="truncate"

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { fmt } from '@/lib/format';
 import { daysUntilDay, useRecurring } from '@/lib/recurring';
 
@@ -48,7 +48,7 @@ export default function UpcomingRecurring() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <CategoryIcon catId={r.cat} size={32} />
+                  <MerchantAvatar merchant={r.name} catId={r.cat} size={32} />
                   <span
                     className="tnum rounded-full px-2 py-0.5"
                     style={{

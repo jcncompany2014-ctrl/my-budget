@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import DatePickerSection from '@/components/DatePickerSection';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import Keypad from '@/components/Keypad';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
@@ -441,7 +442,7 @@ function AddPage() {
                       boxShadow: '0 1px 2px rgba(20, 28, 40, 0.04)',
                     }}
                   >
-                    <CategoryIcon catId={t.cat} size={28} />
+                    <MerchantAvatar merchant={t.merchant} catId={t.cat} size={28} />
                     <span className="text-left">
                       <span
                         className="block max-w-[96px] truncate"

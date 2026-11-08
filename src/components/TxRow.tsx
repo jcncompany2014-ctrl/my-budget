@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import Money from '@/components/Money';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, isTransferCategory } from '@/lib/categories';
@@ -105,7 +106,12 @@ export default function TxRow({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <CategoryIcon catId={tx.cat} size={40} />
+      {/* Transfers name the counterparty account ("토스뱅크") — keep the transfer icon. */}
+      {isTransfer ? (
+        <CategoryIcon catId={tx.cat} size={40} />
+      ) : (
+        <MerchantAvatar merchant={tx.merchant} catId={tx.cat} size={40} badge />
+      )}
       <div className="min-w-0 flex-1">
         <p
           className="flex min-w-0 items-center gap-1"

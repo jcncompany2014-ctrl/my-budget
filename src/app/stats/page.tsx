@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import CategoryDonut from '@/components/CategoryDonut';
 import CategoryIcon from '@/components/icons/CategoryIcon';
+import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import LineChart from '@/components/LineChart';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
@@ -799,14 +800,22 @@ function PatternRow({ p }: { p: SpendingPattern }) {
   );
 }
 
-function TopMerchants({ expenses }: { expenses: { merchant: string; amount: number }[] }) {
+function TopMerchants({
+  expenses,
+}: {
+  expenses: { merchant: string; amount: number; cat: string }[];
+}) {
   const list = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { value: number; cat: string }>();
     expenses.forEach((t) => {
-      map.set(t.merchant, (map.get(t.merchant) ?? 0) + Math.abs(t.amount));
+      const cur = map.get(t.merchant);
+      map.set(t.merchant, {
+        value: (cur?.value ?? 0) + Math.abs(t.amount),
+        cat: cur?.cat ?? t.cat,
+      });
     });
     return Array.from(map.entries())
-      .map(([merchant, value]) => ({ merchant, value }))
+      .map(([merchant, v]) => ({ merchant, ...v }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
   }, [expenses]);
@@ -831,16 +840,17 @@ function TopMerchants({ expenses }: { expenses: { merchant: string; amount: numb
             }}
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-full font-bold"
+              <span
+                className="tnum w-3 shrink-0 text-center"
                 style={{
-                  background: i === 0 ? 'var(--color-primary)' : 'var(--color-gray-150)',
-                  color: i === 0 ? '#fff' : 'var(--color-text-2)',
-                  fontSize: 'var(--text-xxs)',
+                  color: i === 0 ? 'var(--color-primary)' : 'var(--color-text-3)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 800,
                 }}
               >
                 {i + 1}
-              </div>
+              </span>
+              <MerchantAvatar merchant={m.merchant} catId={m.cat} size={32} />
               <p
                 className="truncate"
                 style={{

@@ -3,12 +3,14 @@
 import { ArrowLeft, Calendar, Receipt, Store, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { use, useMemo } from 'react';
+import BrandIcon from '@/components/icons/BrandIcon';
 import LineChart from '@/components/LineChart';
 import { useMode } from '@/components/ModeProvider';
 import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
 import EmptyState from '@/components/ui/EmptyState';
+import { findBrand } from '@/lib/brands';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt, isExpense, isIncome } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
@@ -31,6 +33,7 @@ export default function MerchantPage({ params }: { params: Promise<{ name: strin
 
   const merchantName = decodeURIComponent(rawName);
   const key = merchantName.trim().toLowerCase();
+  const brand = findBrand(merchantName);
 
   const list = useMemo(
     () =>
@@ -159,9 +162,18 @@ export default function MerchantPage({ params }: { params: Promise<{ name: strin
           />
           <div className="relative text-white">
             <div className="flex items-center justify-between">
-              <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', opacity: 0.9 }}>
-                전체 지출
-              </p>
+              <div className="flex items-center gap-2.5">
+                {brand && (
+                  <BrandIcon
+                    brand={brand}
+                    size={34}
+                    style={{ boxShadow: '0 0 0 2px rgba(255,255,255,0.4)' }}
+                  />
+                )}
+                <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', opacity: 0.9 }}>
+                  전체 지출
+                </p>
+              </div>
               {stats.topCat && (
                 <span
                   className="rounded-full px-2 py-0.5"
