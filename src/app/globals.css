@@ -120,6 +120,10 @@ html[data-mode="business"] {
     font-feature-settings: "tnum" 1, "ss01" 1;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
+    /* Korean line-breaking: wrap at word (어절) boundaries, never mid-word
+       ("썼어\n요" → "썼어요" moves to the next line as a whole). */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
   }
   /* All numeric content uses tabular-nums by default via .tnum */
   .tnum {

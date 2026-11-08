@@ -175,9 +175,34 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
           {fmt(item.amount)}
           <span style={{ fontSize: 18, marginLeft: 2, color: 'var(--color-text-3)' }}>원</span>
         </p>
-        <p className="mt-2 text-base font-semibold" style={{ color: 'var(--color-text-1)' }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (item.merchant.trim()) {
+              router.push(`/merchant/${encodeURIComponent(item.merchant.trim())}`);
+            }
+          }}
+          className="tap mt-2 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5"
+          style={{
+            background: 'var(--color-card)',
+            boxShadow: '0 1px 2px rgba(20, 28, 40, 0.06)',
+            color: 'var(--color-text-1)',
+            fontSize: 'var(--text-base)',
+            fontWeight: 700,
+          }}
+          aria-label={`${item.merchant}의 모든 거래 보기`}
+        >
           {item.merchant}
-        </p>
+          <svg viewBox="0 0 24 24" width={14} height={14} fill="none">
+            <path
+              d="M9 6l6 6-6 6"
+              stroke="var(--color-text-3)"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </section>
 
       <section

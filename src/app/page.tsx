@@ -30,6 +30,7 @@ import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
 import { SkeletonHome } from '@/components/Skeleton';
 import SmartPrompts from '@/components/SmartPrompts';
+import StreakBadge from '@/components/StreakBadge';
 import TxRow from '@/components/TxRow';
 import UpcomingRecurring from '@/components/UpcomingRecurring';
 import { IconDisplay } from '@/components/ui/IconPicker';
@@ -137,12 +138,15 @@ export default function HomePage() {
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
           {profile.name ? `안녕하세요, ${profile.name}님` : '안녕하세요'}
         </p>
-        <h1
-          className="mt-0.5 tracking-tight"
-          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xl)', fontWeight: 800 }}
-        >
-          {mode === 'business' ? `${monthName}월 사업 가계부` : `${monthName}월의 가계부`}
-        </h1>
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <h1
+            className="tracking-tight"
+            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xl)', fontWeight: 800 }}
+          >
+            {mode === 'business' ? `${monthName}월 사업 가계부` : `${monthName}월의 가계부`}
+          </h1>
+          <StreakBadge />
+        </div>
       </section>
 
       <SmartPrompts />
@@ -1120,7 +1124,7 @@ function InsightsRow({
       tone: weekly.delta < 0 ? 'primary' : weekly.delta > 20 ? 'warn' : 'primary',
       Icon: weekly.delta < 0 ? TrendingDown : Activity,
       title: '이번 주',
-      body: `${fmtKRW(weekly.thisWeek)} (${weekly.delta >= 0 ? '+' : ''}${weekly.delta}% vs 지난주)`,
+      body: `${fmtKRW(weekly.thisWeek)} · 지난주 이맘때 ${weekly.delta >= 0 ? '+' : ''}${weekly.delta}%`,
     });
   }
 

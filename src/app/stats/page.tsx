@@ -1,27 +1,50 @@
 'use client';
 
-import { BarChart3 } from 'lucide-react';
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronRight,
+  Lightbulb,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import CategoryDonut from '@/components/CategoryDonut';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import LineChart from '@/components/LineChart';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
+import PaceChart from '@/components/PaceChart';
 import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import YearHeatmap from '@/components/YearHeatmap';
 import { CATEGORIES } from '@/lib/categories';
-import { expandByCategory, fmt, isExpense } from '@/lib/format';
-import { detectAnomalies } from '@/lib/insights';
+import { expandByCategory, fmt, fmtShort, isExpense } from '@/lib/format';
+import {
+  detectAnomalies,
+  detectPatterns,
+  monthPace,
+  type SpendingPattern,
+  WEEKDAY_LABEL,
+} from '@/lib/insights';
+import { useRecurring } from '@/lib/recurring';
 import { useTransactions } from '@/lib/storage';
 
 type Period = 'month' | 'week';
 
+// Categories that are structurally fixed costs regardless of the recurring flag
+const FIXED_CATS = new Set(['subs', 'biz_rent', 'biz_payroll', 'biz_utility', 'biz_insurance']);
+
 export default function StatsPage() {
   const { tx, ready } = useTransactions();
   const { mode } = useMode();
+  const { items: recurringItems } = useRecurring();
   const [period, setPeriod] = useState<Period>('month');
+
+  const pace = useMemo(() => monthPace(tx), [tx]);
+  const patterns = useMemo(() => detectPatterns(tx), [tx]);
 
   const filtered = useMemo(() => {
     const now = new Date();
@@ -35,18 +58,6 @@ export default function StatsPage() {
     weekAgo.setDate(weekAgo.getDate() - 7);
     return tx.filter((t) => new Date(t.date) >= weekAgo);
   }, [tx, period]);
-
-  const lastMonthExpense = useMemo(() => {
-    const now = new Date();
-    const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return tx
-      .filter((t) => {
-        const d = new Date(t.date);
-        return d.getFullYear() === last.getFullYear() && d.getMonth() === last.getMonth();
-      })
-      .filter(isExpense)
-      .reduce((s, t) => s + Math.abs(t.amount), 0);
-  }, [tx]);
 
   const weeklyTrend = useMemo(() => {
     const now = new Date();
@@ -109,10 +120,24 @@ export default function StatsPage() {
 
   const expenses = filtered.filter(isExpense);
   const total = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
-  const monthDelta =
-    period === 'month' && lastMonthExpense > 0
-      ? Math.round(((total - lastMonthExpense) / lastMonthExpense) * 100)
-      : null;
+
+  // Fixed (구독·정기결제·대출·임대료 등) vs variable spend — 뱅크샐러드-style split
+  const fixedVar = useMemo(() => {
+    const recurringNames = new Set(recurringItems.map((r) => r.name.trim().toLowerCase()));
+    let fixed = 0;
+    let variable = 0;
+    for (const t of filtered) {
+      if (!isExpense(t)) continue;
+      const amt = Math.abs(t.amount);
+      const isFixed =
+        t.recurring === true ||
+        FIXED_CATS.has(t.cat) ||
+        recurringNames.has(t.merchant.trim().toLowerCase());
+      if (isFixed) fixed += amt;
+      else variable += amt;
+    }
+    return { fixed, variable };
+  }, [filtered, recurringItems]);
 
   const byCat = useMemo(() => {
     const map = new Map<string, number>();
@@ -199,46 +224,163 @@ export default function StatsPage() {
         </div>
       ) : (
         <>
-          {/* Month-over-month */}
-          {period === 'month' && monthDelta !== null && (
-            <section className="px-5 pb-2 pt-1">
-              <div
-                className="flex items-center justify-between rounded-2xl px-4 py-3"
-                style={{
-                  background:
-                    monthDelta < 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)',
-                }}
-              >
-                <div>
-                  <p
-                    style={{
-                      color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)',
-                      fontSize: 'var(--text-xxs)',
-                      fontWeight: 700,
-                    }}
-                  >
-                    지난 달 대비
-                  </p>
-                  <p
-                    className="mt-0.5"
-                    style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}
-                  >
-                    {monthDelta < 0
-                      ? `${fmt(lastMonthExpense - total)}원 덜 썼어요`
-                      : `${fmt(total - lastMonthExpense)}원 더 썼어요`}
-                  </p>
+          {/* Spending pace — month-to-date vs last month at the same day */}
+          {period === 'month' && (
+            <section className="px-5 pb-3 pt-1">
+              <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p
+                      style={{
+                        color: 'var(--color-text-3)',
+                        fontSize: 11,
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      소비 페이스
+                    </p>
+                    <p
+                      className="mt-1"
+                      style={{
+                        color: 'var(--color-text-1)',
+                        fontSize: 15,
+                        fontWeight: 800,
+                        letterSpacing: '-0.02em',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {pace.deltaPct === null ? (
+                        <>
+                          이번 달 <span className="tnum">{fmt(pace.thisToDate)}원</span> 썼어요
+                        </>
+                      ) : pace.diff <= 0 ? (
+                        <>
+                          지난 달 이맘때보다{' '}
+                          <span className="tnum" style={{ color: 'var(--color-primary)' }}>
+                            {fmt(-pace.diff)}원
+                          </span>{' '}
+                          덜 썼어요
+                        </>
+                      ) : (
+                        <>
+                          지난 달 이맘때보다{' '}
+                          <span className="tnum" style={{ color: 'var(--color-danger)' }}>
+                            {fmt(pace.diff)}원
+                          </span>{' '}
+                          더 썼어요
+                        </>
+                      )}
+                    </p>
+                    <p
+                      className="tnum mt-0.5"
+                      style={{ color: 'var(--color-text-3)', fontSize: 11, fontWeight: 600 }}
+                    >
+                      이 페이스면 월말 약 {fmtShort(pace.projection)}원
+                      {pace.lastTotal > 0 && ` · 지난 달 ${fmtShort(pace.lastTotal)}원`}
+                    </p>
+                  </div>
+                  {pace.deltaPct !== null && (
+                    <span
+                      className="tnum shrink-0 rounded-full px-2.5 py-1"
+                      style={{
+                        background:
+                          pace.diff <= 0 ? 'var(--color-primary-soft)' : 'var(--color-danger-soft)',
+                        color: pace.diff <= 0 ? 'var(--color-primary)' : 'var(--color-danger)',
+                        fontSize: 12,
+                        fontWeight: 800,
+                      }}
+                    >
+                      {pace.deltaPct > 0 ? '+' : ''}
+                      {pace.deltaPct}%
+                    </span>
+                  )}
                 </div>
+                <PaceChart thisCum={pace.thisCum} lastCum={pace.lastCum} daysThis={pace.daysThis} />
+                <div className="mt-1 flex items-center justify-center gap-4">
+                  <span style={{ color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600 }}>
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 800 }}>●</span> 이번
+                    달
+                  </span>
+                  <span style={{ color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600 }}>
+                    <span style={{ color: 'var(--color-gray-300)', fontWeight: 800 }}>●</span> 지난
+                    달
+                  </span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Fixed vs variable */}
+          {period === 'month' && fixedVar.fixed + fixedVar.variable > 0 && (
+            <section className="px-5 pb-3">
+              <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
                 <p
-                  className="tnum"
                   style={{
-                    color: monthDelta < 0 ? 'var(--color-primary)' : 'var(--color-danger)',
-                    fontSize: 'var(--text-base)',
+                    color: 'var(--color-text-3)',
+                    fontSize: 11,
                     fontWeight: 800,
+                    letterSpacing: '0.04em',
                   }}
                 >
-                  {monthDelta > 0 ? '+' : ''}
-                  {monthDelta}%
+                  고정 지출 vs 변동 지출
                 </p>
+                <div
+                  className="mt-3 flex h-2.5 overflow-hidden rounded-full"
+                  style={{ background: 'var(--color-gray-150)' }}
+                >
+                  <div
+                    style={{
+                      width: `${(fixedVar.fixed / (fixedVar.fixed + fixedVar.variable)) * 100}%`,
+                      background: '#8B5CF6',
+                      transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                  />
+                  <div style={{ flex: 1, background: 'var(--color-primary)' }} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <SplitStat
+                    color="#8B5CF6"
+                    label="고정"
+                    value={fixedVar.fixed}
+                    pct={fixedVar.fixed / (fixedVar.fixed + fixedVar.variable)}
+                    hint="구독·정기결제·대출"
+                  />
+                  <SplitStat
+                    color="var(--color-primary)"
+                    label="변동"
+                    value={fixedVar.variable}
+                    pct={fixedVar.variable / (fixedVar.fixed + fixedVar.variable)}
+                    hint="식비·쇼핑·카페 등"
+                    alignRight
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Spending patterns (90일) */}
+          {patterns.length > 0 && (
+            <section className="px-5 pb-3">
+              <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
+                <div className="mb-2.5 flex items-center gap-1.5">
+                  <Lightbulb size={14} strokeWidth={2.4} color="#F59E0B" />
+                  <p
+                    style={{
+                      color: 'var(--color-text-3)',
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    소비 패턴 · 최근 90일
+                  </p>
+                </div>
+                <div className="space-y-2.5">
+                  {patterns.map((p) => (
+                    <PatternRow key={patternKey(p)} p={p} />
+                  ))}
+                </div>
               </div>
             </section>
           )}
@@ -508,6 +650,150 @@ export default function StatsPage() {
   );
 }
 
+function SplitStat({
+  color,
+  label,
+  value,
+  pct,
+  hint,
+  alignRight,
+}: {
+  color: string;
+  label: string;
+  value: number;
+  pct: number;
+  hint: string;
+  alignRight?: boolean;
+}) {
+  return (
+    <div className={alignRight ? 'text-right' : ''}>
+      <div className={`flex items-center gap-1.5 ${alignRight ? 'justify-end' : ''}`}>
+        <span
+          aria-hidden
+          style={{
+            display: 'inline-block',
+            width: 8,
+            height: 8,
+            borderRadius: 2,
+            background: color,
+          }}
+        />
+        <span style={{ color: 'var(--color-text-2)', fontSize: 12, fontWeight: 700 }}>
+          {label} <span className="tnum">{Math.round(pct * 100)}%</span>
+        </span>
+      </div>
+      <p
+        className="tnum mt-0.5"
+        style={{
+          color: 'var(--color-text-1)',
+          fontSize: 15,
+          fontWeight: 800,
+          letterSpacing: '-0.02em',
+        }}
+      >
+        {fmt(value)}원
+      </p>
+      <p style={{ color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600 }}>{hint}</p>
+    </div>
+  );
+}
+
+function patternKey(p: SpendingPattern): string {
+  if (p.kind === 'weekday-category') return `wd-${p.weekday}-${p.cat}`;
+  if (p.kind === 'category-trend') return `tr-${p.cat}`;
+  return 'weekend';
+}
+
+function PatternRow({ p }: { p: SpendingPattern }) {
+  const strong = { color: 'var(--color-text-1)', fontWeight: 800 } as const;
+  let icon: React.ReactNode;
+  let body: React.ReactNode;
+
+  if (p.kind === 'weekday-category') {
+    const name = CATEGORIES[p.cat]?.name ?? p.cat;
+    const ratio = p.ratio >= 10 ? Math.round(p.ratio).toString() : p.ratio.toFixed(1);
+    icon = <CategoryIcon catId={p.cat} size={32} />;
+    body = (
+      <>
+        매주 <span style={strong}>{WEEKDAY_LABEL(p.weekday)}요일</span>엔 {name} 지출이 다른
+        요일보다{' '}
+        <span className="tnum" style={strong}>
+          {ratio}배
+        </span>{' '}
+        많아요
+      </>
+    );
+  } else if (p.kind === 'weekend-vs-weekday') {
+    const more = p.deltaPct > 0;
+    icon = (
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+        style={{ background: 'rgba(59,130,246,0.12)', color: '#3182F6' }}
+      >
+        <CalendarDays size={16} strokeWidth={2.4} />
+      </span>
+    );
+    body = more ? (
+      <>
+        주말엔 평일보다 하루{' '}
+        <span className="tnum" style={strong}>
+          {fmt(p.weekendAvg - p.weekdayAvg)}원
+        </span>{' '}
+        더 써요
+      </>
+    ) : (
+      <>
+        주말엔 평일보다 하루{' '}
+        <span className="tnum" style={strong}>
+          {fmt(p.weekdayAvg - p.weekendAvg)}원
+        </span>{' '}
+        덜 써요
+      </>
+    );
+  } else {
+    const name = CATEGORIES[p.cat]?.name ?? p.cat;
+    const up = p.deltaPct > 0;
+    icon = (
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+        style={{
+          background: up ? 'var(--color-danger-soft)' : 'var(--color-primary-soft)',
+          color: up ? 'var(--color-danger)' : 'var(--color-primary)',
+        }}
+      >
+        {up ? (
+          <TrendingUp size={16} strokeWidth={2.4} />
+        ) : (
+          <TrendingDown size={16} strokeWidth={2.4} />
+        )}
+      </span>
+    );
+    body = (
+      <>
+        {name} 지출이 두 달 전보다{' '}
+        <span
+          className="tnum"
+          style={{ ...strong, color: up ? 'var(--color-danger)' : 'var(--color-primary)' }}
+        >
+          {Math.abs(p.deltaPct)}% {up ? '늘었어요' : '줄었어요'}
+        </span>
+      </>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      {icon}
+      <p
+        className="leading-snug"
+        style={{ color: 'var(--color-text-2)', fontSize: 13, fontWeight: 600 }}
+      >
+        {body}
+      </p>
+    </div>
+  );
+}
+
 function TopMerchants({ expenses }: { expenses: { merchant: string; amount: number }[] }) {
   const list = useMemo(() => {
     const map = new Map<string, number>();
@@ -531,14 +817,15 @@ function TopMerchants({ expenses }: { expenses: { merchant: string; amount: numb
       </h2>
       <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
         {list.map((m, i) => (
-          <div
+          <Link
             key={m.merchant}
-            className="flex items-center justify-between px-4 py-3"
+            href={`/merchant/${encodeURIComponent(m.merchant.trim())}`}
+            className="tap flex items-center justify-between gap-2 px-4 py-3"
             style={{
               borderBottom: i < list.length - 1 ? '1px solid var(--color-divider)' : 'none',
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <div
                 className="flex h-7 w-7 items-center justify-center rounded-full font-bold"
                 style={{
@@ -550,6 +837,7 @@ function TopMerchants({ expenses }: { expenses: { merchant: string; amount: numb
                 {i + 1}
               </div>
               <p
+                className="truncate"
                 style={{
                   color: 'var(--color-text-1)',
                   fontSize: 'var(--text-sm)',
@@ -559,12 +847,19 @@ function TopMerchants({ expenses }: { expenses: { merchant: string; amount: numb
                 {m.merchant}
               </p>
             </div>
-            <Money
-              value={m.value}
-              sign="never"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            />
-          </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <Money
+                value={m.value}
+                sign="never"
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 700,
+                }}
+              />
+              <ChevronRight size={16} strokeWidth={2.4} color="var(--color-text-4)" />
+            </div>
+          </Link>
         ))}
       </div>
     </section>

@@ -143,19 +143,77 @@ export function budgetAlerts(tx: Transaction[], budgets: Record<string, { limit:
 }
 
 /**
- * Weekly summary: this week's total expense + comparison with last week.
+ * Weekly summary: this week-to-date vs the SAME elapsed span of last week.
+ *
+ * Monday-start week (Korean convention). Comparing a partial week against a
+ * full previous week made every Monday read as "-90% vs 지난주"; now Wednesday
+ * 3pm compares against last Monday → last Wednesday 3pm.
  */
-export function weeklyDigest(tx: Transaction[]) {
-  const now = new Date();
+export function weeklyDigest(tx: Transaction[], now: Date = new Date()) {
   const startOfWeek = new Date(now);
   startOfWeek.setHours(0, 0, 0, 0);
-  startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+  const dow = (startOfWeek.getDay() + 6) % 7; // Mon=0 … Sun=6
+  startOfWeek.setDate(startOfWeek.getDate() - dow);
   const lastWeekStart = new Date(startOfWeek);
   lastWeekStart.setDate(startOfWeek.getDate() - 7);
-  const thisWeek = sumExpense(tx, startOfWeek, new Date());
-  const lastWeek = sumExpense(tx, lastWeekStart, startOfWeek);
+  const lastWeekSameSpanEnd = new Date(now);
+  lastWeekSameSpanEnd.setDate(now.getDate() - 7);
+  const thisWeek = sumExpense(tx, startOfWeek, new Date(now.getTime() + 1));
+  const lastWeek = sumExpense(tx, lastWeekStart, lastWeekSameSpanEnd);
+  const lastWeekFull = sumExpense(tx, lastWeekStart, startOfWeek);
   const delta = lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : 0;
-  return { thisWeek, lastWeek, delta };
+  return { thisWeek, lastWeek, lastWeekFull, delta };
+}
+
+/**
+ * Month-to-date pace vs the same day-of-month last month (Copilot-style).
+ * Returns cumulative daily series for both months for charting.
+ */
+export function monthPace(tx: Transaction[], now: Date = new Date()) {
+  const today = now.getDate();
+  const daysThis = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const lastRef = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const daysLast = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+  const thisDaily = new Array<number>(daysThis).fill(0);
+  const lastDaily = new Array<number>(daysLast).fill(0);
+  for (const t of tx) {
+    if (!isExp(t)) continue;
+    const d = new Date(t.date);
+    const amt = Math.abs(t.amount);
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+      if (d.getDate() <= today) thisDaily[d.getDate() - 1] += amt;
+    } else if (d.getFullYear() === lastRef.getFullYear() && d.getMonth() === lastRef.getMonth()) {
+      lastDaily[d.getDate() - 1] += amt;
+    }
+  }
+  const cumulative = (arr: number[]) => {
+    let s = 0;
+    return arr.map((v) => {
+      s += v;
+      return s;
+    });
+  };
+  const thisCum = cumulative(thisDaily).slice(0, today);
+  const lastCum = cumulative(lastDaily);
+  const thisToDate = thisCum[today - 1] ?? 0;
+  const lastAtSameDay = lastCum[Math.min(today, daysLast) - 1] ?? 0;
+  const lastTotal = lastCum[daysLast - 1] ?? 0;
+  const diff = thisToDate - lastAtSameDay;
+  const deltaPct = lastAtSameDay > 0 ? Math.round((diff / lastAtSameDay) * 100) : null;
+  const projection = today > 0 ? Math.round((thisToDate / today) * daysThis) : 0;
+  return {
+    today,
+    daysThis,
+    daysLast,
+    thisCum,
+    lastCum,
+    thisToDate,
+    lastAtSameDay,
+    lastTotal,
+    diff,
+    deltaPct,
+    projection,
+  };
 }
 
 function sumExpense(tx: Transaction[], from: Date, to: Date) {
@@ -166,3 +224,143 @@ function sumExpense(tx: Transaction[], from: Date, to: Date) {
     })
     .reduce((s, t) => s + Math.abs(t.amount), 0);
 }
+
+/* ─── Pattern detection (Insights 2.0) ────────────────────────────── */
+
+const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+export type SpendingPattern =
+  | {
+      kind: 'weekday-category';
+      weekday: number; // 0 = 일요일
+      cat: string;
+      ratio: number; // weekday/avg of other days
+      sample: number; // tx count in this weekday-category bucket
+    }
+  | {
+      kind: 'weekend-vs-weekday';
+      weekendAvg: number;
+      weekdayAvg: number;
+      deltaPct: number; // positive = weekend spends more
+    }
+  | {
+      kind: 'category-trend';
+      cat: string;
+      firstMonthAvg: number;
+      lastMonthAvg: number;
+      deltaPct: number; // positive = increasing
+    };
+
+/**
+ * Detect spending patterns over the trailing 90 days.
+ *
+ * Returns up to 3 most-notable findings:
+ *   • A weekday bias — "매주 월요일 커피 많이"
+ *   • Weekend vs weekday spending delta (only if >25% difference)
+ *   • A category trend — "지난 3개월 식비 N% 증가"
+ */
+export function detectPatterns(tx: Transaction[]): SpendingPattern[] {
+  const cutoff = Date.now() - 90 * 86400000;
+  const recent = tx.filter((t) => isExp(t) && new Date(t.date).getTime() >= cutoff);
+  if (recent.length < 10) return [];
+
+  const findings: SpendingPattern[] = [];
+
+  /* 1. Weekday × category bias */
+  const buckets = new Map<string, number>(); // key: `${weekday}:${cat}` → total
+  const weekdayTotals = new Array<number>(7).fill(0);
+  const catTotals = new Map<string, number>();
+  const sampleCounts = new Map<string, number>();
+  recent.forEach((t) => {
+    const d = new Date(t.date);
+    const w = d.getDay();
+    const amt = Math.abs(t.amount);
+    const key = `${w}:${t.cat}`;
+    buckets.set(key, (buckets.get(key) ?? 0) + amt);
+    sampleCounts.set(key, (sampleCounts.get(key) ?? 0) + 1);
+    weekdayTotals[w] += amt;
+    catTotals.set(t.cat, (catTotals.get(t.cat) ?? 0) + amt);
+  });
+
+  // For each (weekday, cat) bucket, compare to that category's spending on other weekdays
+  let bestBias: SpendingPattern | null = null;
+  buckets.forEach((amtOnWeekday, key) => {
+    const [wStr, cat] = key.split(':');
+    const w = Number(wStr);
+    const sample = sampleCounts.get(key) ?? 0;
+    if (sample < 3) return; // need enough recurrence
+    const catTotal = catTotals.get(cat) ?? 0;
+    const otherDaysAmt = catTotal - amtOnWeekday;
+    const otherDaysCount = 7 - 1;
+    const otherAvg = otherDaysAmt / otherDaysCount;
+    const weekdayAvg = amtOnWeekday; // all on one weekday, so avg = total
+    if (otherAvg < 1000) return;
+    const ratio = weekdayAvg / otherAvg;
+    if (ratio < 1.6) return;
+    if (!bestBias || (bestBias.kind === 'weekday-category' && ratio > bestBias.ratio)) {
+      bestBias = { kind: 'weekday-category', weekday: w, cat, ratio, sample };
+    }
+  });
+  if (bestBias) findings.push(bestBias);
+
+  /* 2. Weekend vs weekday — average spend per CALENDAR day (not per transaction).
+     The window starts at the later of (90 days ago, first logged tx) so a user
+     who started 3 weeks ago isn't diluted by 9 empty weeks. */
+  const weekendTotal = weekdayTotals[0] + weekdayTotals[6];
+  const weekdayTotal =
+    weekdayTotals[1] + weekdayTotals[2] + weekdayTotals[3] + weekdayTotals[4] + weekdayTotals[5];
+  const firstTs = Math.min(...recent.map((t) => new Date(t.date).getTime()));
+  const windowStart = new Date(Math.max(cutoff, firstTs));
+  windowStart.setHours(0, 0, 0, 0);
+  let weekendDays = 0;
+  let weekdayDays = 0;
+  for (const d = new Date(windowStart); d.getTime() <= Date.now(); d.setDate(d.getDate() + 1)) {
+    const w = d.getDay();
+    if (w === 0 || w === 6) weekendDays += 1;
+    else weekdayDays += 1;
+  }
+  if (weekendDays >= 2 && weekdayDays >= 5) {
+    const weekendAvg = weekendTotal / weekendDays;
+    const weekdayAvg = weekdayTotal / weekdayDays;
+    const base = weekdayAvg || 1;
+    const deltaPct = Math.round(((weekendAvg - weekdayAvg) / base) * 100);
+    if (Math.abs(deltaPct) >= 25 && weekendAvg > 1000 && weekdayAvg > 1000) {
+      findings.push({ kind: 'weekend-vs-weekday', weekendAvg, weekdayAvg, deltaPct });
+    }
+  }
+
+  /* 3. Category trend (90d / 3 months) */
+  // Split into 3 ~30-day buckets and compare first vs last
+  const bucket = [new Map<string, number>(), new Map<string, number>(), new Map<string, number>()];
+  recent.forEach((t) => {
+    const age = Date.now() - new Date(t.date).getTime();
+    const bucketIdx = Math.min(2, Math.max(0, 2 - Math.floor(age / (30 * 86400000))));
+    const m = bucket[bucketIdx];
+    m.set(t.cat, (m.get(t.cat) ?? 0) + Math.abs(t.amount));
+  });
+
+  let bestTrend: SpendingPattern | null = null;
+  catTotals.forEach((total, cat) => {
+    if (total < 30000) return;
+    const first = bucket[0].get(cat) ?? 0;
+    const last = bucket[2].get(cat) ?? 0;
+    const base = first || 1;
+    if (first < 10000) return; // need baseline
+    const deltaPct = Math.round(((last - first) / base) * 100);
+    if (Math.abs(deltaPct) < 30) return;
+    if (!bestTrend || Math.abs(deltaPct) > Math.abs((bestTrend as { deltaPct: number }).deltaPct)) {
+      bestTrend = {
+        kind: 'category-trend',
+        cat,
+        firstMonthAvg: first,
+        lastMonthAvg: last,
+        deltaPct,
+      };
+    }
+  });
+  if (bestTrend) findings.push(bestTrend);
+
+  return findings.slice(0, 3);
+}
+
+export const WEEKDAY_LABEL = (w: number) => WEEKDAY_NAMES[w] ?? '?';
