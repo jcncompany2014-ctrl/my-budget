@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toast';
 import { lastAutoBackupAt } from '@/lib/auto-backup';
 import { detectRecurringPatterns, detectSalaryIncome } from '@/lib/auto-categorize';
 import { downloadBackup } from '@/lib/backup';
+import { localDayKey } from '@/lib/dates';
 import { fmt } from '@/lib/format';
 import { useAllRecurring } from '@/lib/recurring';
 import { useAllTransactions } from '@/lib/storage';
@@ -83,7 +84,7 @@ export default function SmartPrompts() {
       ? Math.floor((Date.now() - last.getTime()) / 86400000)
       : Number.POSITIVE_INFINITY;
     if (daysSince < BACKUP_REMIND_AFTER_DAYS) return null;
-    const key = `backup:${last ? last.toISOString().slice(0, 10) : 'never'}`;
+    const key = `backup:${last ? localDayKey(last) : 'never'}`;
     if (dismissed.has(key)) return null;
     return { key, daysSince, last };
   }, [tx.length, dismissed]);

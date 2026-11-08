@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { dayKeyOffset, localDayKey, parseLocalDay, todayKey } from '@/lib/dates';
 import type { Transaction } from '@/lib/types';
 
 /**
@@ -17,28 +18,8 @@ import type { Transaction } from '@/lib/types';
  * `best` = longest streak ever found in the history.
  */
 
-function localDayKey(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function todayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function yesterdayKey(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function prevDay(key: string): string {
-  const [y, m, d] = key.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() - 1);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-}
+const yesterdayKey = () => dayKeyOffset(-1);
+const prevDay = (key: string) => dayKeyOffset(-1, parseLocalDay(key));
 
 export function computeStreak(tx: Transaction[]): {
   current: number;

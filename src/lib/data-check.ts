@@ -1,6 +1,7 @@
 'use client';
 
 import { CATEGORIES } from '@/lib/categories';
+import { localDayKey } from '@/lib/dates';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue } from '@/lib/store-factory';
 import type { Account, CustomCategory, Transaction } from '@/lib/types';
@@ -63,7 +64,7 @@ export function checkDataIntegrity(): IntegrityReport {
         id: `acc-${t.id}`,
         severity: 'error',
         title: '존재하지 않는 계좌의 거래',
-        detail: `${t.merchant} · ${t.date.slice(0, 10)} · 계좌 ID ${t.acc}`,
+        detail: `${t.merchant} · ${localDayKey(t.date)} · 계좌 ID ${t.acc}`,
         kind: 'tx_unknown_account',
         refId: t.id,
         repair: fallbackAccId
@@ -80,7 +81,7 @@ export function checkDataIntegrity(): IntegrityReport {
         id: `cat-${t.id}`,
         severity: 'error',
         title: '존재하지 않는 카테고리의 거래',
-        detail: `${t.merchant} · ${t.date.slice(0, 10)} · 카테고리 ID ${t.cat}`,
+        detail: `${t.merchant} · ${localDayKey(t.date)} · 카테고리 ID ${t.cat}`,
         kind: 'tx_unknown_category',
         refId: t.id,
         repair: { type: 'reassign_category', txId: t.id, toCatId: fallbackCatId },
@@ -101,7 +102,7 @@ export function checkDataIntegrity(): IntegrityReport {
         id: `pair-${t.id}`,
         severity: 'warning',
         title: '짝이 없는 이체 거래',
-        detail: `${t.merchant} · ${t.date.slice(0, 10)} (이체 그룹 ${t.transferPairId.slice(-6)})`,
+        detail: `${t.merchant} · ${localDayKey(t.date)} (이체 그룹 ${t.transferPairId.slice(-6)})`,
         kind: 'transfer_pair_missing',
         refId: t.id,
         repair: { type: 'unpair_transfer', txId: t.id },
@@ -120,7 +121,7 @@ export function checkDataIntegrity(): IntegrityReport {
         id: `sign-${t.id}`,
         severity: 'warning',
         title: '수입 카테고리에 음수 금액',
-        detail: `${t.merchant} · ${t.date.slice(0, 10)} · ${c.name}`,
+        detail: `${t.merchant} · ${localDayKey(t.date)} · ${c.name}`,
         kind: 'category_sign_mismatch',
         refId: t.id,
       });
@@ -129,7 +130,7 @@ export function checkDataIntegrity(): IntegrityReport {
         id: `sign-${t.id}`,
         severity: 'warning',
         title: '지출 카테고리에 양수 금액',
-        detail: `${t.merchant} · ${t.date.slice(0, 10)} · ${c.name}`,
+        detail: `${t.merchant} · ${localDayKey(t.date)} · ${c.name}`,
         kind: 'category_sign_mismatch',
         refId: t.id,
       });

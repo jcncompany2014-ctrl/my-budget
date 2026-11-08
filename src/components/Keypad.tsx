@@ -1,6 +1,7 @@
 'use client';
 
 import { Delete } from 'lucide-react';
+import { haptics } from '@/lib/haptics';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'] as const;
 
@@ -11,9 +12,7 @@ type Props = {
 
 export default function Keypad({ value, onChange }: Props) {
   const press = (k: (typeof KEYS)[number]) => {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate?.(8);
-    }
+    haptics.light();
     if (k === 'del') {
       onChange(value.slice(0, -1));
       return;

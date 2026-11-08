@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { localDayKey } from '@/lib/dates';
 
 type Props = {
   /** Map of date (YYYY-MM-DD) → spend */
@@ -46,7 +47,8 @@ export default function YearHeatmap({
     const days: { date: Date; key: string; spend: number }[] = [];
     const cursor = new Date(start);
     while (cursor <= end) {
-      const key = cursor.toISOString().slice(0, 10);
+      // Local midnight → toISOString() would be the PREVIOUS day in KST.
+      const key = localDayKey(cursor);
       days.push({
         date: new Date(cursor),
         key,

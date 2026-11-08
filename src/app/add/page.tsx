@@ -172,6 +172,7 @@ function AddPage() {
           {
             variant: 'info',
             durationMs: 4000,
+            haptic: false, // explicit warn() above
             action: { label: '추가', onClick: () => submit(saveAsFavorite, true) },
           },
         );
@@ -204,7 +205,6 @@ function AddPage() {
         legs[1].cat = 'saving';
         legs[1].merchant = merchant.trim() || `← ${fromAcc.name}`;
         legs.forEach((l) => add(l));
-        haptics.success();
         toast.show(`${savingsAcc.name}로 자동 이체 완료`, {
           variant: 'success',
           durationMs: 4500,
@@ -246,7 +246,6 @@ function AddPage() {
     }
 
     add(tx);
-    haptics.success();
     if (saveAsFavorite && CATEGORIES[cat]) {
       addFav({
         id: 'fav-' + Date.now().toString(36),

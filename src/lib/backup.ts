@@ -1,5 +1,6 @@
 'use client';
 
+import { localDayKey } from '@/lib/dates';
 import { KEYS } from '@/lib/storage-keys';
 import type {
   Account,
@@ -103,7 +104,7 @@ export function downloadBackup() {
   });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDayKey(new Date());
   a.href = url;
   a.download = `asset-backup-${today}.json`;
   a.click();

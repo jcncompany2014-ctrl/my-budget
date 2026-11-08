@@ -12,6 +12,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
+import { dayKeyOffset, todayKey } from '@/lib/dates';
 import { fmt } from '@/lib/format';
 import { computeMonthlyPayment, useLoans } from '@/lib/loans';
 import type { Loan } from '@/lib/types';
@@ -48,8 +49,8 @@ export default function LoansPage() {
       remaining: 0,
       rate: 4,
       termMonths: 60,
-      startDate: new Date().toISOString().slice(0, 10),
-      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 5).toISOString().slice(0, 10),
+      startDate: todayKey(),
+      dueDate: dayKeyOffset(365 * 5),
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
     });
     setCreating(true);

@@ -21,6 +21,7 @@ import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import YearHeatmap from '@/components/YearHeatmap';
 import { CATEGORIES } from '@/lib/categories';
+import { localDayKey } from '@/lib/dates';
 import { expandByCategory, fmt, fmtShort, isExpense } from '@/lib/format';
 import {
   detectAnomalies,
@@ -112,7 +113,7 @@ export default function StatsPage() {
     const map = new Map<string, number>();
     tx.forEach((t) => {
       if (!isExpense(t)) return;
-      const key = t.date.slice(0, 10);
+      const key = localDayKey(t.date);
       map.set(key, (map.get(key) ?? 0) + Math.abs(t.amount));
     });
     return map;
@@ -162,14 +163,18 @@ export default function StatsPage() {
     if (period !== 'month') return null;
     const now = new Date();
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    // Bucket by LOCAL day once (the old per-day filter compared against the UTC
+    // date, pushing 오전 spending onto the previous day).
+    const byDay = new Map<string, number>();
+    for (const t of tx) {
+      if (!isExpense(t)) continue;
+      const k = localDayKey(t.date);
+      byDay.set(k, (byDay.get(k) ?? 0) + Math.abs(t.amount));
+    }
     const days: { day: number; spend: number }[] = [];
     for (let d = 1; d <= lastDay; d++) {
-      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const spend = tx
-        .filter((t) => t.date.slice(0, 10) === dateStr)
-        .filter(isExpense)
-        .reduce((s, t) => s + Math.abs(t.amount), 0);
-      days.push({ day: d, spend });
+      const key = localDayKey(new Date(now.getFullYear(), now.getMonth(), d));
+      days.push({ day: d, spend: byDay.get(key) ?? 0 });
     }
     const max = Math.max(...days.map((dd) => dd.spend), 1);
     return { days, max };

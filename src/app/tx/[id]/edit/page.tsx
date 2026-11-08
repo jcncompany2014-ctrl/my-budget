@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
+import { localDayKey, localTimeHHMM } from '@/lib/dates';
 import { fmt } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 import type { Scope, Transaction } from '@/lib/types';
@@ -40,9 +41,10 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
     setMerchant(item.merchant);
     setMemo(item.memo ?? '');
     setAccId(item.acc);
-    const d = new Date(item.date);
-    setDate(d.toISOString().slice(0, 10));
-    setTime(d.toTimeString().slice(0, 5));
+    // Both halves must be LOCAL — submit() re-parses them as local time.
+    // (Using the UTC date here moved 오전 transactions back a day on every save.)
+    setDate(localDayKey(item.date));
+    setTime(localTimeHHMM(item.date));
     setSplits(item.splits ?? []);
   }, [item]);
 

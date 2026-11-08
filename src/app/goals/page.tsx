@@ -9,23 +9,19 @@ import Money from '@/components/Money';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay } from '@/components/ui/IconPicker';
+import { daysUntilKey } from '@/lib/dates';
 import { fmt } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
 
+// `due` is a local 'YYYY-MM-DD'. new Date(due) would be UTC midnight (09:00 KST),
+// which made a goal due today read "D-1".
 const dDay = (due: string) => {
-  const target = new Date(due).getTime();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((target - today.getTime()) / (1000 * 60 * 60 * 24));
+  const diff = daysUntilKey(due);
   if (diff === 0) return 'D-day';
   return diff > 0 ? `D-${diff}` : `D+${-diff}`;
 };
 
-const weeksUntil = (due: string) => {
-  const target = new Date(due).getTime();
-  const now = Date.now();
-  return Math.max(1, Math.ceil((target - now) / (1000 * 60 * 60 * 24 * 7)));
-};
+const weeksUntil = (due: string) => Math.max(1, Math.ceil(daysUntilKey(due) / 7));
 
 export default function GoalsPage() {
   const { goals, ready } = useGoals();

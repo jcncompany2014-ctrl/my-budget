@@ -2,6 +2,7 @@
 
 import { AlertCircle, Check, Info } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { haptics } from '@/lib/haptics';
 
 type ToastVariant = 'success' | 'info' | 'error';
 
@@ -16,6 +17,8 @@ type ShowOptions = {
   variant?: ToastVariant;
   action?: { label: string; onClick: () => void };
   durationMs?: number;
+  /** Set false when the caller already fired its own haptic. */
+  haptic?: boolean;
 };
 
 type ToastContextValue = {
@@ -43,6 +46,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       variant: opts.variant ?? 'success',
       action: opts.action,
     };
+    // Every save / delete / error surfaces a toast, so tying haptics here gives
+    // consistent tactile feedback app-wide (silently skipped without a gesture).
+    if (opts.haptic !== false) {
+      if (toast.variant === 'success') haptics.success();
+      else if (toast.variant === 'error') haptics.warn();
+      else haptics.light();
+    }
     setToasts((prev) => [...prev, toast]);
     const duration = opts.durationMs ?? (opts.action ? 5000 : 1800);
     setTimeout(() => {

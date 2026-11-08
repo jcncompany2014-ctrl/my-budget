@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { haptics } from '@/lib/haptics';
 
 type Tone = 'primary' | 'danger' | 'warn' | 'neutral' | 'dark';
 type Size = 'sm' | 'md';
@@ -31,7 +32,14 @@ export default function Pill({
   return (
     <Component
       type={onClick ? 'button' : undefined}
-      onClick={onClick}
+      onClick={
+        onClick
+          ? () => {
+              haptics.light();
+              onClick();
+            }
+          : undefined
+      }
       className={`inline-flex items-center gap-1 rounded-full ${onClick ? 'tap' : ''} ${className}`}
       style={{
         paddingLeft: s.px,

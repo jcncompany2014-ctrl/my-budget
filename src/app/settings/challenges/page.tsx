@@ -13,6 +13,7 @@ import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { useChallenges } from '@/lib/challenges';
+import { daysUntilKey, localDayKey } from '@/lib/dates';
 import { fmt, isExpense } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 import type { Challenge } from '@/lib/types';
@@ -45,8 +46,8 @@ export default function ChallengesPage() {
       scope: mode,
       cat: undefined,
       limit: 0,
-      startDate: today.toISOString().slice(0, 10),
-      endDate: weekFromNow.toISOString().slice(0, 10),
+      startDate: localDayKey(today),
+      endDate: localDayKey(weekFromNow),
       active: true,
     });
     setCreating(true);
@@ -150,13 +151,13 @@ function ChallengeCard({
   onEdit: () => void;
 }) {
   const spent = useMemo(() => {
-    const start = new Date(challenge.startDate).getTime();
-    const end = new Date(challenge.endDate).getTime() + 24 * 60 * 60 * 1000;
+    // Inclusive local-day range. (Parsing 'YYYY-MM-DD' with new Date() is UTC
+    // midnight = 09:00 KST, which dropped the first 9 hours of the start day.)
     return tx
       .filter((t) => {
         if (t.scope && t.scope !== challenge.scope) return false;
-        const d = new Date(t.date).getTime();
-        if (d < start || d > end) return false;
+        const day = localDayKey(t.date);
+        if (day < challenge.startDate || day > challenge.endDate) return false;
         if (challenge.cat && t.cat !== challenge.cat) return false;
         return isExpense(t as { amount: number; cat: string });
       })
@@ -165,12 +166,7 @@ function ChallengeCard({
 
   const pct = challenge.limit > 0 ? Math.min(100, (spent / challenge.limit) * 100) : 0;
   const exceeded = spent > challenge.limit;
-  const today = new Date();
-  const endDate = new Date(challenge.endDate);
-  const daysLeft = Math.max(
-    0,
-    Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
-  );
+  const untilEnd = daysUntilKey(challenge.endDate);
 
   return (
     <button
@@ -189,7 +185,7 @@ function ChallengeCard({
           </p>
           <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
             {challenge.cat ? `${CATEGORIES[challenge.cat]?.name ?? '?'} · ` : ''}
-            {daysLeft > 0 ? `${daysLeft}일 남음` : '종료'}
+            {untilEnd < 0 ? '종료' : untilEnd === 0 ? '오늘 마감' : `${untilEnd}일 남음`}
           </p>
         </div>
         <div className="text-right">

@@ -37,6 +37,8 @@ import { IconDisplay } from '@/components/ui/IconPicker';
 import { useAccounts } from '@/lib/accounts';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
+import { dailyAllowance } from '@/lib/daily-allowance';
+import { dayKeyOffset, localDayKey, todayKey } from '@/lib/dates';
 import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
 import {
@@ -100,7 +102,7 @@ export default function HomePage() {
                 strokeLinecap="round"
               />
             </svg>
-            {tx.some((t) => t.date.slice(0, 10) === new Date().toISOString().slice(0, 10)) && (
+            {tx.some((t) => localDayKey(t.date) === todayKey()) && (
               <span
                 className="absolute"
                 style={{
@@ -171,16 +173,16 @@ export default function HomePage() {
 }
 
 function lastNDaysCategory(tx: Transaction[], catId: string, n: number): number[] {
+  // Bucket once by local day instead of re-filtering the whole list n times.
+  const byDay = new Map<string, number>();
+  for (const t of tx) {
+    if (t.cat !== catId || t.amount >= 0) continue;
+    const k = localDayKey(t.date);
+    byDay.set(k, (byDay.get(k) ?? 0) + Math.abs(t.amount));
+  }
   const result: number[] = [];
-  const today = new Date();
   for (let i = n - 1; i >= 0; i--) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - i);
-    const key = day.toISOString().slice(0, 10);
-    const sum = tx
-      .filter((t) => t.cat === catId && t.date.slice(0, 10) === key && t.amount < 0)
-      .reduce((s, t) => s + Math.abs(t.amount), 0);
-    result.push(sum);
+    result.push(byDay.get(dayKeyOffset(-i)) ?? 0);
   }
   return result;
 }
@@ -215,8 +217,8 @@ function PersonalHome({
     .reduce((s, t) => s + Math.abs(t.amount), 0);
   const net = income - expense;
 
-  const todayKey = now.toISOString().slice(0, 10);
-  const todayTx = tx.filter((t) => t.date.slice(0, 10) === todayKey && isExpenseTx(t));
+  const today = todayKey();
+  const todayTx = tx.filter((t) => localDayKey(t.date) === today && isExpenseTx(t));
   const todaySpend = todayTx.reduce((s, t) => s + Math.abs(t.amount), 0);
 
   const totalAssets = accounts.reduce((s, a) => s + a.balance, 0);
@@ -241,6 +243,20 @@ function PersonalHome({
     return map;
   }, [monthTx]);
   const budgetUsed = budgetEntries.reduce((s, [k]) => s + (spentByCat.get(k) ?? 0), 0);
+
+  // 오늘 쓸 수 있는 돈 — fixed at start of day, only budgeted categories
+  const allowance = useMemo(() => {
+    if (budgetTotal <= 0) return null;
+    const budgeted = new Set(Object.keys(budgets));
+    const spentTodayBudgeted = todayTx
+      .filter((t) => budgeted.has(t.cat))
+      .reduce((s, t) => s + Math.abs(t.amount), 0);
+    return dailyAllowance({
+      budgetTotal,
+      spentBeforeToday: budgetUsed - spentTodayBudgeted,
+      spentToday: spentTodayBudgeted,
+    });
+  }, [budgets, budgetTotal, budgetUsed, todayTx]);
 
   const anomalies = useMemo(() => detectAnomalies(tx), [tx]);
   const outlier = useMemo(() => detectOutlierTransaction(tx), [tx]);
@@ -386,6 +402,7 @@ function PersonalHome({
                 <span className="tnum">{fmt(budgetUsed)}원</span>
                 <span className="tnum">목표 {fmt(budgetTotal)}원</span>
               </div>
+              {allowance && <TodayAllowance a={allowance} />}
             </>
           )}
         </Link>
@@ -644,8 +661,8 @@ function BusinessHome({
   const vatEstimate = Math.round(revenue / 11);
   const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
 
-  const todayKey = now.toISOString().slice(0, 10);
-  const todayTx = tx.filter((t) => t.date.slice(0, 10) === todayKey);
+  const today = todayKey();
+  const todayTx = tx.filter((t) => localDayKey(t.date) === today);
   const todayRevenue = todayTx.filter(isIncomeTx).reduce((s, t) => s + t.amount, 0);
   const totalAssets = accounts.reduce((s, a) => s + a.balance, 0);
 
@@ -953,6 +970,48 @@ function Stat({ label, value, dotOpacity }: { label: string; value: string; dotO
       <p className="tnum mt-0.5 truncate" style={{ fontSize: 13, fontWeight: 800 }}>
         {value}
       </p>
+    </div>
+  );
+}
+
+function TodayAllowance({ a }: { a: ReturnType<typeof dailyAllowance> }) {
+  const over = a.exhausted || a.todayLeft < 0;
+  const tone = over ? 'var(--color-danger)' : 'var(--color-primary)';
+  return (
+    <div
+      className="mt-3 flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5"
+      style={{ background: over ? 'var(--color-danger-soft)' : 'var(--color-primary-soft)' }}
+    >
+      <div className="min-w-0">
+        <p style={{ color: tone, fontSize: 11, fontWeight: 800, letterSpacing: '0.02em' }}>
+          오늘 쓸 수 있는 돈
+        </p>
+        <p
+          className="tnum mt-0.5"
+          style={{
+            color: 'var(--color-text-1)',
+            fontSize: 15,
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {a.exhausted
+            ? '이번 달 예산을 다 썼어요'
+            : a.todayLeft >= 0
+              ? `${fmt(a.todayLeft)}원 남았어요`
+              : `${fmt(-a.todayLeft)}원 넘었어요`}
+        </p>
+      </div>
+      {!a.exhausted && (
+        <p
+          className="tnum shrink-0 text-right"
+          style={{ color: 'var(--color-text-3)', fontSize: 11, fontWeight: 600, lineHeight: 1.4 }}
+        >
+          하루 {fmtShort(a.todayAllowance)}원
+          <br />
+          {a.daysLeft}일 남음
+        </p>
+      )}
     </div>
   );
 }

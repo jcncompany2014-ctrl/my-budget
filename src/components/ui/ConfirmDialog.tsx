@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { haptics } from '@/lib/haptics';
 
 /**
  * Standardized destructive-action dialog. Replaces ad-hoc confirm sheets
@@ -50,6 +51,12 @@ export default function ConfirmDialog({
   }, [open, onCancel, onConfirm]);
 
   if (!open) return null;
+
+  const confirm = () => {
+    if (danger) haptics.warn();
+    else haptics.medium();
+    onConfirm();
+  };
 
   return (
     <div
@@ -106,7 +113,7 @@ export default function ConfirmDialog({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={confirm}
             className="tap h-12 flex-1 rounded-2xl"
             style={{
               background: danger ? 'var(--color-danger)' : 'var(--color-primary)',

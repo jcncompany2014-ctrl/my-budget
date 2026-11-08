@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { haptics } from '@/lib/haptics';
 
 type Tab = {
   href: string;
@@ -101,7 +102,10 @@ export default function BottomNav() {
 
         <button
           type="button"
-          onClick={() => setMenuOpen(true)}
+          onClick={() => {
+            haptics.medium();
+            setMenuOpen(true);
+          }}
           className="tap relative -mt-7 flex h-14 w-14 items-center justify-center rounded-full"
           style={{
             background:
@@ -125,6 +129,7 @@ export default function BottomNav() {
         <ActionMenu
           onClose={() => setMenuOpen(false)}
           onPick={(href) => {
+            haptics.light();
             setMenuOpen(false);
             router.push(href);
           }}
@@ -138,6 +143,9 @@ function NavItem({ tab, active }: { tab: Tab; active: boolean }) {
   return (
     <Link
       href={tab.href}
+      onClick={() => {
+        if (!active) haptics.light();
+      }}
       className="tap relative flex flex-1 flex-col items-center justify-center gap-0.5"
     >
       <span

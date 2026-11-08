@@ -9,6 +9,7 @@ import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
+import { dayKeyOffset, daysUntilKey } from '@/lib/dates';
 import { fmt } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
 import type { SavingsGoal } from '@/lib/types';
@@ -60,7 +61,7 @@ export default function GoalsSettingsPage() {
       emoji: 'lucide:Target',
       target: 0,
       current: 0,
-      due: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().slice(0, 10),
+      due: dayKeyOffset(90),
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
       scope: mode,
     });
@@ -97,10 +98,7 @@ export default function GoalsSettingsPage() {
               const pct = Math.min(100, Math.round((g.current / g.target) * 100));
               const completed = pct >= 100;
               const remaining = Math.max(0, g.target - g.current);
-              const dueDate = g.due ? new Date(g.due) : null;
-              const daysUntil = dueDate
-                ? Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                : null;
+              const daysUntil = g.due ? daysUntilKey(g.due) : null;
               return (
                 <button
                   key={g.id}
@@ -164,7 +162,10 @@ export default function GoalsSettingsPage() {
                         {!completed && daysUntil != null && daysUntil > 0 && (
                           <span> · D-{daysUntil}</span>
                         )}
-                        {!completed && daysUntil != null && daysUntil <= 0 && (
+                        {!completed && daysUntil === 0 && (
+                          <span style={{ color: '#B45309', fontWeight: 700 }}> · D-day</span>
+                        )}
+                        {!completed && daysUntil != null && daysUntil < 0 && (
                           <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>
                             {' '}
                             · 기한 지남

@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
+import { todayKey } from '@/lib/dates';
 import { useEmployees } from '@/lib/employees';
 import { fmt } from '@/lib/format';
 import type { Employee } from '@/lib/types';
@@ -34,7 +35,7 @@ export default function EmployeesPage() {
       id: 'emp-' + Date.now().toString(36),
       name: '',
       baseSalary: 0,
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: todayKey(),
       active: true,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
     });
