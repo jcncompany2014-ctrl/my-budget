@@ -19,6 +19,7 @@ import { fmt, fmtShort } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useLocations } from '@/lib/locations';
 import { useAllTransactions } from '@/lib/storage';
+import { deriveTemplates, type TxTemplate } from '@/lib/templates';
 import { buildTransferLegs } from '@/lib/transfers';
 import type { Transaction } from '@/lib/types';
 import { useVendors } from '@/lib/vendors';
@@ -116,6 +117,12 @@ function AddPage() {
   const amountHint = useMemo(
     () => (merchant.trim().length >= 2 ? suggestAmount(merchant, mode, history) : null),
     [merchant, mode, history],
+  );
+
+  // Habitual entries mined from history — chip → step 2 → 저장
+  const templates = useMemo(
+    () => deriveTemplates(history, { scope: mode, kind: type }),
+    [history, mode, type],
   );
 
   useEffect(() => {
@@ -286,6 +293,15 @@ function AddPage() {
     setAmount(String((Number(amount) || 0) + n));
   };
 
+  const applyTemplate = (t: TxTemplate) => {
+    haptics.light();
+    setAmount(String(t.amount));
+    setMerchant(t.merchant);
+    setCat(t.cat);
+    setCatTouched(true);
+    setStep(2);
+  };
+
   const promptCopy = useMemo(() => {
     if (mode === 'business') {
       return type === 'expense' ? '얼마를 지출했나요?' : '얼마가 들어왔나요?';
@@ -396,6 +412,53 @@ function AddPage() {
                 <Lightbulb size={12} strokeWidth={2.4} />
                 <span>평소 {fmt(amountHint)}원</span>
               </button>
+            </div>
+          )}
+
+          {!amount && templates.length > 0 && (
+            <div className="pb-3">
+              <p
+                className="mb-2 px-5"
+                style={{
+                  color: 'var(--color-text-3)',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                자주 쓰는 거래
+              </p>
+              <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1">
+                {templates.map((t) => (
+                  <button
+                    key={`${t.merchant}-${t.cat}`}
+                    type="button"
+                    onClick={() => applyTemplate(t)}
+                    className="tap flex shrink-0 items-center gap-2 rounded-2xl py-2 pl-2 pr-3.5"
+                    style={{
+                      background: 'var(--color-card)',
+                      border: '1px solid var(--color-gray-150)',
+                      boxShadow: '0 1px 2px rgba(20, 28, 40, 0.04)',
+                    }}
+                  >
+                    <CategoryIcon catId={t.cat} size={28} />
+                    <span className="text-left">
+                      <span
+                        className="block max-w-[96px] truncate"
+                        style={{ color: 'var(--color-text-1)', fontSize: 12, fontWeight: 700 }}
+                      >
+                        {t.merchant}
+                      </span>
+                      <span
+                        className="tnum block"
+                        style={{ color: 'var(--color-text-3)', fontSize: 11, fontWeight: 600 }}
+                      >
+                        {fmt(t.amount)}원
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
