@@ -101,6 +101,14 @@ describe('trainBayes + classifyBayes', () => {
     expect(r?.cat).not.toBe('biz_meal');
   });
 
+  it('declines to guess when no word was ever seen (priors alone are not evidence)', () => {
+    const m = trainBayes(history, 'personal');
+    expect(classifyBayes('NETFLIX.COM', m)).toBeNull();
+    expect(classifyBayes('CGV 용산', m)?.cat).toBe('culture'); // known word → still generalizes
+    // Only the branch name is shared with "스타벅스 강남점" — not evidence of a café.
+    expect(classifyBayes('다이소 강남점', m)).toBeNull();
+  });
+
   it('confidence is higher for clearly-categorized inputs vs ambiguous ones', () => {
     const m = trainBayes(history, 'personal');
     const clear = classifyBayes('스타벅스', m);

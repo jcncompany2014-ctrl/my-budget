@@ -88,10 +88,32 @@ export function trainBayes(history: Transaction[], scope: Scope): BayesModel {
   return { docCount, wordCount, totalWordsByCat, vocabSize: vocab.size, totalDocs };
 }
 
+/** Domain/company filler that says nothing about what was bought. */
+const NOISE_WORDS = new Set(['com', 'net', 'co', 'kr', 'www', 'inc', 'ltd', 'corp']);
+
+/**
+ * True when at least one whole word of `text` was seen in training. Without
+ * that, every category scores on priors and smoothing alone — and the gap
+ * still looks "confident" — so a never-seen "NETFLIX.COM" landed in whatever
+ * category had the most history. Branch names ("역삼점", "강남점") don't count:
+ * sharing one says where you shopped, not what you bought.
+ */
+function hasEvidence(text: string, model: BayesModel): boolean {
+  const words = text
+    .toLowerCase()
+    .split(/[\s/·,.\-_]+/)
+    .filter((w) => w.length >= 2 && !NOISE_WORDS.has(w) && !/점$/.test(w));
+  for (const w of words) {
+    for (const cm of model.wordCount.values()) if (cm.has(w)) return true;
+  }
+  return false;
+}
+
 /**
  * Classify a merchant string into the category whose conditional probability
  * is highest. `confidence` is the log-prob gap to the runner-up, normalized
- * to [0, 1] — caller can require a minimum to ignore weak signals.
+ * to [0, 1] — caller can require a minimum to ignore weak signals. Returns
+ * null when no word of the input was ever seen (nothing to generalize from).
  */
 export function classifyBayes(
   text: string,
@@ -101,6 +123,7 @@ export function classifyBayes(
   const tokens = tokenize(text);
   if (tokens.length === 0) return null;
   if (model.totalDocs === 0) return null;
+  if (!hasEvidence(text, model)) return null;
 
   let bestCat: string | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;

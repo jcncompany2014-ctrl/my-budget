@@ -239,12 +239,20 @@ export const incomeCategoriesByScope = (scope: Scope) =>
 
 /** Suggest a category by merchant name. Heuristic mapping. */
 const MERCHANT_HINTS: Array<[RegExp, string]> = [
-  [/스타벅스|투썸|이디야|메가|컴포즈|폴바셋|할리스|커피|cafe|coffee|카페/i, 'cafe'],
   [
-    /치킨|피자|마라탕|김밥|버거|맥도날드|롯데리아|버거킹|kfc|서브웨이|식당|국밥|돈까스|치즈|푸드|만두|냉면|쌀국수|식사|레스토랑|배달|배민|요기요|쿠팡이츠/i,
+    /스타벅스|투썸|이디야|메가\s?(?:커피|mgc|엠지씨)|컴포즈|폴바셋|할리스|빽다방|커피|cafe|coffee|카페|파리바게뜨|뚜레쥬르|베이커리|빵집|제과|던킨|배스킨|베스킨|설빙|공차|디저트|도넛/i,
+    'cafe',
+  ],
+  [
+    /치킨|피자|마라탕|김밥|버거|맥도날드|롯데리아|버거킹|kfc|서브웨이|식당|국밥|돈까스|돈가스|치즈|푸드|만두|냉면|쌀국수|식사|레스토랑|배달|배민|요기요|쿠팡이츠|본죽|도시락|한솥|분식|떡볶이|순대|백반|한식|중식|일식|초밥|스시|라멘|우동|짜장|짬뽕|족발|보쌈|곱창|삼겹|갈비|칼국수|국수|덮밥|뷔페|샐러드|포케|토스트|\bbhc\b|\bbbq\b|굽네|맘스터치|도미노|파파존스/i,
     'food',
   ],
-  [/지하철|버스|택시|kakao\s?t|타다|gs25|cu|cu편의점|편의점|gs칼텍스|sk엔크린|주유/i, 'transit'],
+  [
+    /지하철|버스|택시|kakao\s?t|카카오\s?t|타다|티머니|코레일|\bktx\b|\bsrt\b|gs칼텍스|sk엔크린|s-oil|에쓰오일|주유/i,
+    'transit',
+  ],
+  // Convenience stores were filed under 교통 by mistake — they're everyday 생활 spend.
+  [/편의점|gs25|\bcu\b|세븐일레븐|7-eleven|이마트24|emart24|미니스톱/i, 'living'],
   [
     /cgv|메가박스|롯데시네마|영화|뮤지컬|콘서트|스파|찜질방|문화|netflix|넷플릭스|유튜브|youtube|spotify|디즈니/i,
     'culture',
@@ -255,7 +263,7 @@ const MERCHANT_HINTS: Array<[RegExp, string]> = [
     /무신사|29cm|쿠팡|네이버쇼핑|11번가|지마켓|옥션|이마트|홈플러스|롯데마트|다이소|이케아/i,
     'shopping',
   ],
-  [/관리비|전기|수도|가스|kt|skt|lg\s?u\+|통신비/i, 'living'],
+  [/관리비|전기|수도|가스|\bkt\b|skt|lg\s?u\+|통신비/i, 'living'],
   [/펫|동물병원|사료|반려/i, 'pet'],
   [/항공|호텔|여행|에어비앤비|airbnb/i, 'travel'],
   [/학원|교육|책|서점|yes24|알라딘|문제집|유데미|udemy|coursera|클래스101/i, 'education'],

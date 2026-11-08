@@ -5,6 +5,7 @@ import { useMode } from '@/components/ModeProvider';
 import { applyTxToAccounts, reverseTxFromAccounts, transferPairIds } from '@/lib/integrity';
 import { SEED_TRANSACTIONS } from '@/lib/seed';
 import { KEYS } from '@/lib/storage-keys';
+import { subscribeToKey } from '@/lib/store-factory';
 import type { Scope, Transaction } from '@/lib/types';
 
 const KEY = KEYS.transactions;
@@ -51,6 +52,48 @@ function commitTx(next: Transaction[]) {
   txListeners.forEach((fn) => fn());
 }
 
+// The ensureAuto* generators (recurring, payroll, loan payments, credit-line
+// interest) and integrity helpers write this key through store-factory, which
+// bypasses the singleton. Without this bridge the stale cache was written back
+// on the next add/remove — silently deleting whatever they had generated.
+if (typeof window !== 'undefined') {
+  const invalidate = () => {
+    cachedTx = null;
+    txListeners.forEach((fn) => fn());
+  };
+  subscribeToKey(KEY, invalidate);
+  window.addEventListener('storage', (e) => {
+    if (e.key === KEY) invalidate();
+  });
+}
+
+/** Snapshot of every transaction (all scopes) — for non-React callers. */
+export function allTransactions(): Transaction[] {
+  return getCachedTx();
+}
+
+/** Insert transactions (newest-first order kept) and apply their balance effect. */
+export function addTransactions(list: Transaction[]) {
+  if (list.length === 0) return;
+  list.forEach((t) => applyTxToAccounts(t));
+  commitTx([...list, ...getCachedTx()]);
+}
+
+/**
+ * Remove a transaction. If it's a transfer leg, the paired leg is removed too.
+ * Returns the removed transaction(s) for undo support.
+ */
+export function removeTransaction(id: string): Transaction[] {
+  const cur = getCachedTx();
+  const target = cur.find((t) => t.id === id);
+  if (!target) return [];
+  const idsToRemove = target.transferPairId ? transferPairIds(target, cur) : [id];
+  const removed = cur.filter((t) => idsToRemove.includes(t.id));
+  removed.forEach((t) => reverseTxFromAccounts(t));
+  commitTx(cur.filter((t) => !idsToRemove.includes(t.id)));
+  return removed;
+}
+
 export function useTransactions() {
   const { mode } = useMode();
   const all = useAllTransactions();
@@ -75,25 +118,9 @@ export function useAllTransactions() {
     };
   }, []);
 
-  const add = (t: Transaction) => {
-    applyTxToAccounts(t);
-    commitTx([t, ...getCachedTx()]);
-  };
+  const add = (t: Transaction) => addTransactions([t]);
 
-  /**
-   * Remove a transaction. If it's a transfer leg, the paired leg is removed too.
-   * Returns the removed transaction(s) for undo support.
-   */
-  const remove = (id: string): Transaction[] => {
-    const cur = getCachedTx();
-    const target = cur.find((t) => t.id === id);
-    if (!target) return [];
-    const idsToRemove = target.transferPairId ? transferPairIds(target, cur) : [id];
-    const removed = cur.filter((t) => idsToRemove.includes(t.id));
-    removed.forEach((t) => reverseTxFromAccounts(t));
-    commitTx(cur.filter((t) => !idsToRemove.includes(t.id)));
-    return removed;
-  };
+  const remove = (id: string): Transaction[] => removeTransaction(id);
 
   const update = (id: string, patch: Partial<Transaction>) => {
     const cur = getCachedTx();
@@ -113,10 +140,7 @@ export function useAllTransactions() {
   };
 
   /** Restore a previously removed transaction (used by undo). */
-  const restore = (txs: Transaction[]) => {
-    txs.forEach((t) => applyTxToAccounts(t));
-    commitTx([...txs, ...getCachedTx()]);
-  };
+  const restore = (txs: Transaction[]) => addTransactions(txs);
 
   return { tx, ready, add, remove, update, restore };
 }
