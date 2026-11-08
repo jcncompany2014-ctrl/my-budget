@@ -47,6 +47,8 @@ export type BackupFile = {
   language?: unknown;
   currency?: unknown;
   taxpayerType?: unknown;
+  /** Card-notification inbox key — restoring it keeps the iPhone Shortcut working. */
+  inboxKey?: string | null;
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -94,6 +96,7 @@ export function exportAll(): BackupFile {
     language: read<unknown>(KEYS.language, null),
     currency: read<unknown>(KEYS.currency, null),
     taxpayerType: read<unknown>(KEYS.taxpayerType, null),
+    inboxKey: read<string | null>(KEYS.inboxKey, null),
   };
 }
 
@@ -235,6 +238,9 @@ export function importBackup(file: File): Promise<ImportResult> {
         }
         if (body.taxpayerType !== undefined && body.taxpayerType !== null) {
           writeIf(KEYS.taxpayerType, body.taxpayerType);
+        }
+        if (typeof body.inboxKey === 'string') {
+          writeIf(KEYS.inboxKey, body.inboxKey);
         }
 
         resolve(result);

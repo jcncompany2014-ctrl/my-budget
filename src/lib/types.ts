@@ -63,6 +63,9 @@ export type Transaction = {
 
   /** Split breakdown — when present, each entry's amount sums to this tx's amount */
   splits?: { cat: string; amount: number; memo?: string }[];
+
+  /** Recorded automatically from a card/pay notification (iPhone Shortcut → inbox). */
+  source?: 'notification';
 };
 
 export type Budget = {

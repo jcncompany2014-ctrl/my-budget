@@ -27,6 +27,11 @@ export const KEYS = {
   language: 'asset/language/v1',
   currency: 'asset/currency/v1',
   taxpayerType: 'asset/taxpayer-type/v1',
+  // Card-notification auto-record (iPhone Shortcut → /api/inbox)
+  inboxKey: 'asset/inbox-key/v1',
+  inboxLog: 'asset/inbox-log/v1',
+  inboxSeen: 'asset/inbox-seen/v1',
+  inboxStatus: 'asset/inbox-status/v1',
 } as const;
 
 export type StorageKey = (typeof KEYS)[keyof typeof KEYS];

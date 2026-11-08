@@ -1,5 +1,6 @@
 'use client';
 
+import { BellRing } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
@@ -107,10 +108,19 @@ export default function TxRow({
       <CategoryIcon catId={tx.cat} size={40} />
       <div className="min-w-0 flex-1">
         <p
-          className="truncate"
+          className="flex min-w-0 items-center gap-1"
           style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }}
         >
-          {tx.merchant}
+          <span className="truncate">{tx.merchant}</span>
+          {tx.source === 'notification' && (
+            <BellRing
+              size={11}
+              strokeWidth={2.6}
+              aria-label="카드 알림으로 자동 기록"
+              className="shrink-0"
+              color="var(--color-text-4)"
+            />
+          )}
         </p>
         {subtitleParts.length > 0 && (
           <p

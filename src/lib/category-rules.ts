@@ -2,7 +2,8 @@
 
 import { createListStore } from '@/lib/store-factory';
 
-const KEY = 'asset/category-rules/v1';
+export const CATEGORY_RULES_KEY = 'asset/category-rules/v1';
+const KEY = CATEGORY_RULES_KEY;
 
 export type CategoryRule = {
   id: string;

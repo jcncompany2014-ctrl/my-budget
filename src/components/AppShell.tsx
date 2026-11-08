@@ -8,6 +8,7 @@ import { ensureAutoLoanPayment } from '@/lib/auto-loan-payment';
 import { ensureAutoPayroll } from '@/lib/auto-payroll';
 import { ensureAutoRecurring } from '@/lib/auto-recurring';
 import BottomNav from './BottomNav';
+import InboxSync from './InboxSync';
 
 const HIDE_NAV_PREFIXES = ['/add', '/tx/', '/transfer', '/quick-add'];
 
@@ -45,6 +46,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     >
       <main className="flex flex-1 flex-col">{children}</main>
       {!hideNav && <BottomNav />}
+      <InboxSync />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   Banknote,
   BarChart3,
+  BellRing,
   Briefcase,
   CalendarDays,
   CalendarRange,
@@ -50,6 +51,7 @@ import { ensureAutoBackup, lastAutoBackupAt, restoreLastAutoBackup } from '@/lib
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
 import { previousMonthKey } from '@/lib/closing';
 import { parseTransactionsCSV } from '@/lib/csv-import';
+import { useInboxKey } from '@/lib/inbox';
 import { useCurrency, useLanguage } from '@/lib/locale';
 import { useProfile } from '@/lib/profile';
 import { localStorageBytes, STORAGE_LIMIT_BYTES } from '@/lib/storage-keys';
@@ -63,14 +65,20 @@ export default function SettingsPage() {
   const { value: currency, set: setCurrency } = useCurrency();
   const { value: language, set: setLanguage } = useLanguage();
   const { value: taxType, set: setTaxType } = useTaxpayerType();
+  const { value: inboxKey } = useInboxKey();
+  const inboxOn = !!inboxKey;
   const fileInput = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState<null | 'reset'>(null);
   const [nameDraft, setNameDraft] = useState(profile.name);
   const [storageBytes, setStorageBytes] = useState(0);
+  // Read after mount — the prerendered HTML can't know it ("아직 없음" vs a date
+  // was a hydration mismatch on every visit once a backup existed).
+  const [lastBackup, setLastBackup] = useState<Date | null>(null);
 
   useEffect(() => {
     setStorageBytes(localStorageBytes());
     ensureAutoBackup();
+    setLastBackup(lastAutoBackupAt());
   }, []);
 
   const csvInput = useRef<HTMLInputElement>(null);
@@ -148,6 +156,20 @@ export default function SettingsPage() {
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
           />
         </div>
+      </Section>
+
+      <Section title="자동화">
+        <Row
+          icon={BellRing}
+          iconBg="#2E3561"
+          label="카드 알림 자동 기록"
+          subtitle={
+            inboxOn
+              ? '켜짐 · 결제 알림 → 단축어 → 자동 기록'
+              : '결제 알림이 오면 알아서 기록 (아이폰 단축어)'
+          }
+          onClick={() => router.push('/settings/auto-record')}
+        />
       </Section>
 
       <Section title="언어 · 통화">
@@ -505,11 +527,7 @@ export default function SettingsPage() {
           icon={RefreshCw}
           iconBg="#00B956"
           label="자동 백업"
-          subtitle={
-            lastAutoBackupAt()
-              ? `최근 ${lastAutoBackupAt()?.toLocaleDateString('ko-KR')}`
-              : '아직 없음'
-          }
+          subtitle={lastBackup ? `최근 ${lastBackup.toLocaleDateString('ko-KR')}` : '아직 없음'}
           right={
             <span
               style={{

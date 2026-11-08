@@ -77,6 +77,15 @@ describe('backup integration', () => {
     expect(read<unknown[]>(KEYS.transactions)).toHaveLength(2);
   });
 
+  it('carries the card-notification inbox key so the Shortcut keeps working', async () => {
+    seed(KEYS.inboxKey, 'k'.repeat(32));
+    const dump = exportAll();
+    expect(dump.inboxKey).toBe('k'.repeat(32));
+    window.localStorage.clear();
+    await importBackup(asFile(dump));
+    expect(read<string>(KEYS.inboxKey)).toBe('k'.repeat(32));
+  });
+
   it('legacy v4 backups (no creditLines field) still import cleanly', async () => {
     // Pre-existing creditLines should NOT be wiped by an older backup that
     // doesn't carry them.

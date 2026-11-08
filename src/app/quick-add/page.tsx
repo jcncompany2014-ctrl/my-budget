@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
@@ -16,8 +16,35 @@ import {
 } from '@/lib/categories';
 import { useFavorites } from '@/lib/favorites';
 import { fmt } from '@/lib/format';
+import { previewNotification } from '@/lib/inbox';
 import { useAllTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
+
+type Parsed = {
+  amount: number;
+  merchant: string;
+  date: Date;
+  cat: string;
+  type: 'expense' | 'income';
+  /** Set when a pasted card notification named the card. */
+  acc?: string;
+};
+
+/** A pasted card/pay notification ("신한카드(1234)승인 … 12,500원 … GS25") read by the inbox parser. */
+function parseNotificationText(raw: string): Parsed | null {
+  if (!/승인|결제|취소|\[Web발신\]|카드/.test(raw)) return null;
+  const { result, account, cat } = previewNotification(raw);
+  if (!result.ok || result.notice.currency !== 'KRW') return null;
+  const n = result.notice;
+  return {
+    amount: n.amount,
+    merchant: n.merchant,
+    date: n.date ?? new Date(),
+    cat: cat ?? 'living',
+    type: n.kind === 'cancel' ? 'income' : 'expense',
+    acc: account?.id,
+  };
+}
 
 /**
  * Parse strings like:
@@ -25,16 +52,7 @@ import type { Transaction } from '@/lib/types';
  *  - "오늘 점심 12,000"
  *  - "스타벅스 4500"
  */
-function parseQuick(
-  raw: string,
-  mode: 'personal' | 'business',
-): null | {
-  amount: number;
-  merchant: string;
-  date: Date;
-  cat: string;
-  type: 'expense' | 'income';
-} {
+function parseQuick(raw: string, mode: 'personal' | 'business'): Parsed | null {
   if (!raw.trim()) return null;
 
   let str = raw.trim();
@@ -106,18 +124,37 @@ function parseQuick(
   return { amount, merchant, date, cat, type };
 }
 
-export default function QuickAddPage() {
+export default function QuickAddPageWrap() {
+  return (
+    <Suspense fallback={null}>
+      <QuickAddPage />
+    </Suspense>
+  );
+}
+
+function QuickAddPage() {
   const router = useRouter();
+  const search = useSearchParams();
   const toast = useToast();
   const { mode } = useMode();
-  const { accounts } = useAccounts();
+  const { accounts, allAccounts } = useAccounts();
   const { add } = useAllTransactions();
   const { items: favorites } = useFavorites();
   const [text, setText] = useState('');
+  const deferredText = useDeferredValue(text);
+  // ?text= arrives from the auto-record inbox ("못 읽은 알림 → 직접 입력"). Applied
+  // after mount: parsing reads accounts from localStorage, which the server render lacks.
+  const presetText = search.get('text');
+  useEffect(() => {
+    if (presetText) setText(presetText);
+  }, [presetText]);
 
   const expenseCats = useMemo(() => expenseCategoriesByScope(mode), [mode]);
   const incomeCats = useMemo(() => incomeCategoriesByScope(mode), [mode]);
-  const parsed = parseQuick(text, mode);
+  const parsed = useMemo(
+    () => parseNotificationText(deferredText) ?? parseQuick(deferredText, mode),
+    [deferredText, mode],
+  );
 
   const myFavorites = favorites.filter((f) => f.scope === mode);
 
@@ -127,6 +164,8 @@ export default function QuickAddPage() {
       toast.show('먼저 계좌를 추가해 주세요', 'error');
       return;
     }
+    const acc =
+      allAccounts.find((a) => a.id === parsed.acc) ?? accounts.find((a) => a.main) ?? accounts[0];
     const tx: Transaction = {
       id: 'tn-' + Date.now().toString(36),
       date: parsed.date.toISOString(),
@@ -134,8 +173,8 @@ export default function QuickAddPage() {
       cat: parsed.cat,
       merchant: parsed.merchant,
       memo: '',
-      acc: accounts[0]?.id ?? 'a-default',
-      scope: mode,
+      acc: acc?.id ?? 'a-default',
+      scope: acc?.scope ?? mode,
     };
     add(tx);
     toast.show('빠르게 저장 완료', 'success');
@@ -181,20 +220,45 @@ export default function QuickAddPage() {
           한 줄로 거래 추가 — 예: <br />
           <span style={{ color: 'var(--color-text-2)' }}>“어제 스타벅스 5천원”</span>,
           <span style={{ color: 'var(--color-text-2)' }}> “오늘 점심 12000”</span>,
-          <span style={{ color: 'var(--color-text-2)' }}> “급여 3500000 수입”</span>
+          <span style={{ color: 'var(--color-text-2)' }}> “급여 3500000 수입”</span>, 카드 결제 문자
+          붙여넣기도 돼요
         </p>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="입력하기"
-          className="mt-3 h-14 w-full rounded-2xl px-5 outline-none"
-          style={{
-            background: 'var(--color-card)',
-            color: 'var(--color-text-1)',
-            fontSize: 'var(--text-lg)',
-            fontWeight: 600,
-          }}
-        />
+        {/* A card SMS spans several lines — an <input> would glue them together. */}
+        {text.includes('\n') ? (
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={5}
+            className="mt-3 w-full resize-none rounded-2xl px-5 py-4 outline-none"
+            style={{
+              background: 'var(--color-card)',
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-base)',
+              fontWeight: 600,
+              lineHeight: 1.5,
+            }}
+          />
+        ) : (
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => {
+              const pasted = e.clipboardData.getData('text');
+              if (pasted.includes('\n')) {
+                e.preventDefault();
+                setText(pasted.trim());
+              }
+            }}
+            placeholder="입력하기"
+            className="mt-3 h-14 w-full rounded-2xl px-5 outline-none"
+            style={{
+              background: 'var(--color-card)',
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-lg)',
+              fontWeight: 600,
+            }}
+          />
+        )}
 
         {parsed && (
           <div className="mt-3 rounded-2xl p-4" style={{ background: 'var(--color-primary-soft)' }}>

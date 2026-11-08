@@ -1,5 +1,7 @@
 'use client';
 
+import { BellRing } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
@@ -30,7 +32,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   const router = useRouter();
   const toast = useToast();
   const { tx, ready, remove, update, restore, add } = useAllTransactions();
-  const { accounts } = useAccounts();
+  const { allAccounts } = useAccounts();
   const [confirming, setConfirming] = useState(false);
 
   const onCopy = () => {
@@ -42,6 +44,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
       transferPairId: undefined,
       transferTo: undefined,
       transferCrossMode: undefined,
+      source: undefined,
     };
     add(copy);
     toast.show('거래 복사됨 (오늘 날짜로)', 'success');
@@ -76,7 +79,8 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
   }
 
   const cat = CATEGORIES[item.cat];
-  const account = accounts.find((a) => a.id === item.acc);
+  // All scopes — a business row opened from personal mode still names its account.
+  const account = allAccounts.find((a) => a.id === item.acc);
   const isIncome = item.amount > 0;
 
   const onDelete = () => {
@@ -203,6 +207,21 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
             />
           </svg>
         </button>
+        {item.source === 'notification' && (
+          <Link
+            href="/inbox"
+            className="tap mx-auto mt-2.5 flex w-fit items-center gap-1 rounded-full px-2.5 py-1"
+            style={{
+              background: 'var(--color-primary-soft)',
+              color: 'var(--color-primary)',
+              fontSize: 11,
+              fontWeight: 800,
+            }}
+          >
+            <BellRing size={11} strokeWidth={2.8} />
+            카드 알림으로 자동 기록
+          </Link>
+        )}
       </section>
 
       <section
