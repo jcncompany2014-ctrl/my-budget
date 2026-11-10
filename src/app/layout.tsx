@@ -22,6 +22,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // Without this, iOS reports env(safe-area-inset-*) as 0 and the bottom nav
+  // sits under the home indicator in the installed app.
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

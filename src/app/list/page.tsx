@@ -13,13 +13,15 @@ import TxRow from '@/components/TxRow';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
+import { localDayKey } from '@/lib/dates';
 import { fmt, isExpense } from '@/lib/format';
 import { useAllTransactions, useTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
 const fmtMonth = (d: Date) => `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
 
-const dayKey = (iso: string) => iso.slice(0, 10);
+// Local day, not the ISO (UTC) slice — a 02:00 KST purchase belongs to that day, not the one before.
+const dayKey = (iso: string) => localDayKey(iso);
 const fmtDay = (iso: string) => {
   const d = new Date(iso);
   return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
@@ -27,7 +29,7 @@ const fmtDay = (iso: string) => {
 
 export default function ListPage() {
   const { tx, ready } = useTransactions();
-  const { update, remove } = useAllTransactions();
+  const { update, remove, restore } = useAllTransactions();
   const { mode } = useMode();
   const toast = useToast();
   const [offset, setOffset] = useState(0);
@@ -116,22 +118,8 @@ export default function ListPage() {
       durationMs: 5000,
       action: {
         label: '되돌리기',
-        onClick: () => {
-          // restore all
-          // Since useTransactions exposes restore via useAllTransactions, fall back: re-add
-          // But list page used scoped useTransactions. Using simple update via storage:
-          if (typeof window !== 'undefined') {
-            try {
-              const raw = window.localStorage.getItem('asset/transactions/v2');
-              const cur = raw ? JSON.parse(raw) : [];
-              const next = [...allRemoved, ...cur];
-              window.localStorage.setItem('asset/transactions/v2', JSON.stringify(next));
-              window.location.reload();
-            } catch {
-              /* ignore */
-            }
-          }
-        },
+        // restore() also re-applies the amounts to account balances.
+        onClick: () => restore(allRemoved),
       },
     });
     exitBulk();
@@ -309,12 +297,7 @@ export default function ListPage() {
       {/* Day groups */}
       <section className="space-y-3 px-5 pb-24">
         {groupedByDay.length === 0 && (
-          <EmptyState
-            icon={Inbox}
-            iconColor="#94A3B8"
-            title="내역이 없어요"
-            hint="아래 + 버튼으로 거래를 추가하세요"
-          />
+          <EmptyState icon={Inbox} iconColor="#94A3B8" title="내역이 없어요" />
         )}
         {groupedByDay.map(([day, items]) => {
           const total = items.reduce((s, t) => s + (isExpense(t) ? Math.abs(t.amount) : 0), 0);

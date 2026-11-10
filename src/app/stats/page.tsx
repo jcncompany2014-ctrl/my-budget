@@ -471,23 +471,20 @@ export default function StatsPage() {
               >
                 주간 지출 추이
               </p>
-              <div className="flex items-end justify-between gap-2" style={{ height: 80 }}>
+              <div className="flex items-end justify-between gap-2">
                 {weeklyTrend.map((w, i) => {
                   const max = Math.max(...weeklyTrend.map((x) => x.expense), 1);
-                  const pct = (w.expense / max) * 100;
                   const isThis = i === weeklyTrend.length - 1;
                   return (
                     <div key={w.label} className="flex flex-1 flex-col items-center gap-1.5">
-                      <div className="flex w-full flex-1 items-end">
-                        <div
-                          className="w-full rounded-t-md transition-all"
-                          style={{
-                            height: `${pct}%`,
-                            minHeight: 2,
-                            background: isThis ? 'var(--color-primary)' : 'var(--color-gray-200)',
-                          }}
-                        />
-                      </div>
+                      {/* Pixel height: a % height collapses here because the column has no definite height. */}
+                      <div
+                        className="w-full rounded-t-md transition-all"
+                        style={{
+                          height: Math.max(2, Math.round((w.expense / max) * 72)),
+                          background: isThis ? 'var(--color-primary)' : 'var(--color-gray-200)',
+                        }}
+                      />
                       <span
                         className="tnum"
                         style={{ color: 'var(--color-text-3)', fontSize: 9, fontWeight: 600 }}

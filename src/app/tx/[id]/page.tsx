@@ -247,11 +247,13 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
       </section>
 
       <div className="flex-1" />
+      {/* No bottom nav here, so the page clears the home indicator itself. */}
+      <div style={{ height: 'calc(env(safe-area-inset-bottom) + 16px)' }} />
 
       <ConfirmDialog
         open={confirming}
         title="이 거래를 삭제할까요?"
-        description="삭제하면 되돌릴 수 없어요. 30초 안에 토스트의 '되돌리기'를 누르면 복원할 수 있습니다."
+        description="삭제 직후 5초 동안은 '되돌리기'로 복원할 수 있어요."
         confirmLabel="삭제"
         danger
         onCancel={() => setConfirming(false)}

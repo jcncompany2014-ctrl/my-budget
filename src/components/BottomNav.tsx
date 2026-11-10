@@ -89,10 +89,12 @@ export default function BottomNav() {
   return (
     <>
       <nav
-        className="sticky bottom-0 z-40 flex h-[72px] items-center justify-around border-t px-2"
+        className="sticky bottom-0 z-40 flex items-center justify-around border-t px-2"
         style={{
           borderColor: 'var(--color-divider)',
           background: 'var(--color-card)',
+          // The bar itself stays 60px; the home-indicator inset is added below it.
+          height: 'calc(60px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
@@ -106,7 +108,7 @@ export default function BottomNav() {
             haptics.medium();
             setMenuOpen(true);
           }}
-          className="tap relative -mt-7 flex h-14 w-14 items-center justify-center rounded-full"
+          className="tap relative -mt-6 flex h-14 w-14 items-center justify-center rounded-full"
           style={{
             background:
               'linear-gradient(135deg, var(--color-primary-grad-from), var(--color-primary-grad-to))',

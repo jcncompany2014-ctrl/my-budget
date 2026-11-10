@@ -65,7 +65,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div
         className="pointer-events-none fixed inset-x-0 z-[100] flex flex-col items-center gap-2 px-4"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}
       >
         {toasts.map((t) => (
           <ToastItem

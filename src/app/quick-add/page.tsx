@@ -8,12 +8,7 @@ import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import { useAccounts } from '@/lib/accounts';
-import {
-  CATEGORIES,
-  expenseCategoriesByScope,
-  incomeCategoriesByScope,
-  suggestCategory,
-} from '@/lib/categories';
+import { CATEGORIES, suggestCategory } from '@/lib/categories';
 import { useFavorites } from '@/lib/favorites';
 import { fmt } from '@/lib/format';
 import { previewNotification } from '@/lib/inbox';
@@ -149,8 +144,6 @@ function QuickAddPage() {
     if (presetText) setText(presetText);
   }, [presetText]);
 
-  const expenseCats = useMemo(() => expenseCategoriesByScope(mode), [mode]);
-  const incomeCats = useMemo(() => incomeCategoriesByScope(mode), [mode]);
   const parsed = useMemo(
     () => parseNotificationText(deferredText) ?? parseQuick(deferredText, mode),
     [deferredText, mode],
@@ -215,21 +208,16 @@ function QuickAddPage() {
         }
       />
 
-      <section className="px-5 pt-2">
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
-          한 줄로 거래 추가 — 예: <br />
-          <span style={{ color: 'var(--color-text-2)' }}>“어제 스타벅스 5천원”</span>,
-          <span style={{ color: 'var(--color-text-2)' }}> “오늘 점심 12000”</span>,
-          <span style={{ color: 'var(--color-text-2)' }}> “급여 3500000 수입”</span>, 카드 결제 문자
-          붙여넣기도 돼요
-        </p>
+      <section className="px-5 pt-1">
         {/* A card SMS spans several lines — an <input> would glue them together. */}
         {text.includes('\n') ? (
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={5}
-            className="mt-3 w-full resize-none rounded-2xl px-5 py-4 outline-none"
+            // biome-ignore lint/a11y/noAutofocus: swapped in mid-typing; keep the caret
+            autoFocus
+            className="w-full resize-none rounded-2xl px-5 py-4 outline-none"
             style={{
               background: 'var(--color-card)',
               color: 'var(--color-text-1)',
@@ -249,8 +237,18 @@ function QuickAddPage() {
                 setText(pasted.trim());
               }
             }}
-            placeholder="입력하기"
-            className="mt-3 h-14 w-full rounded-2xl px-5 outline-none"
+            onKeyDown={(e) => {
+              // isComposing: Enter that only commits a Hangul IME composition must not save.
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submitParsed();
+              }
+            }}
+            placeholder="어제 스타벅스 5천원 · 카드 문자 붙여넣기"
+            enterKeyHint="done"
+            // biome-ignore lint/a11y/noAutofocus: this page exists only to type one line
+            autoFocus
+            className="h-14 w-full rounded-2xl px-5 outline-none"
             style={{
               background: 'var(--color-card)',
               color: 'var(--color-text-1)',
@@ -321,21 +319,17 @@ function QuickAddPage() {
       </section>
 
       {myFavorites.length > 0 && (
-        <section className="px-5 pb-10 pt-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2
-              style={{
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 700,
-              }}
-            >
-              즐겨찾기 거래
-            </h2>
-            <span style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-              한 번 누르면 즉시 등록
-            </span>
-          </div>
+        <section className="px-5 pt-4">
+          <h2
+            className="mb-2.5"
+            style={{
+              color: 'var(--color-text-1)',
+              fontSize: 'var(--text-base)',
+              fontWeight: 700,
+            }}
+          >
+            즐겨찾기 거래
+          </h2>
           <div className="grid grid-cols-2 gap-2">
             {myFavorites.map((f) => (
               <button
@@ -374,16 +368,8 @@ function QuickAddPage() {
         </section>
       )}
 
-      <section className="px-5 pt-2">
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-          힌트: <code>억/만/천</code> 단위, <code>오늘/어제/그제</code>, <code>수입</code>·
-          <code>급여</code> 키워드 인식 · 소비처명으로 카테고리 자동 추정 (현재 모드:{' '}
-          <span style={{ color: 'var(--color-primary)' }}>
-            {mode === 'business' ? '사업' : '개인'}
-          </span>
-          ){incomeCats.length === 0 || expenseCats.length === 0 ? null : ''}
-        </p>
-      </section>
+      {/* No bottom nav on this page, so it clears the home indicator itself. */}
+      <div style={{ height: 'calc(env(safe-area-inset-bottom) + 20px)' }} />
     </>
   );
 }

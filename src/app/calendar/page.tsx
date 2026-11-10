@@ -1,13 +1,11 @@
 'use client';
 
-import { Inbox } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { SkeletonHome } from '@/components/Skeleton';
 import TopBar from '@/components/TopBar';
 import TxRow from '@/components/TxRow';
-import EmptyState from '@/components/ui/EmptyState';
-import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
+import { fmt, fmtShort, isExpense, isIncome } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -22,7 +20,8 @@ export default function CalendarPage() {
   const router = useRouter();
   const { tx, ready } = useTransactions();
   const [offset, setOffset] = useState(0);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // Today is open by default so the day's transactions show without a tap.
+  const [selectedDay, setSelectedDay] = useState<string | null>(() => ymd(new Date()));
 
   const month = useMemo(() => {
     const d = new Date();
@@ -100,9 +99,7 @@ export default function CalendarPage() {
     return <SkeletonHome />;
   }
 
-  // Today's spend for the bottom hint
   const todayKey = ymd(new Date());
-  const todayTotal = totalsByDay.get(todayKey)?.expense ?? 0;
 
   return (
     <>
@@ -147,8 +144,9 @@ export default function CalendarPage() {
         <button
           type="button"
           onClick={() => {
+            // Landing back on the current month reopens today.
+            setSelectedDay(offset === -1 ? ymd(new Date()) : null);
             setOffset((o) => Math.min(0, o + 1));
-            setSelectedDay(null);
           }}
           disabled={offset >= 0}
           className="tap flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30"
@@ -296,7 +294,7 @@ export default function CalendarPage() {
 
       {/* Selected day list */}
       {selectedDay && (
-        <section className="px-5 pb-10">
+        <section className="px-5 pb-6">
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
               {(() => {
@@ -312,7 +310,13 @@ export default function CalendarPage() {
             </span>
           </div>
           {dayTx.length === 0 ? (
-            <EmptyState icon={Inbox} iconColor="#94A3B8" title="이 날 거래가 없어요" />
+            // One line, not the full illustration: most days of a month are empty.
+            <p
+              className="rounded-2xl px-4 py-3.5 text-sm"
+              style={{ background: 'var(--color-card)', color: 'var(--color-text-3)' }}
+            >
+              거래가 없어요
+            </p>
           ) : (
             <div
               className="overflow-hidden rounded-2xl"
@@ -324,21 +328,6 @@ export default function CalendarPage() {
             </div>
           )}
         </section>
-      )}
-
-      {!selectedDay && (
-        <p className="px-5 pb-10 text-center text-xs" style={{ color: 'var(--color-text-3)' }}>
-          날짜를 누르면 그 날 거래가 보여요 · 오늘은{' '}
-          <span
-            style={{
-              color: todayTotal > 0 ? 'var(--color-danger)' : 'var(--color-text-2)',
-              fontWeight: 700,
-            }}
-            className="tnum"
-          >
-            {todayTotal > 0 ? `-${fmtKRW(todayTotal)}` : fmtKRW(0)}
-          </span>
-        </p>
       )}
     </>
   );

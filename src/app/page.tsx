@@ -343,8 +343,8 @@ function PersonalHome({
             <EmptyInline
               icon={BarChart3}
               iconColor="#FF8A1F"
-              title="예산을 설정해 보세요"
-              hint="카테고리별 한 달 한도를 정하면 진행률이 보여요"
+              title="예산 미설정"
+              hint="눌러서 카테고리별 한도 정하기"
             />
           ) : (
             <>
@@ -431,12 +431,7 @@ function PersonalHome({
             </Link>
           </div>
           {topCats.length === 0 ? (
-            <EmptyInline
-              icon={ShoppingBag}
-              iconColor="#F472B6"
-              title="이번 달 지출이 없어요"
-              hint="+ 버튼으로 첫 거래를 추가하세요"
-            />
+            <EmptyInline icon={ShoppingBag} iconColor="#F472B6" title="이번 달 지출이 없어요" />
           ) : (
             <div className="flex flex-col gap-3">
               {topCats.map(([catId, amt]) => {
@@ -534,35 +529,37 @@ function PersonalHome({
       {/* Goals */}
       <section className="px-5 pb-3">
         <div className="rounded-2xl p-5" style={{ background: 'var(--color-card)' }}>
-          <Link href="/goals" className="mb-3.5 flex items-center justify-between">
-            <p
-              style={{
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 700,
-              }}
-            >
-              저축 목표
-            </p>
-            <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
-              <path
-                d="M9 6l6 6-6 6"
-                stroke="var(--color-text-3)"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
           {goals.length === 0 ? (
             <EmptyInline
               icon={Target}
               iconColor="#1FBA6E"
-              title="첫 목표를 만들어 보세요"
-              hint="제주도 여행, 비상금 같은 목표"
-              cta={{ href: '/settings/goals', label: '목표 만들기' }}
+              title="저축 목표"
+              hint="아직 목표가 없어요"
+              cta={{ href: '/settings/goals', label: '만들기' }}
             />
           ) : (
+            <Link href="/goals" className="mb-3.5 flex items-center justify-between">
+              <p
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-base)',
+                  fontWeight: 700,
+                }}
+              >
+                저축 목표
+              </p>
+              <svg viewBox="0 0 24 24" width={18} height={18} fill="none">
+                <path
+                  d="M9 6l6 6-6 6"
+                  stroke="var(--color-text-3)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Link>
+          )}
+          {goals.length > 0 && (
             <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
               {goals.map((g) => {
                 const pct = g.target > 0 ? (g.current / g.target) * 100 : 0;
@@ -1047,22 +1044,32 @@ function EmptyInline({
   cta?: { href: string; label: string };
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 py-4 text-center">
+    // One compact row: an empty card should not cost more height than a filled one.
+    <div className="flex items-center gap-3">
       <span
         aria-hidden
-        className="flex h-10 w-10 items-center justify-center rounded-full"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
         style={{ background: `${iconColor}1f`, color: iconColor }}
       >
-        <Icon size={20} strokeWidth={2.2} />
+        <Icon size={18} strokeWidth={2.2} />
       </span>
-      <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-        {title}
-      </p>
-      {hint && <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>{hint}</p>}
+      <div className="min-w-0 flex-1">
+        <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          {title}
+        </p>
+        {hint && (
+          <p
+            className="truncate"
+            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', marginTop: 1 }}
+          >
+            {hint}
+          </p>
+        )}
+      </div>
       {cta && (
         <Link
           href={cta.href}
-          className="tap mt-2 rounded-full px-3 py-1.5"
+          className="tap shrink-0 rounded-full px-3 py-1.5"
           style={{
             background: 'var(--color-primary-soft)',
             color: 'var(--color-primary)',
@@ -1095,14 +1102,11 @@ function RecentTransactions({ tx, businessLabel }: { tx: Transaction[]; business
           </Link>
         </div>
         {tx.length === 0 ? (
-          <div className="px-5 pb-6">
+          <div className="px-5 pb-5">
             <EmptyInline
               icon={businessLabel ? Receipt : NotebookPen}
               iconColor={businessLabel ? '#F59E0B' : '#3182F6'}
-              title={businessLabel ? '첫 거래를 기록해 보세요' : '첫 거래를 추가해 보세요'}
-              hint={
-                businessLabel ? '매출/비용 둘 다 추적할 수 있어요' : '가운데 + 버튼을 누르면 시작'
-              }
+              title="거래 내역이 없어요"
             />
           </div>
         ) : (
