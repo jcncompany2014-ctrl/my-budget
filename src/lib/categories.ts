@@ -26,12 +26,22 @@ export const CATEGORIES: Record<string, Category> = {
     color: '#64748B',
     scope: 'personal',
   },
+  // Personal: paying down a loan is money that left the household budget, so the
+  // whole instalment — principal and interest — counts as spending.
   loan_principal: {
     id: 'loan_principal',
     name: '대출 원금',
     emoji: '🏛️',
     color: '#94A3B8',
     scope: 'personal',
+  },
+  // Business: repaying principal is not a cost, only the interest is.
+  biz_loan_principal: {
+    id: 'biz_loan_principal',
+    name: '대출 원금',
+    emoji: '🏛️',
+    color: '#94A3B8',
+    scope: 'business',
   },
   // 잔액 보정 — brings a balance in line with the bank; neither income nor spending.
   adjust: { id: 'adjust', name: '잔액 보정', emoji: '⚖️', color: '#94A3B8', scope: 'personal' },
@@ -241,7 +251,7 @@ export const isTransferCategory = (catId: string) =>
   catId === 'owner_pay';
 
 /** Posted by the app itself (in either ledger), never picked by hand. */
-const SYSTEM_CATS = new Set(['loan_principal', 'adjust']);
+const SYSTEM_CATS = new Set(['loan_principal', 'biz_loan_principal', 'adjust']);
 
 export const categoriesByScope = (scope: Scope) =>
   Object.values(CATEGORIES).filter((c) => c.scope === scope && !SYSTEM_CATS.has(c.id));

@@ -11,7 +11,13 @@ import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, isTransferCategory } from '@/lib/categories';
 import { fmt } from '@/lib/format';
-import { canReimburse, toBusinessPatch, toPersonalPatch } from '@/lib/reimburse';
+import {
+  canReimburse,
+  costPatch,
+  isCosted,
+  toBusinessPatch,
+  toPersonalPatch,
+} from '@/lib/reimburse';
 import { useAllTransactions } from '@/lib/storage';
 
 const fmtDate = (iso: string) => {
@@ -122,6 +128,12 @@ function TxDetailPage() {
     update(item.id, due ? toPersonalPatch(item, tx) : toBusinessPatch(item, tx));
     toast.show(due ? '개인 지출로 되돌렸어요' : '사업 비용으로 옮겼어요', 'success');
   };
+  // Debt only: owed by the business, but not one of its costs.
+  const costed = isCosted(item);
+  const toggleCosted = () => {
+    update(item.id, costPatch(item, !costed, tx));
+    toast.show(costed ? '채무로만 잡았어요' : '사업 비용으로 잡았어요', 'success');
+  };
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ background: 'var(--color-bg)' }}>
@@ -188,8 +200,14 @@ function TxDetailPage() {
             letterSpacing: '0.04em',
           }}
         >
-          {(cat?.name ?? '기타').toUpperCase()}
-          {(isTransferCategory(item.cat) || item.transferPairId) && ' · 이체'}
+          {item.reimburse && !costed ? (
+            '사업 대납 · 채무'
+          ) : (
+            <>
+              {(cat?.name ?? '기타').toUpperCase()}
+              {(isTransferCategory(item.cat) || item.transferPairId) && ' · 이체'}
+            </>
+          )}
         </p>
         <p
           className="tnum mt-1.5 tracking-tight"
@@ -283,6 +301,37 @@ function TxDetailPage() {
                 <span
                   className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform"
                   style={{ left: 2, transform: due ? 'translateX(20px)' : 'translateX(0)' }}
+                />
+              </span>
+            </span>
+          </button>
+        )}
+        {due && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={costed}
+            onClick={toggleCosted}
+            className="tap flex w-full items-center justify-between px-5 py-3.5 text-left"
+            style={{ borderBottom: '1px solid var(--color-divider)' }}
+          >
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-3)' }}>
+              사업 비용으로 잡기
+            </span>
+            <span className="flex items-center gap-2.5">
+              {!costed && (
+                <span className="text-sm font-semibold" style={{ color: 'var(--color-text-2)' }}>
+                  채무만
+                </span>
+              )}
+              <span
+                aria-hidden
+                className="relative inline-block h-7 w-12 rounded-full transition-colors"
+                style={{ background: costed ? 'var(--color-primary)' : 'var(--color-gray-200)' }}
+              >
+                <span
+                  className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform"
+                  style={{ left: 2, transform: costed ? 'translateX(20px)' : 'translateX(0)' }}
                 />
               </span>
             </span>

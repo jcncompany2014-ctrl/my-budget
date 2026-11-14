@@ -3,7 +3,9 @@ import { isExpense, isIncome } from '@/lib/format';
 import {
   buildSettlement,
   canReimburse,
+  costPatch,
   dueTotal,
+  isCosted,
   toBusinessPatch,
   toPersonalPatch,
   usuallyReimbursed,
@@ -127,5 +129,33 @@ describe('usuallyReimbursed', () => {
     expect(usuallyReimbursed(' 오피스디포 ', [row('2026-11-01', true), done, refund, other])).toBe(
       true,
     );
+  });
+});
+
+describe('a 대납 row carried as debt only', () => {
+  const row: Transaction = {
+    id: 'open',
+    date: '2026-11-14T03:00:00.000Z',
+    amount: -1_597_722,
+    cat: 'biz_etc',
+    merchant: '이전 카드 대납분',
+    acc: 'card',
+    scope: 'business',
+    reimburse: 'due',
+  };
+
+  it('stays owed but leaves spending and P&L', () => {
+    const debt = { ...row, ...costPatch(row, false, []) };
+    expect(isCosted(row)).toBe(true);
+    expect(isCosted(debt)).toBe(false);
+    expect(isExpense(debt)).toBe(false);
+    expect(dueTotal([debt])).toBe(1_597_722);
+  });
+
+  it('can be counted as a cost again', () => {
+    const debt = { ...row, ...costPatch(row, false, []) };
+    const back = { ...debt, ...costPatch(debt, true, []) };
+    expect(back.cat).toBe('biz_etc');
+    expect(isExpense(back)).toBe(true);
   });
 });

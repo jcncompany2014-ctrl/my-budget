@@ -51,7 +51,7 @@ describe('computePnl', () => {
         tx('biz_transfer', -300_000, { transferPairId: 'a' }),
         tx('biz_owner_draw', -500_000, { transferPairId: 'b' }),
         tx('biz_capital', 3_150_000, { transferPairId: 'c' }),
-        tx('loan_principal', -400_000),
+        tx('biz_loan_principal', -400_000),
       ],
       from,
       to,

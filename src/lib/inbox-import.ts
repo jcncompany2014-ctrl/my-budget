@@ -101,11 +101,24 @@ function digitsMatch(a: string, b: string): boolean {
   return true;
 }
 
-/** Where a notice that names no card of mine lands. */
-function fallbackAccount(accounts: Account[]): Account | undefined {
+/** The one personal credit card, when there is exactly one. */
+function soleCard(accounts: Account[]): Account | undefined {
+  const cards = accounts.filter((a) => a.scope === 'personal' && a.type === 'card');
+  return cards.length === 1 ? cards[0] : undefined;
+}
+
+/**
+ * Where a notice that names no account of mine lands. A wallet or pay-app
+ * notice ("Apple Pay", "…에서 3,000원 결제했어요") is a card payment: with a
+ * single card on file it can only be that card. A bank's own notice, or a
+ * ledger with several cards, falls to the main account.
+ */
+function fallbackAccount(accounts: Account[], n?: CardNotice): Account | undefined {
   const usable = accounts.filter((a) => a.type !== 'receivable');
   const personal = usable.filter((a) => a.scope === 'personal');
+  const fromBank = !!n?.issuer && /은행|뱅크$/.test(n.issuer);
   return (
+    (n && !fromBank ? soleCard(usable) : undefined) ??
     personal.find((a) => a.main) ??
     personal.find((a) => a.type === 'card') ??
     personal[0] ??
@@ -130,7 +143,7 @@ function matchAccount(
     const pick = named.find((a) => a.type === 'card') ?? named[0];
     if (pick) return { account: pick, named: true };
   }
-  return { account: fallbackAccount(accounts), named: false };
+  return { account: fallbackAccount(accounts, n), named: false };
 }
 
 export function resolveAccount(n: CardNotice, accounts: Account[]): Account | undefined {
@@ -221,7 +234,10 @@ export function planImport(
   const removed = new Set<string>();
   const existingIds = new Set(ctx.history.map((t) => t.id));
   const cancels = pastCancels(ctx.log);
-  const fallbackId = fallbackAccount(ctx.accounts)?.id;
+  // Accounts a row can have landed on without its notice naming one.
+  const fallbackIds = new Set(
+    [fallbackAccount(ctx.accounts)?.id, soleCard(ctx.accounts)?.id].filter(Boolean),
+  );
 
   for (const item of items) {
     if (existingIds.has(`ntf-${item.id}`)) continue; // re-delivered after an earlier import
@@ -337,7 +353,7 @@ export function planImport(
         dup.source === 'notification' &&
         named &&
         dup.acc !== account.id &&
-        dup.acc === fallbackId
+        fallbackIds.has(dup.acc)
       ) {
         // A row filed as 사업 대납 stays a business cost when it moves between my own
         // cards; on a business card it was never 대납 to begin with.

@@ -20,7 +20,7 @@ const TRANSFER_LIKE_CATS = new Set([
   'biz_capital',
   'owner_pay',
   'saving',
-  'loan_principal',
+  'biz_loan_principal',
   'adjust',
 ]);
 

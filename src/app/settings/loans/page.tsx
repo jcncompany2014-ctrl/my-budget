@@ -13,9 +13,9 @@ import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
-import { dayKeyOffset, todayKey } from '@/lib/dates';
+import { dayKeyOffset, localDayKey, parseLocalDay, todayKey } from '@/lib/dates';
 import { fmt } from '@/lib/format';
-import { computeMonthlyPayment, useLoans } from '@/lib/loans';
+import { computeMonthlyPayment, nextLoanDue, paymentEvery, useLoans } from '@/lib/loans';
 import type { Loan } from '@/lib/types';
 
 const COLORS = ['#3182F6', '#00B956', '#F472B6', '#FF8A1F', '#8B5CF6', '#14B8A6'];
@@ -99,7 +99,8 @@ export default function LoansPage() {
             {list.map((l) => {
               const paid = Math.max(0, l.principal - l.remaining);
               const pct = l.principal > 0 ? Math.round((paid / l.principal) * 100) : 0;
-              const monthlyInterest = (l.remaining * (l.rate / 100)) / 12;
+              const every = paymentEvery(l);
+              const periodInterest = ((l.remaining * (l.rate / 100)) / 12) * every;
               return (
                 <button
                   key={l.id}
@@ -160,7 +161,8 @@ export default function LoansPage() {
                           fontWeight: 600,
                         }}
                       >
-                        월 이자 약 {fmt(Math.round(monthlyInterest))}원
+                        {every === 1 ? '월' : `${every}개월`} 이자 약{' '}
+                        {fmt(Math.round(periodInterest))}원
                       </p>
                     </div>
                   </div>
@@ -218,10 +220,24 @@ export default function LoansPage() {
           onSave={(l) => {
             // Switching auto payment on starts from the next due date: `remaining`
             // as entered already reflects every payment made so far.
-            const next =
+            const stamped =
               l.autoPayment && (creating || !editing.autoPayment)
                 ? { ...l, postedThrough: new Date().toISOString() }
                 : l;
+            // The maturity date follows the loan date and the term.
+            const start = parseLocalDay(stamped.startDate);
+            const next = Number.isNaN(start.getTime())
+              ? stamped
+              : {
+                  ...stamped,
+                  dueDate: localDayKey(
+                    new Date(
+                      start.getFullYear(),
+                      start.getMonth() + stamped.termMonths,
+                      start.getDate(),
+                    ),
+                  ),
+                };
             if (creating) add(next);
             else update(next.id, next);
             toast.show(creating ? '대출 추가 완료' : '수정 완료', 'success');
@@ -271,6 +287,11 @@ function LoanEditor({
   const { accounts } = useAccounts();
   const computed = computeMonthlyPayment(draft.principal, draft.rate, draft.termMonths);
   const monthly = draft.monthlyPayment ?? computed;
+  const every = paymentEvery(draft);
+  // A fixed monthly figure only describes a plain monthly loan; with a grace
+  // period or a quarterly schedule the payment is worked out per due date.
+  const plain = every === 1 && !draft.graceUntil;
+  const due = nextLoanDue({ ...draft, postedThrough: undefined });
   const valid =
     draft.name.trim().length > 0 &&
     draft.principal > 0 &&
@@ -365,13 +386,106 @@ function LoanEditor({
         </Field>
       </div>
 
-      {/* Editable: 원리금균등 by default, but an interest-only loan pays just the interest. */}
-      <Field label={draft.monthlyPayment === undefined ? '월 상환액 (원리금균등)' : '월 상환액'}>
-        <NumInput
-          value={monthly}
-          onChange={(n) => setDraft({ ...draft, monthlyPayment: n > 0 ? n : undefined })}
-        />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="대출일">
+          <DateInput
+            value={draft.startDate}
+            onChange={(v) => v && setDraft({ ...draft, startDate: v })}
+          />
+        </Field>
+        <Field label="거치 종료일 (이자만)">
+          <DateInput
+            value={draft.graceUntil ?? ''}
+            onChange={(v) => setDraft({ ...draft, graceUntil: v || undefined })}
+          />
+        </Field>
+      </div>
+
+      <Field label="납부 주기">
+        <div className="grid grid-cols-4 gap-2">
+          {(
+            [
+              [1, '매월'],
+              [3, '3개월'],
+              [6, '6개월'],
+              [12, '1년'],
+            ] as const
+          ).map(([n, label]) => {
+            const sel = every === n;
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() =>
+                  setDraft({
+                    ...draft,
+                    paymentEveryMonths: n === 1 ? undefined : n,
+                    paymentAnchor: n === 1 ? undefined : draft.paymentAnchor,
+                  })
+                }
+                className="tap rounded-xl py-3"
+                style={{
+                  background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                  color: sel ? '#fff' : 'var(--color-text-2)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </Field>
+
+      {every > 1 && (
+        <Field label="다음 납부일">
+          <DateInput
+            value={draft.paymentAnchor ?? ''}
+            onChange={(v) =>
+              setDraft({
+                ...draft,
+                paymentAnchor: v || undefined,
+                // The day of the month comes with the date.
+                paymentDay: v ? parseLocalDay(v).getDate() : draft.paymentDay,
+              })
+            }
+          />
+        </Field>
+      )}
+
+      {plain ? (
+        // Editable: 원리금균등 by default, but an interest-only loan pays just the interest.
+        <Field label={draft.monthlyPayment === undefined ? '월 상환액 (원리금균등)' : '월 상환액'}>
+          <NumInput
+            value={monthly}
+            onChange={(n) => setDraft({ ...draft, monthlyPayment: n > 0 ? n : undefined })}
+          />
+        </Field>
+      ) : (
+        due && (
+          <div
+            className="mb-3 flex items-baseline justify-between rounded-xl px-4 py-3"
+            style={{ background: 'var(--color-gray-100)' }}
+          >
+            <span style={{ color: 'var(--color-text-2)', fontSize: 13, fontWeight: 600 }}>
+              {due.date.getMonth() + 1}월 {due.date.getDate()}일 납부
+            </span>
+            <span className="tnum text-right">
+              <span style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 800 }}>
+                {fmt(due.interest + due.principal)}원
+              </span>
+              <span
+                className="block"
+                style={{ color: 'var(--color-text-3)', fontSize: 11, fontWeight: 600 }}
+              >
+                이자 {fmt(due.interest)}
+                {due.principal > 0 ? ` · 원금 ${fmt(due.principal)}` : ''}
+              </span>
+            </span>
+          </div>
+        )
+      )}
 
       <Field label="자동 상환">
         <button
@@ -382,7 +496,7 @@ function LoanEditor({
         >
           <div className="text-left">
             <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>
-              매월 자동 상환
+              납부일에 자동 기록
             </p>
           </div>
           <SmallSwitch on={!!draft.autoPayment} />
@@ -391,7 +505,7 @@ function LoanEditor({
 
       {draft.autoPayment && (
         <>
-          <Field label="결제일 (1-31)">
+          <Field label={every > 1 ? '납부일 (1-31)' : '결제일 (1-31)'}>
             <input
               type="number"
               inputMode="numeric"
@@ -511,6 +625,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </label>
       {children}
     </div>
+  );
+}
+
+function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      type="date"
+      value={/^\d{4}-\d{2}-\d{2}$/.test(value) ? value : ''}
+      onChange={(e) => onChange(e.target.value)}
+      className="tnum h-12 w-full min-w-0 rounded-xl px-3 outline-none"
+      style={{
+        background: 'var(--color-gray-100)',
+        color: 'var(--color-text-1)',
+        fontSize: 'var(--text-sm)',
+        fontWeight: 500,
+      }}
+    />
   );
 }
 

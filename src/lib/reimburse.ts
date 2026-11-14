@@ -53,6 +53,24 @@ export function usuallyReimbursed(merchant: string, history: Transaction[]): boo
   return last.length >= 2 && last.every((t) => t.reimburse !== undefined);
 }
 
+/**
+ * A 대납 row is normally a business cost. One that is not — an instalment
+ * purchase the business will pay back over time, say — is carried as debt only:
+ * it stays on the 정산 list and in both ledgers' net worth, but under a transfer
+ * category, so it is in nobody's spending or P&L.
+ */
+export const DEBT_ONLY_CAT = 'biz_transfer';
+export const isCosted = (t: Transaction) => t.cat !== DEBT_ONLY_CAT;
+
+/** Carry a 대납 row as debt only, or count it as a business cost again. */
+export function costPatch(
+  t: Transaction,
+  costed: boolean,
+  history: Transaction[],
+): Partial<Transaction> {
+  return { cat: costed ? categoryFor(t.merchant, 'business', history) : DEBT_ONLY_CAT };
+}
+
 /** The fields to change so a personal expense becomes a business one I am owed for. */
 export function toBusinessPatch(t: Transaction, history: Transaction[]): Partial<Transaction> {
   return { scope: 'business', cat: categoryFor(t.merchant, 'business', history), reimburse: 'due' };

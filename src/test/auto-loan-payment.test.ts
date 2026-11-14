@@ -127,12 +127,12 @@ describe('ensureAutoLoanPayment', () => {
     vi.setSystemTime(new Date(2026, 10, 14, 12, 0, 0));
     ensureAutoLoanPayment();
 
-    // Interest is spending; the principal only moves money to the debt.
+    // A household ledger counts the whole instalment as money spent.
     const [interest, principal] = readTxs();
     expect(interest).toMatchObject({ amount: -73_818, cat: 'loan_payment', acc: 'acc-1' });
     expect(principal).toMatchObject({ amount: -385_467, cat: 'loan_principal', acc: 'acc-1' });
     expect(isExpense(interest)).toBe(true);
-    expect(isExpense(principal)).toBe(false);
+    expect(isExpense(principal)).toBe(true);
     expect(readTxs()).toHaveLength(2);
     expect(readLoans()[0].remaining).toBe(22_327_811);
     const acc = JSON.parse(window.localStorage.getItem(KEYS.accounts) ?? '[]') as Account[];
@@ -145,5 +145,64 @@ describe('ensureAutoLoanPayment', () => {
     vi.setSystemTime(new Date('2026-04-15T09:00:00Z'));
     ensureAutoLoanPayment();
     expect(readTxs()).toHaveLength(0);
+  });
+
+  it('in the business ledger only the interest is a cost', () => {
+    seedLoan({
+      scope: 'business',
+      principal: 12_000_000,
+      remaining: 12_000_000,
+      rate: 6,
+      termMonths: 12,
+      monthlyPayment: undefined,
+      paymentDay: 14,
+      postedThrough: new Date(2026, 10, 14).toISOString(),
+    });
+    seedAccount({ scope: 'business' });
+    vi.setSystemTime(new Date(2026, 10, 14, 12, 0, 0));
+    ensureAutoLoanPayment();
+    const [interest, principal] = readTxs();
+    expect(interest.cat).toBe('loan_payment');
+    expect(principal.cat).toBe('biz_loan_principal');
+    expect(isExpense(interest)).toBe(true);
+    expect(isExpense(principal)).toBe(false);
+  });
+
+  it('a quarterly, interest-only loan posts 390,000 every third month and nothing in between', () => {
+    // 4,000만 · 3.9% · 2년 거치 3년 분할 · 3개월마다 이자
+    seedLoan({
+      scope: 'business',
+      principal: 40_000_000,
+      remaining: 40_000_000,
+      rate: 3.9,
+      termMonths: 60,
+      monthlyPayment: undefined,
+      startDate: '2025-12-20',
+      paymentEveryMonths: 3,
+      paymentAnchor: '2026-12-20',
+      graceUntil: '2027-12-20',
+      paymentDay: 20,
+      postedThrough: new Date(2026, 10, 14).toISOString(),
+    });
+    seedAccount({ scope: 'business', balance: 1_000_000 });
+
+    vi.setSystemTime(new Date(2026, 10, 25, 12, 0, 0)); // November: not a payment month
+    ensureAutoLoanPayment();
+    expect(readTxs()).toHaveLength(0);
+
+    vi.setSystemTime(new Date(2026, 11, 20, 12, 0, 0)); // December 20
+    ensureAutoLoanPayment();
+    ensureAutoLoanPayment();
+    expect(readTxs()).toHaveLength(1);
+    expect(readTxs()[0]).toMatchObject({ amount: -390_000, cat: 'loan_payment' });
+    expect(readLoans()[0].remaining).toBe(40_000_000);
+
+    vi.setSystemTime(new Date(2027, 1, 25, 12, 0, 0)); // Jan, Feb: nothing
+    ensureAutoLoanPayment();
+    expect(readTxs()).toHaveLength(1);
+
+    vi.setSystemTime(new Date(2027, 2, 20, 12, 0, 0)); // March 20
+    ensureAutoLoanPayment();
+    expect(readTxs()).toHaveLength(2);
   });
 });

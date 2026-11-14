@@ -140,6 +140,12 @@ export type Loan = {
   paymentDay?: number;
   /** When true, auto-loan-payment generates the monthly debit and decrements remaining. */
   autoPayment?: boolean;
+  /** Months between payments — 1 (default) monthly, 3 quarterly. */
+  paymentEveryMonths?: number;
+  /** One known payment date ('YYYY-MM-DD'); a loan paid every N months is counted from it. */
+  paymentAnchor?: string;
+  /** 거치 기간: payments due on or before this day ('YYYY-MM-DD') are interest only. */
+  graceUntil?: string;
   /**
    * Payments due at or before this instant (ISO) are settled and never auto-posted.
    * Stamped when auto payment is switched on, so `remaining` isn't decremented for past months.

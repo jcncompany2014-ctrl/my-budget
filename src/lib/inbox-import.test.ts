@@ -288,3 +288,47 @@ describe('planImport — one payment, several notices', () => {
     expect(plan.log[0].status).toBe('unparsed');
   });
 });
+
+describe('planImport — a ledger with one credit card', () => {
+  const one: Account[] = [
+    accounts[0],
+    {
+      id: 'amex',
+      name: '아멕스카드',
+      bank: '현대카드',
+      type: 'card',
+      balance: 0,
+      color: '#000',
+      scope: 'personal',
+    },
+  ];
+  const at = (s: number) => new Date(2026, 10, 8, 14, 23, s);
+
+  it('a wallet or pay-app notice that names no card goes on that card', () => {
+    const plan = planImport(
+      [item('Apple Pay\nSTARBUCKS\n₩5,600', at(5)), item('GS25에서 3,000원 결제했어요', at(50))],
+      ctx({ accounts: one }),
+    );
+    expect(plan.add.map((t) => t.acc)).toEqual(['amex', 'amex']);
+  });
+
+  it('the issuer’s own notice matches it by name and collapses with the wallet notice', () => {
+    const plan = planImport(
+      [
+        item('Apple Pay\nSTARBUCKS\n₩5,600', at(5)),
+        item('[Web발신]\n현대카드 승인 홍*동 5,600원 일시불 11/08 14:23 스타벅스코리아', at(20)),
+      ],
+      ctx({ accounts: one }),
+    );
+    expect(plan.add).toHaveLength(1);
+    expect(plan.add[0].acc).toBe('amex');
+  });
+
+  it('a bank’s own notice still lands on the main account', () => {
+    const plan = planImport(
+      [item('카카오뱅크 체크카드 4,500원 결제 이디야', at(5))],
+      ctx({ accounts: one }),
+    );
+    expect(plan.add[0].acc).toBe('main');
+  });
+});

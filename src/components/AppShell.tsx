@@ -9,6 +9,7 @@ import { ensureAutoCreditLine } from '@/lib/auto-credit-line';
 import { ensureAutoLoanPayment } from '@/lib/auto-loan-payment';
 import { ensureAutoPayroll } from '@/lib/auto-payroll';
 import { ensureAutoRecurring } from '@/lib/auto-recurring';
+import { runDataFixes } from '@/lib/data-fixes';
 import { todayKey } from '@/lib/dates';
 import { isFullscreenRoute } from '@/lib/nav';
 import { STORAGE_FULL_EVENT } from '@/lib/safe-storage';
@@ -20,6 +21,7 @@ import ServiceWorker from './ServiceWorker';
 // Idempotent maintenance: today's backup snapshot and anything due today
 // (정기결제 · 대출 상환 · 이자 · 인건비 · 카드대금).
 function runMaintenance() {
+  runDataFixes();
   ensureAutoBackup();
   ensureAutoPayroll();
   ensureAutoRecurring();

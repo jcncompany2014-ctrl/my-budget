@@ -26,7 +26,6 @@ import { useMemo } from 'react';
 import ClosingBanner from '@/components/ClosingBanner';
 import CountUp from '@/components/CountUp';
 import CategoryIcon from '@/components/icons/CategoryIcon';
-import LiveInvestmentPnL from '@/components/LiveInvestmentPnL';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
 import NetWorthCard from '@/components/NetWorthCard';
@@ -273,7 +272,6 @@ function PersonalHome({
       </section>
 
       {/* Live investment P&L — only if user has investments */}
-      <LiveInvestmentPnL />
 
       {/* Insights — anomalies, budget alerts, weekly */}
       <InsightsRow
@@ -636,8 +634,6 @@ function BusinessHome({ tx }: { tx: Transaction[] }) {
         </div>
         <NetWorthCard />
       </section>
-
-      <LiveInvestmentPnL />
 
       {/* VAT */}
       <section className="px-5 pb-3">

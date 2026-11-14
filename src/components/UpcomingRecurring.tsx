@@ -8,7 +8,7 @@ import { useMode } from '@/components/ModeProvider';
 import { useAllAccounts } from '@/lib/accounts';
 import { nextBill, type Outflow, shortfalls } from '@/lib/card-billing';
 import { fmt } from '@/lib/format';
-import { computeMonthlyPayment, useLoans } from '@/lib/loans';
+import { nextLoanDue, useLoans } from '@/lib/loans';
 import { daysUntilNext, useRecurring } from '@/lib/recurring';
 import { useAllTransactions } from '@/lib/storage';
 
@@ -50,16 +50,16 @@ export default function UpcomingRecurring() {
       });
     }
     for (const l of loans) {
-      if (l.scope !== mode || !l.autoPayment || !l.paymentDay || l.remaining <= 0) continue;
+      if (l.scope !== mode || !l.autoPayment) continue;
+      const due = nextLoanDue(l);
+      // A quarterly payment months away is not "soon".
+      if (!due || due.daysUntil > 35) continue;
       list.push({
         id: l.id,
         name: l.name,
         cat: 'loan_payment',
-        amount: Math.min(
-          l.remaining,
-          l.monthlyPayment ?? computeMonthlyPayment(l.principal, l.rate, l.termMonths),
-        ),
-        daysUntil: daysUntilNext(l.paymentDay, l.postedThrough),
+        amount: due.interest + due.principal,
+        daysUntil: due.daysUntil,
         from: l.linkedAccountId,
         href: '/settings/loans',
       });

@@ -1,7 +1,7 @@
 'use client';
 
 import { applyTxToAccounts } from '@/lib/integrity';
-import { computeMonthlyPayment, splitMonthlyPayment } from '@/lib/loans';
+import { isPaymentMonth, loanPayment } from '@/lib/loans';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import type { Account, Loan, Transaction } from '@/lib/types';
@@ -57,6 +57,9 @@ export function ensureAutoLoanPayment() {
         continue;
       }
 
+      // Quarterly (or rarer) loans skip the months in between.
+      if (!isPaymentMonth(loan, m.getFullYear(), m.getMonth())) continue;
+
       const lastDayOfMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
       const targetDay = Math.min(loan.paymentDay, lastDayOfMonth);
       const targetDate = new Date(m.getFullYear(), m.getMonth(), targetDay, 9, 0, 0);
@@ -71,16 +74,11 @@ export function ensureAutoLoanPayment() {
       const acc = accounts.find((a) => a.id === loan.linkedAccountId);
       if (!acc) continue;
 
-      const monthlyPayment =
-        loan.monthlyPayment ?? computeMonthlyPayment(loan.principal, loan.rate, loan.termMonths);
-      const { interest, principal } = splitMonthlyPayment(
-        loan.remaining,
-        loan.rate,
-        monthlyPayment,
-      );
+      const { interest, principal } = loanPayment(loan, targetDate);
       if (interest + principal <= 0) continue;
 
-      // Two rows: the interest is spending, the principal only moves money to the debt.
+      // Two rows, so the interest stays visible on its own. In the personal ledger
+      // both count as spending; in the business one the principal is not a cost.
       const row = {
         date: targetDate.toISOString(),
         merchant: loan.name,
@@ -96,7 +94,7 @@ export function ensureAutoLoanPayment() {
           ...row,
           id: interest > 0 ? `${id}-p` : id,
           amount: -principal,
-          cat: 'loan_principal',
+          cat: loan.scope === 'business' ? 'biz_loan_principal' : 'loan_principal',
           memo: '원금 상환 (자동)',
         });
       }
