@@ -7,6 +7,7 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import type { CategoryRule } from '@/lib/category-rules';
@@ -24,6 +25,7 @@ export default function CategoryRulesPage() {
   );
   const [matchInput, setMatchInput] = useState('');
   const [pickedCat, setPickedCat] = useState(cats[0]?.id ?? '');
+  const [deleting, setDeleting] = useState<CategoryRule | null>(null);
 
   if (!ready)
     return (
@@ -63,13 +65,6 @@ export default function CategoryRulesPage() {
       />
 
       <section className="px-5 pb-3 pt-1">
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          소비처 이름에 특정 단어가 들어가면 자동으로 카테고리를 적용합니다. 예){' '}
-          <span style={{ color: 'var(--color-text-2)', fontWeight: 700 }}>이마트 → 쇼핑</span>
-        </p>
-      </section>
-
-      <section className="px-5 pb-3 pt-1">
         <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
           <p
             className="mb-2"
@@ -87,7 +82,7 @@ export default function CategoryRulesPage() {
             <input
               value={matchInput}
               onChange={(e) => setMatchInput(e.target.value)}
-              placeholder='소비처에 포함될 단어 (예: "이마트")'
+              placeholder="소비처에 포함될 단어"
               className="h-12 w-full rounded-xl px-4 outline-none"
               style={{
                 background: 'var(--color-gray-100)',
@@ -133,12 +128,7 @@ export default function CategoryRulesPage() {
 
       <section className="px-5 pb-10 pt-2">
         {items.length === 0 ? (
-          <EmptyState
-            icon={Ruler}
-            iconColor="#EC4899"
-            title="규칙이 없어요"
-            hint="위에서 첫 규칙을 추가하세요"
-          />
+          <EmptyState icon={Ruler} iconColor="#EC4899" title="규칙이 없어요" />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {items.map((r: CategoryRule, i: number) => {
@@ -184,10 +174,7 @@ export default function CategoryRulesPage() {
                   <CategoryIcon catId={r.cat} size={28} />
                   <button
                     type="button"
-                    onClick={() => {
-                      remove(r.id);
-                      toast.show('규칙 삭제', 'info');
-                    }}
+                    onClick={() => setDeleting(r)}
                     className="tap flex h-8 w-8 items-center justify-center rounded-full"
                     style={{ background: 'var(--color-danger-soft)', color: 'var(--color-danger)' }}
                     aria-label="삭제"
@@ -200,6 +187,19 @@ export default function CategoryRulesPage() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title={`'${deleting?.match ?? ''}' 규칙을 삭제할까요?`}
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          if (deleting) remove(deleting.id);
+          toast.show('규칙 삭제', 'info');
+          setDeleting(null);
+        }}
+      />
     </>
   );
 }

@@ -2,8 +2,9 @@
 
 import { CATEGORIES } from '@/lib/categories';
 import { localDayKey } from '@/lib/dates';
+import { isSpendingCategory } from '@/lib/format';
 import { KEYS } from '@/lib/storage-keys';
-import { readStorageValue } from '@/lib/store-factory';
+import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import type { Account, CustomCategory, Transaction } from '@/lib/types';
 
 export type IntegrityIssue = {
@@ -50,8 +51,11 @@ export function checkDataIntegrity(): IntegrityReport {
 
   const accIds = new Set(accounts.map((a) => a.id));
   const validCatIds = new Set([...Object.keys(CATEGORIES), ...customCats.map((c) => c.id)]);
-  const fallbackAccId = accounts[0]?.id ?? '';
-  const fallbackCatId = 'living';
+  // A personal row must not land on a business account (or the other way round).
+  const fallbackAcc = (scope: 'personal' | 'business') => {
+    const mine = accounts.filter((a) => (a.scope ?? 'personal') === scope);
+    return (mine.find((a) => a.main) ?? mine.find((a) => a.type !== 'receivable') ?? mine[0])?.id;
+  };
 
   const issues: IntegrityIssue[] = [];
 
@@ -65,8 +69,12 @@ export function checkDataIntegrity(): IntegrityReport {
         detail: `${t.merchant} · ${localDayKey(t.date)} · 계좌 ID ${t.acc}`,
         kind: 'tx_unknown_account',
         refId: t.id,
-        repair: fallbackAccId
-          ? { type: 'reassign_account', txId: t.id, toAccId: fallbackAccId }
+        repair: fallbackAcc(t.scope ?? 'personal')
+          ? {
+              type: 'reassign_account',
+              txId: t.id,
+              toAccId: fallbackAcc(t.scope ?? 'personal') as string,
+            }
           : undefined,
       });
     }
@@ -82,7 +90,18 @@ export function checkDataIntegrity(): IntegrityReport {
         detail: `${t.merchant} · ${localDayKey(t.date)} · 카테고리 ID ${t.cat}`,
         kind: 'tx_unknown_category',
         refId: t.id,
-        repair: { type: 'reassign_category', txId: t.id, toCatId: fallbackCatId },
+        repair: {
+          type: 'reassign_category',
+          txId: t.id,
+          toCatId:
+            (t.scope ?? 'personal') === 'business'
+              ? t.amount > 0
+                ? 'biz_other'
+                : 'biz_etc'
+              : t.amount > 0
+                ? 'income'
+                : 'living',
+        },
       });
     }
   }
@@ -108,26 +127,17 @@ export function checkDataIntegrity(): IntegrityReport {
     }
   }
 
-  // 4) Sign vs category kind alignment.
+  // 4) Money going out under an income category. The reverse — money coming in
+  // under a spending category — is a refund or a cancelled card payment, and
+  // transfers, savings and balance corrections go both ways by design.
   for (const t of txs) {
-    if (t.transferPairId) continue; // transfers carry signs intentionally
+    if (t.transferPairId || !isSpendingCategory(t.cat)) continue;
     const c = CATEGORIES[t.cat];
-    if (!c) continue;
-    const isIncomeCat = c.kind === 'income';
-    if (isIncomeCat && t.amount < 0) {
+    if (c?.kind === 'income' && t.amount < 0) {
       issues.push({
         id: `sign-${t.id}`,
         severity: 'warning',
         title: '수입 카테고리에 음수 금액',
-        detail: `${t.merchant} · ${localDayKey(t.date)} · ${c.name}`,
-        kind: 'category_sign_mismatch',
-        refId: t.id,
-      });
-    } else if (!isIncomeCat && t.amount > 0) {
-      issues.push({
-        id: `sign-${t.id}`,
-        severity: 'warning',
-        title: '지출 카테고리에 양수 금액',
         detail: `${t.merchant} · ${localDayKey(t.date)} · ${c.name}`,
         kind: 'category_sign_mismatch',
         refId: t.id,
@@ -152,28 +162,36 @@ export function checkDataIntegrity(): IntegrityReport {
 }
 
 /**
- * Apply a single repair. Mutates localStorage directly — caller should reload
- * or re-run the check. Returns true if the issue was acted on.
+ * Apply a single repair. Balances are left alone: they are entered by hand and
+ * a row that pointed nowhere never moved one. Returns true if the issue was
+ * acted on.
+ *
+ * Writes go through the store layer — a raw localStorage write left the
+ * in-memory ledger stale, and the next add or delete wrote the old rows back.
  */
 export function applyRepair(issue: IntegrityIssue): boolean {
   if (!issue.repair) return false;
   const r = issue.repair;
   const txs = readStorageValue<Transaction[]>(KEYS.transactions, []);
+  const patch = (fix: (t: Transaction) => Transaction) => {
+    if (!txs.some((t) => t.id === r.txId)) return false;
+    writeStorageValue(
+      KEYS.transactions,
+      txs.map((t) => (t.id === r.txId ? fix(t) : t)),
+    );
+    return true;
+  };
 
-  if (r.type === 'reassign_account') {
-    const next = txs.map((t) => (t.id === r.txId ? { ...t, acc: r.toAccId } : t));
-    window.localStorage.setItem(KEYS.transactions, JSON.stringify(next));
-    return true;
-  }
-  if (r.type === 'reassign_category') {
-    const next = txs.map((t) => (t.id === r.txId ? { ...t, cat: r.toCatId } : t));
-    window.localStorage.setItem(KEYS.transactions, JSON.stringify(next));
-    return true;
-  }
+  if (r.type === 'reassign_account') return patch((t) => ({ ...t, acc: r.toAccId }));
+  if (r.type === 'reassign_category') return patch((t) => ({ ...t, cat: r.toCatId }));
   if (r.type === 'unpair_transfer') {
-    const next = txs.map((t) => (t.id === r.txId ? { ...t, transferPairId: undefined } : t));
-    window.localStorage.setItem(KEYS.transactions, JSON.stringify(next));
-    return true;
+    return patch((t) => {
+      const lone = { ...t };
+      delete lone.transferPairId;
+      delete lone.transferTo;
+      delete lone.transferCrossMode;
+      return lone;
+    });
   }
   return false;
 }

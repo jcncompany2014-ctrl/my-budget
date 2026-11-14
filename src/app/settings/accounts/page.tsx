@@ -17,10 +17,13 @@ import { useMode } from '@/components/ModeProvider';
 import { SkeletonList } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
+import { defaultCycleStart } from '@/lib/card-billing';
 import { fmt } from '@/lib/format';
+import { useAllTransactions } from '@/lib/storage';
 import type { Account, AccountType } from '@/lib/types';
 
 const COLORS = [
@@ -53,8 +56,10 @@ export default function AccountsSettingsPage() {
   const toast = useToast();
   const { mode } = useMode();
   const { accounts, ready, add, update, remove } = useAccounts();
+  const { tx: allTx } = useAllTransactions();
   const [editing, setEditing] = useState<Account | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready) {
     return (
@@ -65,7 +70,19 @@ export default function AccountsSettingsPage() {
     );
   }
 
-  const handleSave = (a: Account) => {
+  const handleSave = (draft: Account) => {
+    // Billing only means something on a card with a payment day.
+    const a: Account =
+      draft.type === 'card' && draft.billingDay
+        ? draft
+        : {
+            ...draft,
+            billingDay: undefined,
+            cycleStartDay: undefined,
+            billingAccountId: undefined,
+            autoBilling: undefined,
+            billingPostedThrough: undefined,
+          };
     if (creating) {
       add(a);
       toast.show('계좌 추가 완료', 'success');
@@ -80,8 +97,10 @@ export default function AccountsSettingsPage() {
   const handleDelete = (id: string) => {
     remove(id);
     toast.show('계좌 삭제 완료', 'info');
+    setDeleting(false);
     setEditing(null);
   };
+  const usedBy = editing ? allTx.filter((t) => t.acc === editing.id).length : 0;
 
   const startNew = () => {
     setEditing({
@@ -114,12 +133,7 @@ export default function AccountsSettingsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {accounts.length === 0 ? (
-          <EmptyState
-            icon={Wallet}
-            iconColor="#3182F6"
-            title="아직 계좌가 없어요"
-            hint="은행, 카드, 현금, 투자 계좌까지 — 아래 + 버튼으로 추가"
-          />
+          <EmptyState icon={Wallet} iconColor="#3182F6" title="계좌가 없어요" />
         ) : (
           <div className="space-y-2">
             {accounts.map((a) => (
@@ -155,8 +169,8 @@ export default function AccountsSettingsPage() {
                     color: a.type === 'card' ? 'var(--color-danger)' : 'var(--color-text-1)',
                   }}
                 >
-                  {a.type === 'card' ? '-' : ''}
-                  {fmt(Math.abs(a.balance))}원
+                  {a.balance < 0 ? '−' : ''}
+                  {fmt(a.balance)}원
                 </p>
               </button>
             ))}
@@ -179,14 +193,31 @@ export default function AccountsSettingsPage() {
         <AccountEditor
           account={editing}
           isNew={creating}
+          payFrom={accounts.filter(
+            (a) => (a.type === 'bank' || a.type === 'cash') && a.id !== editing.id,
+          )}
           onSave={handleSave}
-          onDelete={creating ? undefined : () => handleDelete(editing.id)}
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 계좌를 삭제할까요?`}
+        description={
+          usedBy > 0
+            ? `이 계좌로 기록된 거래 ${usedBy}건은 남지만, 계좌 이름은 더 이상 표시되지 않아요.`
+            : undefined
+        }
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => editing && handleDelete(editing.id)}
+      />
     </>
   );
 }
@@ -194,12 +225,15 @@ export default function AccountsSettingsPage() {
 function AccountEditor({
   account,
   isNew,
+  payFrom,
   onSave,
   onDelete,
   onCancel,
 }: {
   account: Account;
   isNew: boolean;
+  /** Accounts a card bill can be paid from. */
+  payFrom: Account[];
   onSave: (a: Account) => void;
   onDelete?: () => void;
   onCancel: () => void;
@@ -262,9 +296,6 @@ function AccountEditor({
           className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
           style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
         />
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
-          정확한 은행/카드사명을 입력하면 브랜드 색상이 자동 적용됩니다
-        </p>
       </Field>
 
       <Field label="종류">
@@ -276,7 +307,13 @@ function AccountEditor({
               <button
                 key={t}
                 type="button"
-                onClick={() => setDraft({ ...draft, type: t })}
+                onClick={() =>
+                  setDraft({
+                    ...draft,
+                    type: t,
+                    balance: t === 'card' ? -Math.abs(draft.balance) : Math.abs(draft.balance),
+                  })
+                }
                 className="tap flex flex-col items-center justify-center gap-1.5 rounded-xl py-3"
                 style={{
                   background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
@@ -293,19 +330,21 @@ function AccountEditor({
         </div>
       </Field>
 
-      <Field label="잔액">
+      {/* The phone's number pad has no minus key: a card takes the amount owed and stores it negative. */}
+      <Field label={draft.type === 'card' ? '사용액 (갚을 돈)' : '잔액'}>
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
-          value={draft.balance || ''}
-          onChange={(e) => setDraft({ ...draft, balance: Number(e.target.value) || 0 })}
+          pattern="[0-9]*"
+          value={draft.balance ? fmt(draft.balance) : ''}
+          onChange={(e) => {
+            const n = Number(e.target.value.replace(/[^0-9]/g, '')) || 0;
+            setDraft({ ...draft, balance: draft.type === 'card' ? -n : n });
+          }}
           placeholder="0"
           className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
           style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
         />
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
-          카드는 사용액(빚)을 음수로 입력 (예: -100000)
-        </p>
       </Field>
 
       <Field label="색상">
@@ -328,6 +367,83 @@ function AccountEditor({
           })}
         </div>
       </Field>
+
+      {draft.type === 'card' && (
+        <>
+          <Field label="카드 끝 4자리">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={draft.last4 ?? ''}
+              onChange={(e) =>
+                setDraft({ ...draft, last4: e.target.value.replace(/[^0-9*]/g, '') || undefined })
+              }
+              placeholder="1234"
+              className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="결제일">
+              <DayInput
+                value={draft.billingDay}
+                onChange={(d) => setDraft({ ...draft, billingDay: d })}
+              />
+            </Field>
+            <Field label="이용기간 시작일">
+              <DayInput
+                value={draft.cycleStartDay}
+                placeholder={draft.billingDay ? String(defaultCycleStart(draft.billingDay)) : ''}
+                onChange={(d) => setDraft({ ...draft, cycleStartDay: d })}
+              />
+            </Field>
+          </div>
+          {draft.billingDay ? (
+            <Field label="결제 계좌">
+              <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
+                {payFrom.map((a) => {
+                  const sel = draft.billingAccountId === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() =>
+                        setDraft({
+                          ...draft,
+                          billingAccountId: sel ? undefined : a.id,
+                          autoBilling: sel ? false : draft.autoBilling,
+                        })
+                      }
+                      className="tap shrink-0 rounded-xl px-3.5 py-2.5"
+                      style={{
+                        background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
+                        color: sel ? '#fff' : 'var(--color-text-2)',
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {a.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                disabled={!draft.billingAccountId}
+                onClick={() => setDraft({ ...draft, autoBilling: !draft.autoBilling })}
+                className="tap mt-2 flex w-full items-center justify-between rounded-xl px-4 py-3 disabled:opacity-40"
+                style={{ background: 'var(--color-gray-100)' }}
+              >
+                <span style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>
+                  결제일에 카드대금 자동 이체
+                </span>
+                <SmallSwitch on={!!draft.autoBilling && !!draft.billingAccountId} />
+              </button>
+            </Field>
+          ) : null}
+        </>
+      )}
 
       {draft.type === 'bank' && (
         <Field label="옵션">
@@ -433,6 +549,41 @@ function Field({
         {required && <span style={{ color: 'var(--color-danger)' }}> *</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+/** Day of the month, 1–31; empty clears it. */
+function DayInput({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: number | undefined;
+  placeholder?: string;
+  onChange: (day: number | undefined) => void;
+}) {
+  return (
+    <div
+      className="flex h-12 items-center rounded-xl px-4"
+      style={{ background: 'var(--color-gray-100)' }}
+    >
+      <span style={{ color: 'var(--color-text-3)', fontSize: 13, fontWeight: 600 }}>매월</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={2}
+        value={value ?? ''}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const n = Number(e.target.value.replace(/[^0-9]/g, ''));
+          onChange(n >= 1 ? Math.min(31, n) : undefined);
+        }}
+        className="tnum h-full w-full min-w-0 bg-transparent px-2 text-right text-[15px] font-medium outline-none"
+        style={{ color: 'var(--color-text-1)' }}
+      />
+      <span style={{ color: 'var(--color-text-3)', fontSize: 13, fontWeight: 600 }}>일</span>
     </div>
   );
 }

@@ -12,23 +12,11 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#00B956',
     lang: 'ko',
     icons: [
-      {
-        src: '/icon',
-        sizes: '1024x1024',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/icon-maskable.png',
-        sizes: '1024x1024',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
-      {
-        src: '/apple-icon',
-        sizes: '180x180',
-        type: 'image/png',
-      },
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      // Full-bleed with the mark inside the safe zone, so any launcher mask fits.
+      { src: '/icon-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
     ],
   };
 }

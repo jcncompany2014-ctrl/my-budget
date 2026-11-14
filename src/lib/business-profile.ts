@@ -25,6 +25,11 @@ export type BusinessProfile = {
   autoPayroll: boolean;
   /** 인건비 자동 발생일 (1~31) */
   payrollDay: number;
+  /**
+   * Paydays at or before this instant (ISO) are settled. Stamped the first time
+   * the generator runs with auto payroll on; dropped when it is switched off.
+   */
+  payrollPostedThrough?: string;
 };
 
 const DEFAULT: BusinessProfile = {

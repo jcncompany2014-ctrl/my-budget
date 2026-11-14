@@ -1,8 +1,10 @@
 'use client';
 
 import { AlertCircle, Check, Info } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { haptics } from '@/lib/haptics';
+import { isFullscreenRoute } from '@/lib/nav';
 
 type ToastVariant = 'success' | 'info' | 'error';
 
@@ -60,17 +62,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }, duration);
   }, []);
 
+  // Stable value: a fresh object here re-rendered every page that calls
+  // useToast() each time a toast appeared and again when it left.
+  const value = useMemo(() => ({ show }), [show]);
+
+  // Above the tab bar normally. Full-screen flows end in a keypad or a save
+  // button down there, so on those the toast drops in from the top instead.
+  const top = isFullscreenRoute(usePathname() ?? '/');
+
   return (
-    <ToastContext.Provider value={{ show }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div
         className="pointer-events-none fixed inset-x-0 z-[100] flex flex-col items-center gap-2 px-4"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }}
+        style={
+          top
+            ? { top: 'calc(env(safe-area-inset-top) + 10px)' }
+            : { bottom: 'calc(env(safe-area-inset-bottom) + 76px)' }
+        }
       >
         {toasts.map((t) => (
           <ToastItem
             key={t.id}
             toast={t}
+            fromTop={top}
             onDismiss={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
           />
         ))}
@@ -79,7 +94,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+function ToastItem({
+  toast,
+  fromTop,
+  onDismiss,
+}: {
+  toast: Toast;
+  fromTop: boolean;
+  onDismiss: () => void;
+}) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const r = requestAnimationFrame(() => setVisible(true));
@@ -97,12 +120,13 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   return (
     <div
-      className="pointer-events-auto flex items-center gap-2 rounded-full pl-2 pr-2 py-2 shadow-lg transition-all duration-300"
+      // Only the action takes taps — the pill itself must not swallow what is under it.
+      className="flex items-center gap-2 rounded-full pl-2 pr-2 py-2 shadow-lg transition-all duration-300"
       style={{
         background: tone.bg,
         color: tone.text,
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(10px)',
+        transform: visible ? 'translateY(0)' : `translateY(${fromTop ? -10 : 10}px)`,
       }}
     >
       <span
@@ -122,11 +146,11 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
             toast.action?.onClick();
             onDismiss();
           }}
-          className="tap rounded-full px-3 py-1.5"
+          className="tap pointer-events-auto rounded-full px-3.5 py-2"
           style={{
             background: 'rgba(255,255,255,0.22)',
             color: tone.text,
-            fontSize: 'var(--text-xxs)',
+            fontSize: 'var(--text-xs)',
             fontWeight: 800,
           }}
         >

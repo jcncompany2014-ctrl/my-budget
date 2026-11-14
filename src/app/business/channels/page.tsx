@@ -60,12 +60,7 @@ export default function ChannelsPage() {
 
       {data.total === 0 ? (
         <div className="px-5">
-          <EmptyState
-            icon={LineChart}
-            iconColor="#3182F6"
-            title="이번 달 매출이 없어요"
-            hint="카드/현금/계좌/배달앱 매출을 입력하면 분석이 시작돼요"
-          />
+          <EmptyState icon={LineChart} iconColor="#3182F6" title="이번 달 매출이 없어요" />
         </div>
       ) : (
         <>

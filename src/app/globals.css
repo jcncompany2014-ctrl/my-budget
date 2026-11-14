@@ -115,6 +115,23 @@ html[data-mode="business"] {
     background: var(--color-bg);
     color: var(--color-text-1);
   }
+  html {
+    /* No grey flash on tap, no rubber-banding that drags the bottom nav along. */
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  body {
+    /* An app, not a document: a long press should not start selecting labels. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
   body {
     font-family: var(--font-sans);
     font-feature-settings: "tnum" 1, "ss01" 1;

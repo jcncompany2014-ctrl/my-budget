@@ -1,6 +1,6 @@
 'use client';
 
-import { Landmark, LineChart } from 'lucide-react';
+import { ArrowLeftRight, Landmark, LineChart } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import CountUp from '@/components/CountUp';
@@ -8,6 +8,7 @@ import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
+import NetWorthTrend from '@/components/NetWorthTrend';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
@@ -15,20 +16,24 @@ import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
+import { nextBill } from '@/lib/card-billing';
 import { useCreditLines } from '@/lib/credit-lines';
 import { fmt } from '@/lib/format';
 import { useInvestments } from '@/lib/investments';
 import { useLoans } from '@/lib/loans';
-import { type Currency, FX_IDS, type QuoteId, toKRW, useQuotes } from '@/lib/quotes';
+import { computeNetWorth } from '@/lib/net-worth';
+import { FX_IDS, type QuoteId, useQuotes } from '@/lib/quotes';
 import { useAllTransactions } from '@/lib/storage';
 import type { Account, Transaction } from '@/lib/types';
+import { useReimburseDue } from '@/lib/use-reimburse';
 
 export default function WalletPage() {
   const { accounts, ready } = useAccounts();
   const { items: loans, ready: loansReady } = useLoans();
   const { items: creditLines } = useCreditLines();
   const { items: investmentItems, ready: invReady } = useInvestments();
-  const { add: addTx } = useAllTransactions();
+  const { add: addTx, tx: allTx } = useAllTransactions();
+  const reimburseDue = useReimburseDue();
   const { mode } = useMode();
   const toast = useToast();
   const [correctingAcc, setCorrectingAcc] = useState<Account | null>(null);
@@ -59,14 +64,8 @@ export default function WalletPage() {
       id: 'corr-' + Date.now().toString(36),
       date: new Date().toISOString(),
       amount: diff,
-      cat:
-        diff > 0
-          ? mode === 'business'
-            ? 'biz_other'
-            : 'income'
-          : mode === 'business'
-            ? 'biz_etc'
-            : 'living',
+      // Not income or spending — it only brings the app in line with the bank.
+      cat: 'adjust',
       merchant: '잔액 보정',
       memo: `${fmt(account.balance)} → ${fmt(actualBalance)}`,
       acc: account.id,
@@ -88,59 +87,29 @@ export default function WalletPage() {
   const receivables = accounts.filter((a) => a.type === 'receivable');
   const modeLoans = loans.filter((l) => l.scope === mode);
 
-  // Compute live KRW value + cost per investment product
-  const enrichedInv = modeInvestments.map((i) => {
-    const live = i.autoQuote && i.quoteId ? quotes[i.quoteId as QuoteId] : undefined;
-    const productCcy = (i.currency ?? 'KRW') as Currency;
-    const livePriceKRW = live ? toKRW(live.price, live.currency) : undefined;
-    const shares = i.shares ?? 0;
-    const valueKRW = livePriceKRW != null ? livePriceKRW * shares : i.currentValue;
-    const costKRW = toKRW(shares * (i.avgPrice ?? 0), productCcy);
-    return { i, valueKRW, costKRW };
+  const modeCreditLines = creditLines.filter((l) => l.scope === mode);
+  const nw = computeNetWorth({
+    accounts,
+    investments: modeInvestments,
+    loans: modeLoans,
+    creditLines: modeCreditLines,
+    quotes,
+    owedToMe: mode === 'personal' ? reimburseDue : 0,
+    owedToOwner: mode === 'business' ? reimburseDue : 0,
   });
-
-  const groupedByAccount = new Map<string, typeof enrichedInv>();
-  const unlinkedInv: typeof enrichedInv = [];
-  for (const e of enrichedInv) {
-    if (e.i.linkedAccountId) {
-      const arr = groupedByAccount.get(e.i.linkedAccountId) ?? [];
-      arr.push(e);
-      groupedByAccount.set(e.i.linkedAccountId, arr);
-    } else {
-      unlinkedInv.push(e);
-    }
-  }
-
-  // Effective per-investment-account balance: linked live value if any, else manual balance
-  const effectiveAccountBalance = (a: Account): number => {
-    if (a.type !== 'investment') return a.balance;
-    const linked = groupedByAccount.get(a.id);
-    if (!linked || linked.length === 0) return a.balance;
-    return Math.round(linked.reduce((s, e) => s + e.valueKRW, 0));
-  };
-  const effectiveAccountCost = (a: Account): number => {
-    const linked = groupedByAccount.get(a.id) ?? [];
-    return Math.round(linked.reduce((s, e) => s + e.costKRW, 0));
-  };
-
-  const cashTotal = [...banks, ...cash].reduce((s, a) => s + a.balance, 0);
-  const linkedInvTotal = investments.reduce((s, a) => s + effectiveAccountBalance(a), 0);
-  const unlinkedInvTotal = Math.round(unlinkedInv.reduce((s, e) => s + e.valueKRW, 0));
-  const investmentTotal = linkedInvTotal + unlinkedInvTotal;
-  const investmentCostTotal =
-    Math.round(investments.reduce((s, a) => s + effectiveAccountCost(a), 0)) +
-    Math.round(unlinkedInv.reduce((s, e) => s + e.costKRW, 0));
+  const cashTotal = nw.cash;
+  const investmentTotal = nw.investment;
+  const investmentCostTotal = nw.investmentCost ?? 0;
   const investmentPnL = investmentTotal - investmentCostTotal;
   const investmentPnLPct =
     investmentCostTotal > 0 ? (investmentPnL / investmentCostTotal) * 100 : 0;
 
-  const debtTotal = cards.reduce((s, a) => s + a.balance, 0); // negative
-  const loanDebt = modeLoans.reduce((s, l) => s + l.remaining, 0);
-  const modeCreditLines = creditLines.filter((l) => l.scope === mode);
-  const locUsedTotal = modeCreditLines.reduce((s, l) => s + l.used, 0);
+  const debtTotal = nw.cardDebt; // negative
+  const loanDebt = nw.loanDebt;
+  const locUsedTotal = nw.creditLineUsed;
   const locLimitTotal = modeCreditLines.reduce((s, l) => s + l.limit, 0);
-  const receivableTotal = receivables.reduce((s, a) => s + a.balance, 0);
-  const net = cashTotal + investmentTotal + receivableTotal + debtTotal - loanDebt - locUsedTotal;
+  const receivableTotal = nw.receivable;
+  const net = nw.net;
 
   return (
     <>
@@ -174,6 +143,7 @@ export default function WalletPage() {
             letterSpacing: '-0.025em',
           }}
         />
+        <NetWorthTrend scope={mode} current={net} />
       </section>
 
       <section className="grid grid-cols-2 gap-2 px-5 pb-3 pt-1 tabular-nums">
@@ -182,6 +152,9 @@ export default function WalletPage() {
         <SummaryRow label="카드 사용" value={Math.abs(debtTotal)} tone="danger" prefix="−" />
         <SummaryRow label="대출 잔액" value={loanDebt} tone="danger" prefix="−" />
         {receivableTotal > 0 && <SummaryRow label="받을 돈" value={receivableTotal} tone="text" />}
+        {nw.ownerPayable > 0 && (
+          <SummaryRow label="대표 대납" value={nw.ownerPayable} tone="danger" prefix="−" />
+        )}
         {locUsedTotal > 0 && (
           <SummaryRow
             label={`마이너스 사용 (한도 ${fmt(locLimitTotal)})`}
@@ -258,12 +231,7 @@ export default function WalletPage() {
           <EmptyState
             icon={Landmark}
             iconColor="#3182F6"
-            title={`${mode === 'business' ? '사업 계좌' : '개인 계좌'}를 추가해 보세요`}
-            hint={
-              mode === 'business'
-                ? '사업 통장, 사업용 카드, 사업장 현금 등'
-                : '은행, 카드, 현금, 투자 계좌까지 등록 가능'
-            }
+            title={`${mode === 'business' ? '사업 계좌' : '개인 계좌'}가 없어요`}
             cta={{ href: '/settings/accounts', label: '계좌 추가' }}
           />
         </section>
@@ -285,13 +253,13 @@ export default function WalletPage() {
         </Section>
       )}
 
-      {(investments.length > 0 || unlinkedInv.length > 0) && (
+      {(investments.length > 0 || nw.unlinked.length > 0) && (
         <Section title="투자">
           {investments.map((a) => {
-            const linked = groupedByAccount.get(a.id) ?? [];
-            if (linked.length > 0) {
-              const value = effectiveAccountBalance(a);
-              const cost = effectiveAccountCost(a);
+            const holdings = nw.accountHoldings(a);
+            if (holdings > 0) {
+              const value = nw.accountValue(a);
+              const cost = nw.accountCost(a) ?? 0;
               const pnl = value - cost;
               const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
               return (
@@ -317,7 +285,7 @@ export default function WalletPage() {
                       className="truncate"
                       style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
                     >
-                      {linked.length}개 종목 · 실시간
+                      {holdings}개 종목 · 실시간
                     </p>
                   </div>
                   <div className="text-right">
@@ -349,7 +317,7 @@ export default function WalletPage() {
             }
             return <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />;
           })}
-          {unlinkedInv.length > 0 && (
+          {nw.unlinked.length > 0 && (
             <Link
               href="/settings/investments"
               className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left"
@@ -376,11 +344,11 @@ export default function WalletPage() {
                   className="truncate"
                   style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
                 >
-                  {unlinkedInv.length}개 · 계좌 연결 필요
+                  {nw.unlinked.length}개 · 계좌 연결 필요
                 </p>
               </div>
               <Money
-                value={unlinkedInvTotal}
+                value={nw.unlinkedValue}
                 sign="never"
                 style={{
                   fontSize: 'var(--text-base)',
@@ -393,19 +361,40 @@ export default function WalletPage() {
         </Section>
       )}
 
-      {receivables.length > 0 && (
+      {(receivables.length > 0 || (mode === 'personal' && reimburseDue > 0)) && (
         <Section title="받을 돈">
+          {mode === 'personal' && reimburseDue > 0 && (
+            <ReimburseCard label="사업 대납" amount={reimburseDue} tone="text" />
+          )}
           {receivables.map((a) => (
             <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
           ))}
         </Section>
       )}
 
+      {mode === 'business' && reimburseDue > 0 && (
+        <Section title="갚을 돈">
+          <ReimburseCard label="대표 대납" amount={reimburseDue} tone="danger" />
+        </Section>
+      )}
+
       {cards.length > 0 && (
         <Section title="카드">
-          {cards.map((a) => (
-            <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
-          ))}
+          {cards.map((a) => {
+            const bill = nextBill(a, allTx);
+            return (
+              <AccountCard
+                key={a.id}
+                account={a}
+                onCorrect={setCorrectingAcc}
+                note={
+                  bill
+                    ? `${a.billingDay}일 결제${bill.amount > 0 ? ` · ${bill.closed ? '' : '현재 '}${fmt(bill.amount)}원` : ''}`
+                    : undefined
+                }
+              />
+            );
+          })}
         </Section>
       )}
 
@@ -473,6 +462,47 @@ export default function WalletPage() {
         />
       )}
     </>
+  );
+}
+
+/** Unsettled 사업 대납 — opens the 정산 screen. */
+function ReimburseCard({
+  label,
+  amount,
+  tone,
+}: {
+  label: string;
+  amount: number;
+  tone: 'text' | 'danger';
+}) {
+  return (
+    <Link
+      href="/reimburse"
+      className="tap flex items-center gap-3 rounded-2xl px-4 py-4"
+      style={{ background: 'var(--color-card)' }}
+    >
+      <div
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+        style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}
+      >
+        <ArrowLeftRight size={20} strokeWidth={2.2} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 600 }}>
+          {label}
+        </p>
+        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>정산 대기</p>
+      </div>
+      <Money
+        value={tone === 'danger' ? -amount : amount}
+        sign={tone === 'danger' ? 'negative' : 'never'}
+        style={{
+          fontSize: 'var(--text-base)',
+          fontWeight: 700,
+          color: tone === 'danger' ? 'var(--color-danger)' : 'var(--color-text-1)',
+        }}
+      />
+    </Link>
   );
 }
 
@@ -639,9 +669,12 @@ function SummaryRow({
 function AccountCard({
   account,
   onCorrect,
+  note,
 }: {
   account: Account;
   onCorrect?: (a: Account) => void;
+  /** Extra line under the name — a card's next payment. */
+  note?: string;
 }) {
   const isCard = account.type === 'card';
   const Wrapper = onCorrect ? 'button' : 'div';
@@ -673,6 +706,14 @@ function AccountCard({
           {account.main ? ' · 주거래' : ''}
           {account.savingsTarget ? ' · 저축' : ''}
         </p>
+        {note && (
+          <p
+            className="tnum truncate"
+            style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 600 }}
+          >
+            {note}
+          </p>
+        )}
       </div>
       <Money
         value={account.balance}

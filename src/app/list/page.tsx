@@ -14,11 +14,21 @@ import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { localDayKey } from '@/lib/dates';
-import { fmt, isExpense } from '@/lib/format';
+import { fmt, isExpense, isIncome } from '@/lib/format';
 import { useAllTransactions, useTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
 const fmtMonth = (d: Date) => `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+
+type Filter = 'all' | 'expense' | 'income' | 'transfer';
+// Which month, filter and search the list was on. The page remounts every time
+// a row is opened and closed; this keeps the user's place across that.
+const view: { offset: number; filter: Filter; query: string } = {
+  offset: 0,
+  filter: 'all',
+  query: '',
+};
+const SEARCH_LIMIT = 200;
 
 // Local day, not the ISO (UTC) slice — a 02:00 KST purchase belongs to that day, not the one before.
 const dayKey = (iso: string) => localDayKey(iso);
@@ -32,9 +42,21 @@ export default function ListPage() {
   const { update, remove, restore } = useAllTransactions();
   const { mode } = useMode();
   const toast = useToast();
-  const [offset, setOffset] = useState(0);
-  const [filter, setFilter] = useState<'all' | 'expense' | 'income' | 'transfer'>('all');
-  const [query, setQuery] = useState('');
+  const [offset, setOffsetState] = useState(view.offset);
+  const [filter, setFilterState] = useState<Filter>(view.filter);
+  const [query, setQueryState] = useState(view.query);
+  const setOffset = (fn: (o: number) => number) => {
+    view.offset = fn(view.offset);
+    setOffsetState(view.offset);
+  };
+  const setFilter = (f: Filter) => {
+    view.filter = f;
+    setFilterState(f);
+  };
+  const setQuery = (q: string) => {
+    view.query = q;
+    setQueryState(q);
+  };
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCatPicker, setBulkCatPicker] = useState(false);
@@ -45,28 +67,50 @@ export default function ListPage() {
     return d;
   }, [offset]);
 
+  const inMonth = useMemo(
+    () =>
+      tx.filter((t) => {
+        const d = new Date(t.date);
+        return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
+      }),
+    [tx, month],
+  );
+
+  const searching = query.trim() !== '';
   const monthTx = useMemo(() => {
-    const filtered = tx.filter((t) => {
-      const d = new Date(t.date);
-      return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
-    });
-    const byType = filtered.filter((t) => {
+    const q = query.trim().toLowerCase();
+    // A search looks through every month, not only the one on screen.
+    const base = q
+      ? tx
+          .filter(
+            (t) => t.merchant.toLowerCase().includes(q) || (t.memo ?? '').toLowerCase().includes(q),
+          )
+          .sort((a, b) => b.date.localeCompare(a.date))
+          .slice(0, SEARCH_LIMIT)
+      : inMonth;
+    return base.filter((t) => {
       if (filter === 'expense') return t.amount < 0 && !t.transferPairId;
       if (filter === 'income') return t.amount > 0 && !t.transferPairId;
       if (filter === 'transfer') return !!t.transferPairId;
       return true;
     });
-    if (!query.trim()) return byType;
-    const q = query.toLowerCase();
-    return byType.filter(
-      (t) => t.merchant.toLowerCase().includes(q) || (t.memo ?? '').toLowerCase().includes(q),
-    );
-  }, [tx, month, filter, query]);
+  }, [tx, inMonth, filter, query]);
 
-  const expense = monthTx.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const income = monthTx
-    .filter((t) => t.amount > 0 && !t.transferPairId)
-    .reduce((s, t) => s + t.amount, 0);
+  // The month's totals, whatever filter or search is applied below them.
+  const expense = inMonth.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const income = inMonth.filter(isIncome).reduce((s, t) => s + t.amount, 0);
+
+  // Future-dated rows (a planned payment) must be reachable too.
+  const maxOffset = useMemo(() => {
+    const now = new Date();
+    let max = 0;
+    for (const t of tx) {
+      const d = new Date(t.date);
+      const ahead = (d.getFullYear() - now.getFullYear()) * 12 + d.getMonth() - now.getMonth();
+      if (ahead > max) max = ahead;
+    }
+    return max;
+  }, [tx]);
 
   const groupedByDay = useMemo(() => {
     const map = new Map<string, Transaction[]>();
@@ -161,7 +205,7 @@ export default function ListPage() {
         <button
           type="button"
           onClick={() => setOffset((o) => o - 1)}
-          className="tap flex h-9 w-9 items-center justify-center rounded-full"
+          className="tap flex h-10 w-10 items-center justify-center rounded-full"
           aria-label="이전 달"
         >
           <svg viewBox="0 0 24 24" width={20} height={20} fill="none">
@@ -179,9 +223,9 @@ export default function ListPage() {
         </p>
         <button
           type="button"
-          onClick={() => setOffset((o) => Math.min(0, o + 1))}
-          disabled={offset >= 0}
-          className="tap flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30"
+          onClick={() => setOffset((o) => Math.min(maxOffset, o + 1))}
+          disabled={offset >= maxOffset}
+          className="tap flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-30"
           aria-label="다음 달"
         >
           <svg viewBox="0 0 24 24" width={20} height={20} fill="none">
@@ -238,11 +282,11 @@ export default function ListPage() {
               key={k}
               type="button"
               onClick={() => setFilter(k)}
-              className="tap rounded-full px-3 py-1.5"
+              className="tap rounded-full px-3.5 py-2"
               style={{
                 background: active ? 'var(--color-text-1)' : 'var(--color-card)',
                 color: active ? 'var(--color-card)' : 'var(--color-text-2)',
-                fontSize: 'var(--text-xxs)',
+                fontSize: 'var(--text-xs)',
                 fontWeight: 700,
               }}
             >
@@ -278,17 +322,22 @@ export default function ListPage() {
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="tap flex h-5 w-5 items-center justify-center rounded-full"
-              style={{ background: 'var(--color-gray-300)' }}
+              className="tap -mr-1.5 flex h-9 w-9 items-center justify-center"
+              aria-label="검색어 지우기"
             >
-              <svg viewBox="0 0 24 24" width={12} height={12} fill="none">
-                <path
-                  d="M6 6l12 12M18 6l-12 12"
-                  stroke="white"
-                  strokeWidth={3}
-                  strokeLinecap="round"
-                />
-              </svg>
+              <span
+                className="flex h-5 w-5 items-center justify-center rounded-full"
+                style={{ background: 'var(--color-gray-300)' }}
+              >
+                <svg viewBox="0 0 24 24" width={12} height={12} fill="none">
+                  <path
+                    d="M6 6l12 12M18 6l-12 12"
+                    stroke="white"
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
             </button>
           )}
         </div>
@@ -392,7 +441,14 @@ export default function ListPage() {
                       />
                     </button>
                   ) : (
-                    <TxRow key={t.id} tx={t} showTime borderBottom={i < items.length - 1} />
+                    <TxRow
+                      key={t.id}
+                      tx={t}
+                      showTime
+                      // Search results span months and years; the day header alone would mislead.
+                      showDate={searching}
+                      borderBottom={i < items.length - 1}
+                    />
                   ),
                 )}
               </div>

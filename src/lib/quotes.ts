@@ -79,42 +79,59 @@ function notifyAll() {
   }
 }
 
-// In-flight fetches (id-set key → promise) to coalesce concurrent calls.
-let inFlight: Promise<void> | null = null;
-let lastFetchAt = 0;
-const MIN_GAP_MS = 1000; // never fire two requests within 1s
+// Every hook on screen asks for its own ids at the same moment (the home tile
+// and the P&L card, say). Requests are gathered for a beat and sent as one.
+const pending = new Set<QuoteId>();
+let flush: Promise<void> | null = null;
+/** When an id last came back empty — a symbol the source doesn't know is not re-asked every 5 s. */
+const missedAt = new Map<QuoteId, number>();
+const MISS_RETRY_MS = 60_000;
+const BATCH_MS = 40;
+const FETCH_TIMEOUT_MS = 8000;
 
-async function fetchQuotes(ids: QuoteId[]) {
-  if (ids.length === 0) return;
-  const since = Date.now() - lastFetchAt;
-  if (since < MIN_GAP_MS) {
-    // throttle — wait out remaining gap
-    await new Promise((r) => setTimeout(r, MIN_GAP_MS - since));
-  }
-  if (inFlight) return inFlight; // join existing
-  lastFetchAt = Date.now();
-  const url = `/api/quotes?ids=${encodeURIComponent(ids.join(','))}`;
-  inFlight = (async () => {
-    try {
-      const r = await fetch(url, { cache: 'no-store' });
-      if (!r.ok) return;
-      const j = (await r.json()) as { quotes: Record<string, Quote>; ts: number };
-      let changed = false;
-      for (const [id, q] of Object.entries(j.quotes)) {
-        memCache[id as QuoteId] = q;
+async function request(ids: QuoteId[]) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const r = await fetch(`/api/quotes?ids=${encodeURIComponent(ids.join(','))}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!r.ok) return;
+    const j = (await r.json()) as { quotes: Record<string, Quote>; ts: number };
+    const now = Date.now();
+    let changed = false;
+    for (const id of ids) {
+      const q = j.quotes[id];
+      if (q) {
+        memCache[id] = q;
+        missedAt.delete(id);
         changed = true;
-      }
-      if (changed) {
-        saveCache(memCache);
-        notifyAll();
-      }
-    } catch {
-      /* swallow — keep showing cached values */
-    } finally {
-      inFlight = null;
+      } else missedAt.set(id, now);
     }
-  })();
-  return inFlight;
+    if (changed) {
+      saveCache(memCache);
+      notifyAll();
+    }
+  } catch {
+    /* offline or timed out — keep showing cached values */
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function fetchQuotes(ids: QuoteId[]): Promise<void> {
+  for (const id of ids) pending.add(id);
+  if (pending.size === 0) return Promise.resolve();
+  flush ??= new Promise<void>((resolve) => {
+    setTimeout(() => {
+      const batch = [...pending];
+      pending.clear();
+      flush = null;
+      request(batch).then(resolve);
+    }, BATCH_MS);
+  });
+  return flush;
 }
 
 /* ─── Hooks ──────────────────────────────────────────────────────────── */
@@ -160,6 +177,8 @@ export function useQuotes(ids: QuoteId[]): {
       const now = Date.now();
       const due = idsRef.current.filter((id) => {
         const q = memCache[id];
+        const missed = missedAt.get(id);
+        if (missed !== undefined && now - missed < MISS_RETRY_MS) return false;
         if (!q) return true;
         return now - q.ts >= refreshMs(id);
       });

@@ -23,6 +23,8 @@ import {
 export const dynamic = 'force-dynamic';
 
 const MAX_TEXT = 2000;
+/** A notification is a few hundred bytes; anything far larger is not one. */
+const MAX_BODY_BYTES = 16 * 1024;
 const NO_STORE = { 'Cache-Control': 'no-store' };
 const FIELDS = ['title', 'subtitle', 'text', 'body', 'message', 'content', 'notification'];
 const PAYMENT_WORDS = /승인|결제|취소|사용/;
@@ -70,6 +72,9 @@ export async function POST(req: NextRequest) {
   }
   const store = inboxStore();
   if (!store) return reply('가계부 서버 저장소가 아직 연결되지 않았어요.', 503);
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) {
+    return reply('알림 내용이 너무 길어요.', 413);
+  }
 
   const text = (await readNotificationText(req)).trim().slice(0, MAX_TEXT);
   if (!text)

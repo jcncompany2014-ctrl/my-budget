@@ -63,7 +63,6 @@ export default function ConfirmDialog({
       className="fixed inset-0 z-[90] flex items-end justify-center px-4 pb-6"
       style={{
         background: 'rgba(0, 0, 0, 0.45)',
-        backdropFilter: 'blur(2px)',
         animation: 'fade-in 180ms var(--ease-out)',
       }}
       onClick={onCancel}

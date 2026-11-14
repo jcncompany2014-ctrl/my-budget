@@ -12,8 +12,8 @@ const LAST_RUN_KEY = 'asset/auto-loan-last/v1';
  * For every loan with autoPayment enabled, generate a debit transaction on
  * each paymentDay that has passed since the loan was last settled (within the
  * trailing 3 months — same backfill window as recurring), debit the linked
- * account, and decrement the loan's remaining balance by the principal
- * portion of that payment. `postedThrough` is stamped when auto payment is
+ * account (interest and principal as separate rows), and decrement the loan's
+ * remaining balance by the principal portion of that payment. `postedThrough` is stamped when auto payment is
  * switched on, so payments the entered `remaining` already reflects are skipped.
  *
  * Idempotent: each (loan id, year, month) combo creates at most one tx,
@@ -78,20 +78,28 @@ export function ensureAutoLoanPayment() {
         loan.rate,
         monthlyPayment,
       );
-      const totalPaid = interest + principal;
-      if (totalPaid <= 0) continue;
+      if (interest + principal <= 0) continue;
 
-      newTxs.push({
-        id,
+      // Two rows: the interest is spending, the principal only moves money to the debt.
+      const row = {
         date: targetDate.toISOString(),
-        amount: -totalPaid,
-        cat: 'loan_payment',
         merchant: loan.name,
-        memo: `원금 ${principal.toLocaleString('ko-KR')} + 이자 ${interest.toLocaleString('ko-KR')} (자동)`,
         acc: loan.linkedAccountId,
         scope: loan.scope,
         recurring: true,
-      });
+      };
+      if (interest > 0) {
+        newTxs.push({ ...row, id, amount: -interest, cat: 'loan_payment', memo: '이자 (자동)' });
+      }
+      if (principal > 0) {
+        newTxs.push({
+          ...row,
+          id: interest > 0 ? `${id}-p` : id,
+          amount: -principal,
+          cat: 'loan_principal',
+          memo: '원금 상환 (자동)',
+        });
+      }
 
       loan.remaining = Math.max(0, loan.remaining - principal);
       posted.add(loan.id);

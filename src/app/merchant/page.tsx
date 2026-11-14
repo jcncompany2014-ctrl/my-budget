@@ -1,8 +1,8 @@
 'use client';
 
 import { ArrowLeft, Calendar, Receipt, Store, TrendingUp } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { use, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useMemo } from 'react';
 import BrandIcon from '@/components/icons/BrandIcon';
 import LineChart from '@/components/LineChart';
 import { useMode } from '@/components/ModeProvider';
@@ -25,13 +25,21 @@ import type { Transaction } from '@/lib/types';
  *
  * Linked from TxRow long-press and from reports pages' top-merchant lists.
  */
-export default function MerchantPage({ params }: { params: Promise<{ name: string }> }) {
-  const { name: rawName } = use(params);
+export default function MerchantPageWrap() {
+  return (
+    <Suspense fallback={null}>
+      <MerchantPage />
+    </Suspense>
+  );
+}
+
+function MerchantPage() {
+  // Already decoded by URLSearchParams.
+  const merchantName = useSearchParams().get('name') ?? '';
   const router = useRouter();
   const { tx, ready } = useAllTransactions();
   const { mode } = useMode();
 
-  const merchantName = decodeURIComponent(rawName);
   const key = merchantName.trim().toLowerCase();
   const brand = findBrand(merchantName);
 
@@ -110,12 +118,7 @@ export default function MerchantPage({ params }: { params: Promise<{ name: strin
           }
         />
         <div className="px-5 pt-6">
-          <EmptyState
-            icon={Store}
-            iconColor="#94A3B8"
-            title="거래 기록이 없어요"
-            hint={`'${merchantName}' 로 기록된 거래를 찾지 못했어요`}
-          />
+          <EmptyState icon={Store} iconColor="#94A3B8" title="거래 기록이 없어요" />
         </div>
       </>
     );

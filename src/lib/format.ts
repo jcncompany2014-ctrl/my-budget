@@ -7,7 +7,9 @@ export const fmtSigned = (n: number) => (n < 0 ? '-' : '+') + fmt(n) + '원';
 export const fmtShort = (n: number) => {
   const a = Math.abs(n);
   if (a >= 100_000_000) return (n / 100_000_000).toFixed(1).replace(/\.0$/, '') + '억';
-  if (a >= 10_000) return Math.round(n / 10_000) + '만';
+  // One decimal below 100만 — whole-만 rounding showed 14,900 as "1만" and 15,000 as "2만".
+  if (a >= 1_000_000) return formatter.format(Math.round(n / 10_000)) + '만';
+  if (a >= 10_000) return (n / 10_000).toFixed(1).replace(/\.0$/, '') + '만';
   return fmt(n);
 };
 
@@ -18,7 +20,12 @@ const TRANSFER_LIKE_CATS = new Set([
   'biz_capital',
   'owner_pay',
   'saving',
+  'loan_principal',
+  'adjust',
 ]);
+
+/** Categories a budget can meaningfully cap — i.e. ones whose rows count as spending. */
+export const isSpendingCategory = (catId: string) => !TRANSFER_LIKE_CATS.has(catId);
 
 /**
  * Returns true when the transaction represents real spending (operating expense).
@@ -49,4 +56,26 @@ export function expandByCategory(t: {
     }));
   }
   return [{ cat: t.cat, amount: t.amount }];
+}
+
+/**
+ * Spending per category: real expenses only, each split counted under its own
+ * category. The one definition behind budgets, alerts and category rankings.
+ */
+export function spendByCategory(
+  txs: {
+    amount: number;
+    cat: string;
+    transferPairId?: string;
+    splits?: { cat: string; amount: number }[];
+  }[],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const t of txs) {
+    if (!isExpense(t)) continue;
+    for (const part of expandByCategory(t)) {
+      map.set(part.cat, (map.get(part.cat) ?? 0) + Math.abs(part.amount));
+    }
+  }
+  return map;
 }

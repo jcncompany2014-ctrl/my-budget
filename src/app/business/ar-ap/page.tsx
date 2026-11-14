@@ -77,7 +77,6 @@ export default function ArApPage() {
             icon={tab === 'receivable' ? Receipt : Briefcase}
             iconColor={tab === 'receivable' ? '#3182F6' : '#EF4444'}
             title={tab === 'receivable' ? '받을 돈이 없어요' : '줄 돈이 없어요'}
-            hint="거래 편집에서 외상으로 표시할 수 있어요"
           />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>

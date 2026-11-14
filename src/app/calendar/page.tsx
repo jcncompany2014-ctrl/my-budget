@@ -16,12 +16,26 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const ymd = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+// Month and day in view. The page remounts when a row is opened and closed;
+// this keeps the user's place across that. `undefined` = not chosen yet.
+const view: { offset: number; day: string | null | undefined } = { offset: 0, day: undefined };
+
 export default function CalendarPage() {
   const router = useRouter();
   const { tx, ready } = useTransactions();
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffsetState] = useState(view.offset);
   // Today is open by default so the day's transactions show without a tap.
-  const [selectedDay, setSelectedDay] = useState<string | null>(() => ymd(new Date()));
+  const [selectedDay, setSelectedDayState] = useState<string | null>(() =>
+    view.day !== undefined ? view.day : ymd(new Date()),
+  );
+  const setOffset = (fn: (o: number) => number) => {
+    view.offset = fn(view.offset);
+    setOffsetState(view.offset);
+  };
+  const setSelectedDay = (day: string | null) => {
+    view.day = day;
+    setSelectedDayState(day);
+  };
 
   const month = useMemo(() => {
     const d = new Date();
@@ -125,7 +139,7 @@ export default function CalendarPage() {
             setOffset((o) => o - 1);
             setSelectedDay(null);
           }}
-          className="tap flex h-9 w-9 items-center justify-center rounded-full"
+          className="tap flex h-10 w-10 items-center justify-center rounded-full"
           aria-label="이전 달"
         >
           <svg viewBox="0 0 24 24" width={20} height={20} fill="none">
@@ -149,7 +163,7 @@ export default function CalendarPage() {
             setOffset((o) => Math.min(0, o + 1));
           }}
           disabled={offset >= 0}
-          className="tap flex h-9 w-9 items-center justify-center rounded-full disabled:opacity-30"
+          className="tap flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-30"
           aria-label="다음 달"
         >
           <svg viewBox="0 0 24 24" width={20} height={20} fill="none">
@@ -256,7 +270,7 @@ export default function CalendarPage() {
                         {cell.day}
                       </span>
                       {data && (
-                        <div className="mt-0.5 flex flex-col items-center gap-0.5 text-[9px] leading-tight">
+                        <div className="mt-0.5 flex flex-col items-center gap-0.5 text-[10px] leading-tight">
                           {data.expense > 0 && (
                             <span
                               className="tnum font-bold"

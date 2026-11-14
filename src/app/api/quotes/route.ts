@@ -8,7 +8,7 @@ import type { NextRequest } from 'next/server';
  * Sources:
  *   • binance:<symbol>     → USDT (or other) pair from Binance — crypto primary source
  *   • upbit:<symbol>       → KRW pair from Upbit — kept for legacy / KRW-quoted crypto
- *   • yahoo:<symbol>       → Yahoo Finance unofficial v7/quote (US/KR/JP stocks, FX, indices)
+ *   • yahoo:<symbol>       → Yahoo Finance chart endpoint (US/KR/JP stocks, FX, indices)
  *
  * In-memory cache lives per V8 isolate. TTL is source-dependent so upstream
  * never gets hammered. On upstream failure we serve the previous cached value
@@ -32,6 +32,9 @@ const TTL_MS: Record<Source, number> = {
   upbit: 20_000,
   yahoo: 60_000, // 60s — stocks/FX, lighter source
 };
+
+/** More than one portfolio ever asks for; keeps a crafted URL from fanning out upstream. */
+const MAX_IDS = 60;
 
 // Per-isolate cache. Key = full id (e.g. "upbit:BTC"), value = quote + expiry.
 const cache = new Map<string, { value: Quote; expires: number }>();
@@ -126,96 +129,73 @@ async function fetchUpbit(symbols: string[], out: Record<string, Quote>, now: nu
   }
 }
 
-/* ─── Yahoo Finance unofficial v7 quote ─── */
+/* ─── Yahoo Finance chart endpoint (one request per symbol, in parallel) ─── */
+type YahooChart = {
+  chart?: {
+    result?: Array<{
+      meta?: {
+        regularMarketPrice?: number;
+        chartPreviousClose?: number;
+        currency?: string;
+        longName?: string;
+        shortName?: string;
+      };
+    }>;
+  };
+};
+
+async function fetchYahooChart(sym: string): Promise<Response> {
+  const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=2d`;
+  const r = await fetchWithTimeout(url, 4000, {
+    headers: { 'User-Agent': UA, Accept: 'application/json' },
+  });
+  // Yahoo throttles by client signature; the same request without the browser
+  // UA (or from the other host) usually goes through.
+  if (r.status !== 429 && r.status !== 403) return r;
+  return fetchWithTimeout(url.replace('query2.', 'query1.'), 4000, {
+    headers: { Accept: 'application/json' },
+  });
+}
+
+// The v7 batch quote endpoint now answers 401 without a session crumb, so every
+// symbol goes through the chart endpoint.
 async function fetchYahoo(symbols: string[], out: Record<string, Quote>, now: number) {
-  const csv = symbols.join(',');
-  try {
-    const r = await fetchWithTimeout(
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(csv)}`,
-      5000,
-      { headers: { 'User-Agent': UA, Accept: 'application/json' } },
-    );
-    if (!r.ok) throw new Error(`yahoo ${r.status}`);
-    const j = (await r.json()) as {
-      quoteResponse?: {
-        result?: Array<{
-          symbol: string;
-          regularMarketPrice?: number;
-          regularMarketChangePercent?: number;
-          currency?: string;
-          shortName?: string;
-          longName?: string;
-        }>;
-      };
-    };
-    const result = j.quoteResponse?.result ?? [];
-    for (const row of result) {
-      if (typeof row.regularMarketPrice !== 'number') continue;
-      const id = `yahoo:${row.symbol}`;
-      const q: Quote = {
-        price: row.regularMarketPrice,
-        change: +(row.regularMarketChangePercent ?? 0).toFixed(2),
-        currency: (row.currency || 'USD').toUpperCase(),
-        name: row.shortName || row.longName || row.symbol,
-        ts: now,
-      };
-      out[id] = q;
-      cache.set(id, { value: q, expires: now + TTL_MS.yahoo });
-    }
-  } catch {
-    // Fallback per-symbol via v8 chart endpoint, in parallel
-    await Promise.all(
-      symbols.map(async (sym) => {
-        try {
-          const r = await fetchWithTimeout(
-            `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=2d`,
-            4000,
-            { headers: { 'User-Agent': UA, Accept: 'application/json' } },
-          );
-          if (!r.ok) return;
-          const j = (await r.json()) as {
-            chart?: {
-              result?: Array<{
-                meta?: {
-                  regularMarketPrice?: number;
-                  chartPreviousClose?: number;
-                  currency?: string;
-                  symbol?: string;
-                  longName?: string;
-                  shortName?: string;
-                  instrumentType?: string;
-                };
-              }>;
-            };
-          };
-          const meta = j.chart?.result?.[0]?.meta;
-          if (!meta || typeof meta.regularMarketPrice !== 'number') return;
-          const prev = meta.chartPreviousClose ?? meta.regularMarketPrice;
-          const change = prev ? ((meta.regularMarketPrice - prev) / prev) * 100 : 0;
-          const id = `yahoo:${sym}`;
-          const q: Quote = {
-            price: meta.regularMarketPrice,
-            change: +change.toFixed(2),
-            currency: (meta.currency || 'USD').toUpperCase(),
-            name: meta.longName || meta.shortName || sym,
-            ts: now,
-          };
-          out[id] = q;
-          cache.set(id, { value: q, expires: now + TTL_MS.yahoo });
-        } catch {
-          /* swallow */
-        }
-      }),
-    );
-  }
+  await Promise.all(
+    symbols.map(async (sym) => {
+      try {
+        const r = await fetchYahooChart(sym);
+        if (!r.ok) return;
+        const meta = ((await r.json()) as YahooChart).chart?.result?.[0]?.meta;
+        if (!meta || typeof meta.regularMarketPrice !== 'number') return;
+        const prev = meta.chartPreviousClose ?? meta.regularMarketPrice;
+        const change = prev ? ((meta.regularMarketPrice - prev) / prev) * 100 : 0;
+        const id = `yahoo:${sym}`;
+        const q: Quote = {
+          price: meta.regularMarketPrice,
+          change: +change.toFixed(2),
+          currency: (meta.currency || 'USD').toUpperCase(),
+          name: meta.longName || meta.shortName || sym,
+          ts: now,
+        };
+        out[id] = q;
+        cache.set(id, { value: q, expires: now + TTL_MS.yahoo });
+      } catch {
+        /* the caller serves the last known value */
+      }
+    }),
+  );
 }
 
 export async function GET(req: NextRequest) {
   const idsParam = req.nextUrl.searchParams.get('ids') || '';
-  const ids = idsParam
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const ids = [
+    ...new Set(
+      idsParam
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, MAX_IDS);
 
   if (ids.length === 0) {
     return Response.json({ quotes: {}, ts: Date.now() });
@@ -254,12 +234,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Only a complete answer may be cached. A partial one (an upstream hiccup)
+  // would otherwise be replayed by the CDN for the next minute and the app
+  // would show missing prices long after the source recovered.
+  const complete = ids.every((id) => result[id]);
   return Response.json(
     { quotes: result, ts: now },
     {
       headers: {
-        // Browser may cache for a few seconds; CDN/edge for 20s.
-        'Cache-Control': 'public, max-age=10, s-maxage=20, stale-while-revalidate=60',
+        'Cache-Control': complete
+          ? 'public, max-age=10, s-maxage=20, stale-while-revalidate=60'
+          : 'no-store',
       },
     },
   );

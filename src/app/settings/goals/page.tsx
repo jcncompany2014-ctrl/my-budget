@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
@@ -33,6 +34,7 @@ export default function GoalsSettingsPage() {
   const { goals, ready, add, update, remove } = useGoals();
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready) {
     return (
@@ -86,12 +88,7 @@ export default function GoalsSettingsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {goals.length === 0 ? (
-          <EmptyState
-            icon={Target}
-            iconColor="#1FBA6E"
-            title="아직 목표가 없어요"
-            hint="제주도 여행, 비상금, 노트북 같은 목표를 만들고 진행률을 추적해보세요"
-          />
+          <EmptyState icon={Target} iconColor="#1FBA6E" title="목표가 없어요" />
         ) : (
           <div className="space-y-2">
             {goals.map((g) => {
@@ -239,21 +236,27 @@ export default function GoalsSettingsPage() {
           goal={editing}
           isNew={creating}
           onSave={handleSave}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('목표 삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 목표를 삭제할까요?`}
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('목표 삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }

@@ -8,21 +8,25 @@ import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
+import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { daysUntilDay, useRecurring } from '@/lib/recurring';
-import type { RecurringItem } from '@/lib/types';
+import type { Account, RecurringItem } from '@/lib/types';
 
 export default function RecurringSettingsPage() {
   const router = useRouter();
   const toast = useToast();
   const { mode } = useMode();
   const { items, ready, add, update, remove } = useRecurring();
+  const { accounts } = useAccounts();
   const [editing, setEditing] = useState<RecurringItem | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready) {
     return (
@@ -60,6 +64,7 @@ export default function RecurringSettingsPage() {
 
   const sorted = [...items].sort((a, b) => daysUntilDay(a.day) - daysUntilDay(b.day));
   const monthlyTotal = items.reduce((s, r) => s + r.amount, 0);
+  const accountName = (id?: string) => accounts.find((a) => a.id === id)?.name;
 
   return (
     <>
@@ -93,12 +98,7 @@ export default function RecurringSettingsPage() {
 
       <section className="px-5 pb-3 pt-2">
         {items.length === 0 ? (
-          <EmptyState
-            icon={Repeat}
-            iconColor="#0EA5E9"
-            title="정기결제를 추가해 보세요"
-            hint="넷플릭스, 통신비, 멤버십 — 매달 자동으로 거래가 만들어집니다"
-          />
+          <EmptyState icon={Repeat} iconColor="#0EA5E9" title="정기결제가 없어요" />
         ) : (
           <div className="space-y-2">
             {sorted.map((r) => {
@@ -124,11 +124,14 @@ export default function RecurringSettingsPage() {
                       {r.name}
                     </p>
                     <div className="mt-0.5 flex items-center gap-1.5">
-                      <span style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-                        매월 {r.day}일
+                      <span
+                        className="truncate"
+                        style={{ color: 'var(--color-text-3)', fontSize: 11 }}
+                      >
+                        매월 {r.day}일{accountName(r.toAcc) ? ` · → ${accountName(r.toAcc)}` : ''}
                       </span>
                       <span
-                        className="tnum rounded-full px-1.5 py-0.5"
+                        className="tnum shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5"
                         style={{
                           background: urgent ? 'var(--color-danger)' : 'var(--color-gray-100)',
                           color: urgent ? '#fff' : 'var(--color-text-3)',
@@ -168,22 +171,29 @@ export default function RecurringSettingsPage() {
         <RecurringEditor
           item={editing}
           isNew={creating}
+          accounts={accounts}
           onSave={handleSave}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 정기결제를 삭제할까요?`}
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }
@@ -191,12 +201,14 @@ export default function RecurringSettingsPage() {
 function RecurringEditor({
   item,
   isNew,
+  accounts,
   onSave,
   onDelete,
   onCancel,
 }: {
   item: RecurringItem;
   isNew: boolean;
+  accounts: Account[];
   onSave: (r: RecurringItem) => void;
   onDelete?: () => void;
   onCancel: () => void;
@@ -317,6 +329,28 @@ function RecurringEditor({
         </div>
       </div>
 
+      {accounts.length > 1 && (
+        <>
+          <AccountChips
+            label="출금 계좌"
+            none="주거래"
+            value={draft.acc}
+            options={accounts.filter((a) => a.type !== 'receivable')}
+            onChange={(acc) =>
+              setDraft({ ...draft, acc, toAcc: draft.toAcc === acc ? undefined : draft.toAcc })
+            }
+          />
+          {/* Money that lands in another of my accounts is posted as a transfer, not spending. */}
+          <AccountChips
+            label="입금 계좌 (적금·이체)"
+            none="없음"
+            value={draft.toAcc}
+            options={accounts.filter((a) => a.id !== draft.acc && a.type !== 'receivable')}
+            onChange={(toAcc) => setDraft({ ...draft, toAcc })}
+          />
+        </>
+      )}
+
       <div className="mt-2 flex gap-2">
         {onDelete && (
           <button
@@ -350,5 +384,55 @@ function RecurringEditor({
         </button>
       </div>
     </Sheet>
+  );
+}
+
+function AccountChips({
+  label,
+  none,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  /** Label of the "not set" chip. */
+  none: string;
+  value?: string;
+  options: Account[];
+  onChange: (id: string | undefined) => void;
+}) {
+  const chip = (selected: boolean, color: string) => ({
+    background: selected ? color : 'var(--color-gray-100)',
+    color: selected ? '#fff' : 'var(--color-text-2)',
+    fontSize: 12,
+    fontWeight: 700,
+  });
+  return (
+    <div className="mb-4">
+      <p className="mb-1.5 text-[13px] font-semibold" style={{ color: 'var(--color-text-2)' }}>
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => onChange(undefined)}
+          className="tap rounded-lg px-3 py-2"
+          style={chip(!value, 'var(--color-text-1)')}
+        >
+          {none}
+        </button>
+        {options.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => onChange(a.id)}
+            className="tap rounded-lg px-3 py-2"
+            style={chip(value === a.id, 'var(--color-primary)')}
+          >
+            {a.name}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

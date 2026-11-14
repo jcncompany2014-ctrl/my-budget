@@ -20,27 +20,27 @@ const REVENUE_CATS = [
 ];
 
 /**
- * 2024 simplified income tax brackets (Korean 종합소득세):
- * - up to 14M: 6%
- * - 14M ~ 50M: 15% − 1.08M
- * - 50M ~ 88M: 24% − 5.22M
- * - 88M ~ 150M: 35% − 14.9M
- * - 150M ~ 300M: 38% − 19.4M
- * - 300M ~ 500M: 40% − 25.4M
- * - 500M ~ 1B: 42% − 35.4M
- * - over 1B: 45% − 65.4M
+ * 종합소득세 기본세율 (2023년 귀속분부터):
+ * - 1,400만 이하 6%
+ * - 5,000만 이하 15% − 126만
+ * - 8,800만 이하 24% − 576만
+ * - 1.5억 이하 35% − 1,544만
+ * - 3억 이하 38% − 1,994만
+ * - 5억 이하 40% − 2,594만
+ * - 10억 이하 42% − 3,594만
+ * - 10억 초과 45% − 6,594만
  */
 function estimateIncomeTax(taxableIncome: number) {
   if (taxableIncome <= 0) return 0;
   const t = taxableIncome;
   if (t <= 14_000_000) return Math.round(t * 0.06);
-  if (t <= 50_000_000) return Math.round(t * 0.15 - 1_080_000);
-  if (t <= 88_000_000) return Math.round(t * 0.24 - 5_220_000);
-  if (t <= 150_000_000) return Math.round(t * 0.35 - 14_900_000);
-  if (t <= 300_000_000) return Math.round(t * 0.38 - 19_400_000);
-  if (t <= 500_000_000) return Math.round(t * 0.4 - 25_400_000);
-  if (t <= 1_000_000_000) return Math.round(t * 0.42 - 35_400_000);
-  return Math.round(t * 0.45 - 65_400_000);
+  if (t <= 50_000_000) return Math.round(t * 0.15 - 1_260_000);
+  if (t <= 88_000_000) return Math.round(t * 0.24 - 5_760_000);
+  if (t <= 150_000_000) return Math.round(t * 0.35 - 15_440_000);
+  if (t <= 300_000_000) return Math.round(t * 0.38 - 19_940_000);
+  if (t <= 500_000_000) return Math.round(t * 0.4 - 25_940_000);
+  if (t <= 1_000_000_000) return Math.round(t * 0.42 - 35_940_000);
+  return Math.round(t * 0.45 - 65_940_000);
 }
 
 export default function IncomeTaxPage() {
@@ -206,16 +206,12 @@ export default function IncomeTaxPage() {
 
       <Section title="3.3% 원천세 계산기">
         <Card padding={16}>
-          <p className="mb-2" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-            프리랜서 거래 시 지급액에서 3.3% 원천징수 후 입금됩니다. 총 지급액을 입력하면 실수령액을
-            보여줍니다.
-          </p>
           <input
             type="number"
             inputMode="numeric"
             value={withholdingGross}
             onChange={(e) => setWithholdingGross(e.target.value)}
-            placeholder="총 지급액 (예: 1000000)"
+            placeholder="총 지급액"
             className="tnum h-12 w-full rounded-xl px-4 outline-none"
             style={{
               background: 'var(--color-gray-100)',

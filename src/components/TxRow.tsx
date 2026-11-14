@@ -7,7 +7,7 @@ import { useRef } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import Money from '@/components/Money';
-import { useAccounts } from '@/lib/accounts';
+import { findAccount } from '@/lib/accounts';
 import { CATEGORIES, isTransferCategory } from '@/lib/categories';
 import { haptics } from '@/lib/haptics';
 import type { Transaction } from '@/lib/types';
@@ -49,9 +49,10 @@ export default function TxRow({
   compact,
 }: Props) {
   const cat = CATEGORIES[tx.cat];
-  const { accounts } = useAccounts();
   const router = useRouter();
-  const account = accounts.find((a) => a.id === tx.acc);
+  // A plain lookup across both ledgers: a store subscription per row made every
+  // balance change re-render the whole list.
+  const account = showAccount ? findAccount(tx.acc) : undefined;
   const isTransfer = isTransferCategory(tx.cat) || !!tx.transferPairId;
 
   const subtitleParts: string[] = [];
@@ -72,7 +73,7 @@ export default function TxRow({
     pressTimer.current = window.setTimeout(() => {
       didLongPress.current = true;
       haptics.medium();
-      router.push(`/merchant/${encodeURIComponent(tx.merchant.trim())}`);
+      router.push(`/merchant?name=${encodeURIComponent(tx.merchant.trim())}`);
     }, LONG_PRESS_MS);
   };
   const endPress = () => {
@@ -84,7 +85,7 @@ export default function TxRow({
 
   return (
     <Link
-      href={`/tx/${tx.id}`}
+      href={`/tx?id=${tx.id}`}
       onClick={(e) => {
         if (didLongPress.current) {
           e.preventDefault();
@@ -118,6 +119,20 @@ export default function TxRow({
           style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-base)', fontWeight: 500 }}
         >
           <span className="truncate">{tx.merchant}</span>
+          {tx.reimburse === 'due' && (
+            <span
+              className="shrink-0 rounded px-1"
+              style={{
+                background: 'var(--color-primary-soft)',
+                color: 'var(--color-primary)',
+                fontSize: 10,
+                fontWeight: 800,
+                lineHeight: '16px',
+              }}
+            >
+              대납
+            </span>
+          )}
           {tx.source === 'notification' && (
             <BellRing
               size={11}

@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, Globe, Lightbulb, Star } from 'lucide-react';
+import { ArrowLeftRight, Check, Globe, Lightbulb, Star, Zap } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import DatePickerSection from '@/components/DatePickerSection';
@@ -15,6 +16,7 @@ import { autoCategorize, detectDuplicate, suggestAmount } from '@/lib/auto-categ
 import { useBusinessProfile } from '@/lib/business-profile';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import { applyRules, useCategoryRules } from '@/lib/category-rules';
+import { defaultAccountId } from '@/lib/default-account';
 import { useFavorites } from '@/lib/favorites';
 import { fmt, fmtShort } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
@@ -59,8 +61,8 @@ function AddPage() {
   const [cat, setCat] = useState<string>(expenseList[0]?.id ?? 'food');
   const [merchant, setMerchant] = useState('');
   const [memo, setMemo] = useState('');
-  const [memoTouched, setMemoTouched] = useState(false);
   const [accId, setAccId] = useState<string>('');
+  const [accTouched, setAccTouched] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [catTouched, setCatTouched] = useState(false);
   const [vendorId, setVendorId] = useState<string>('');
@@ -84,19 +86,6 @@ function AddPage() {
       .slice(0, 30)
       .map(([m]) => m);
   }, [history, mode]);
-
-  // Auto-fill memo from previous tx with same merchant (when user hasn't edited memo)
-  useEffect(() => {
-    if (memoTouched || !merchant.trim()) return;
-    const m = merchant.toLowerCase();
-    const prev = history.find(
-      (t) =>
-        (t.scope ?? 'personal') === mode &&
-        t.merchant.toLowerCase() === m &&
-        (t.memo ?? '').trim().length > 0,
-    );
-    if (prev) setMemo(prev.memo ?? '');
-  }, [merchant, mode, history, memoTouched]);
 
   // Smart category suggestion: user rules → history → heuristic
   useEffect(() => {
@@ -126,9 +115,15 @@ function AddPage() {
     [history, mode, type],
   );
 
+  // Start on the account the last hand-entered row of this kind used (then the
+  // main account) — not simply the oldest account in the list.
+  const defaultAccId = useMemo(
+    () => defaultAccountId(history, accounts, mode, type === 'income'),
+    [history, accounts, mode, type],
+  );
   useEffect(() => {
-    if (!accId && accounts[0]) setAccId(accounts[0].id);
-  }, [accounts, accId]);
+    if (!accTouched && defaultAccId) setAccId(defaultAccId);
+  }, [defaultAccId, accTouched]);
 
   // Reset selected category when mode/type changes
   useEffect(() => {
@@ -210,7 +205,7 @@ function AddPage() {
         // but keep transfer linkage so balances move correctly.
         legs[0].cat = 'saving';
         legs[0].merchant = merchant.trim() || `저축 → ${savingsAcc.name}`;
-        legs[1].cat = 'saving';
+        // The deposit leg stays a plain transfer — two 'saving' legs counted the amount twice.
         legs[1].merchant = merchant.trim() || `← ${fromAcc.name}`;
         legs.forEach((l) => add(l));
         toast.show(`${savingsAcc.name}로 자동 이체 완료`, {
@@ -228,10 +223,10 @@ function AddPage() {
           setAmount('');
           setMerchant('');
           setMemo('');
-          setMemoTouched(false);
+          setCatTouched(false);
           setStep(1);
         } else {
-          router.replace('/');
+          router.back();
         }
         return;
       }
@@ -281,13 +276,18 @@ function AddPage() {
       setAmount('');
       setMerchant('');
       setMemo('');
-      setMemoTouched(false);
+      // Let the next merchant suggest its own category again.
+      setCatTouched(false);
       setOutstanding(false);
       setHasReceipt(false);
       setStep(1);
     } else {
-      router.replace('/');
+      // Back to wherever + was pressed (home, list, calendar…), not always home.
+      router.back();
     }
+  };
+  const submitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit(false);
   };
 
   const addQuick = (n: number) => {
@@ -300,21 +300,18 @@ function AddPage() {
     setMerchant(t.merchant);
     setCat(t.cat);
     setCatTouched(true);
+    if (t.acc && accounts.some((a) => a.id === t.acc)) {
+      setAccId(t.acc);
+      setAccTouched(true);
+    }
     setStep(2);
   };
-
-  const promptCopy = useMemo(() => {
-    if (mode === 'business') {
-      return type === 'expense' ? '얼마를 지출했나요?' : '얼마가 들어왔나요?';
-    }
-    return type === 'expense' ? '얼마를 썼나요?' : '얼마를 받았나요?';
-  }, [mode, type]);
 
   const merchantLabel = useMemo(() => {
     if (mode === 'business') {
       return type === 'expense' ? '거래처' : '매출처·플랫폼';
     }
-    return type === 'expense' ? '어디서 썼나요?' : '어디서 받았나요?';
+    return type === 'expense' ? '소비처' : '받은 곳';
   }, [mode, type]);
 
   return (
@@ -365,15 +362,29 @@ function AddPage() {
             ))}
           </div>
         </div>
-        <div className="w-12" />
+        <div className="flex items-center">
+          <Link
+            href="/transfer"
+            replace
+            className="tap flex h-10 w-9 items-center justify-center rounded-full"
+            aria-label="이체"
+          >
+            <ArrowLeftRight size={19} strokeWidth={2.2} color="var(--color-text-2)" />
+          </Link>
+          <Link
+            href="/quick-add"
+            replace
+            className="tap flex h-10 w-9 items-center justify-center rounded-full"
+            aria-label="빠른 입력"
+          >
+            <Zap size={19} strokeWidth={2.2} color="var(--color-text-2)" />
+          </Link>
+        </div>
       </header>
 
       {step === 1 && (
         <div className="flex flex-1 flex-col">
           <section className="px-6 pb-3 pt-8 text-center">
-            <p className="text-[13px] font-medium" style={{ color: 'var(--color-text-3)' }}>
-              {promptCopy}
-            </p>
             <p className="tnum mt-2 text-[44px] font-extrabold tracking-tight">
               {Number(amount) > 0 ? (
                 <>
@@ -383,16 +394,7 @@ function AddPage() {
                   </span>
                 </>
               ) : (
-                <span
-                  style={{
-                    color: 'var(--color-text-4)',
-                    fontSize: 28,
-                    fontWeight: 500,
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  얼마인가요?
-                </span>
+                <span style={{ color: 'var(--color-text-4)' }}>0원</span>
               )}
             </p>
           </section>
@@ -525,6 +527,38 @@ function AddPage() {
               className="mb-2.5 block text-[13px] font-semibold"
               style={{ color: 'var(--color-text-2)' }}
             >
+              계좌
+            </label>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {accounts.map((a) => {
+                const sel = accId === a.id;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => {
+                      setAccId(a.id);
+                      setAccTouched(true);
+                    }}
+                    className="tap shrink-0 rounded-2xl px-4 py-2 text-[13px] font-semibold"
+                    style={{
+                      background: sel ? `${a.color}22` : 'var(--color-gray-100)',
+                      color: sel ? a.color : 'var(--color-text-2)',
+                      border: `1.5px solid ${sel ? a.color : 'transparent'}`,
+                    }}
+                  >
+                    {a.name}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="px-4 pb-3">
+            <label
+              className="mb-2.5 block text-[13px] font-semibold"
+              style={{ color: 'var(--color-text-2)' }}
+            >
               카테고리
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -567,7 +601,9 @@ function AddPage() {
             <input
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
-              placeholder={mode === 'business' ? '거래처 이름 (선택)' : '소비처 이름 (선택)'}
+              onKeyDown={submitOnEnter}
+              enterKeyHint="done"
+              placeholder="이름"
               list="recent-merchants-add"
               autoComplete="off"
               className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
@@ -624,11 +660,10 @@ function AddPage() {
             </div>
             <input
               value={memo}
-              onChange={(e) => {
-                setMemo(e.target.value.slice(0, 100));
-                setMemoTouched(true);
-              }}
-              placeholder="짧은 메모 (선택)"
+              onChange={(e) => setMemo(e.target.value.slice(0, 100))}
+              onKeyDown={submitOnEnter}
+              enterKeyHint="done"
+              placeholder="메모"
               maxLength={100}
               className="h-12 w-full rounded-xl px-4 outline-none"
               style={{
@@ -658,12 +693,6 @@ function AddPage() {
                   }}
                 >
                   저장하고 계속 입력
-                </p>
-                <p
-                  className="mt-0.5"
-                  style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
-                >
-                  여러 거래 빠르게 입력할 때
                 </p>
               </div>
               <span
@@ -882,40 +911,15 @@ function AddPage() {
             </>
           )}
 
-          <section className="px-4 pb-4">
-            <label
-              className="mb-2.5 block text-[13px] font-semibold"
-              style={{ color: 'var(--color-text-2)' }}
-            >
-              계좌
-            </label>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {accounts.map((a) => {
-                const sel = accId === a.id;
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => setAccId(a.id)}
-                    className="tap shrink-0 rounded-2xl px-4 py-2 text-[13px] font-semibold"
-                    style={{
-                      background: sel ? `${a.color}22` : 'var(--color-gray-100)',
-                      color: sel ? a.color : 'var(--color-text-2)',
-                      border: `1.5px solid ${sel ? a.color : 'transparent'}`,
-                    }}
-                  >
-                    {a.name}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
           <div className="flex-1" />
 
+          {/* Sticky: this step is taller than the screen, and 저장 must not need a scroll. */}
           <div
-            className="flex gap-2 px-4 pb-6 pt-2"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+            className="sticky bottom-0 flex gap-2 px-4 pt-2"
+            style={{
+              background: 'var(--color-card)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+            }}
           >
             <button
               type="button"
@@ -939,7 +943,6 @@ function AddPage() {
                 color: 'var(--color-primary)',
               }}
               aria-label="즐겨찾기로 저장"
-              title="즐겨찾기로 저장"
             >
               <Star size={22} strokeWidth={2.2} fill="currentColor" />
             </button>

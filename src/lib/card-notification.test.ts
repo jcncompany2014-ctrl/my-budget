@@ -241,3 +241,32 @@ describe('noticeSummary', () => {
     ).toBe('USD 12.50 · AMAZON.COM');
   });
 });
+
+describe('amount vs. a name that starts with a unit', () => {
+  const now = new Date(2026, 10, 8, 14, 24);
+  const ok = (text: string) => {
+    const r = parseCardNotification(text, now);
+    if (!r.ok) throw new Error(`not parsed: ${r.reason}`);
+    return r.notice;
+  };
+
+  it('minutes before "원할머니보쌈" are not the amount', () => {
+    const n = ok('[Web발신]\n신한카드(1234)승인 홍*동 32,000원(일시불)11/08 14:23 원할머니보쌈');
+    expect(n).toMatchObject({ amount: 32_000, currency: 'KRW', merchant: '원할머니보쌈' });
+  });
+
+  it('"엔제리너스" after the time is a shop, not yen', () => {
+    const n = ok('[Web발신]\n신한카드(1234)승인 홍*동 4,500원(일시불)11/08 14:23 엔제리너스');
+    expect(n).toMatchObject({ amount: 4_500, currency: 'KRW', merchant: '엔제리너스' });
+    expect(n.fx).toBeUndefined();
+    expect(n.overseas).toBe(false);
+  });
+
+  it('a particle glued to the unit is still an amount', () => {
+    expect(ok('스타벅스에서 5,600원을 결제했어요')).toMatchObject({ amount: 5_600 });
+    expect(ok('해외승인 신한카드(1234) 1,200엔 11/08 14:23 LAWSON')).toMatchObject({
+      amount: 1_200,
+      currency: 'JPY',
+    });
+  });
+});

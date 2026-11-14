@@ -1,6 +1,7 @@
 'use client';
 
 import { localDayKey } from '@/lib/dates';
+import { saveFile } from '@/lib/save-file';
 import { KEYS } from '@/lib/storage-keys';
 import type {
   Account,
@@ -49,6 +50,8 @@ export type BackupFile = {
   taxpayerType?: unknown;
   /** Card-notification inbox key — restoring it keeps the iPhone Shortcut working. */
   inboxKey?: string | null;
+  /** Daily net worth per ledger — cannot be rebuilt from transactions. */
+  netWorthHistory?: unknown;
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -97,21 +100,14 @@ export function exportAll(): BackupFile {
     currency: read<unknown>(KEYS.currency, null),
     taxpayerType: read<unknown>(KEYS.taxpayerType, null),
     inboxKey: read<string | null>(KEYS.inboxKey, null),
+    netWorthHistory: read<unknown>(KEYS.netWorthHistory, null),
   };
 }
 
-export function downloadBackup() {
-  const data = exportAll();
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const today = localDayKey(new Date());
-  a.href = url;
-  a.download = `asset-backup-${today}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+/** Resolves false when the share sheet was dismissed without saving. */
+export function downloadBackup(): Promise<boolean> {
+  const blob = new Blob([JSON.stringify(exportAll(), null, 2)], { type: 'application/json' });
+  return saveFile(`가계부-백업-${localDayKey(new Date())}.json`, blob);
 }
 
 type ImportResult = {
@@ -241,6 +237,9 @@ export function importBackup(file: File): Promise<ImportResult> {
         }
         if (typeof body.inboxKey === 'string') {
           writeIf(KEYS.inboxKey, body.inboxKey);
+        }
+        if (body.netWorthHistory && typeof body.netWorthHistory === 'object') {
+          writeIf(KEYS.netWorthHistory, body.netWorthHistory);
         }
 
         resolve(result);

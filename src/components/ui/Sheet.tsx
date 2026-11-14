@@ -65,7 +65,6 @@ export default function Sheet({ open, onClose, children, title, full }: Props) {
       className="fixed inset-0 z-[80] flex items-end justify-center"
       style={{
         background: closing ? 'transparent' : 'rgba(0,0,0,0.4)',
-        backdropFilter: closing ? 'none' : 'blur(2px)',
         transition: 'background 240ms var(--ease-out)',
       }}
       onClick={onClose}

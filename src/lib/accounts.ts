@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { useMode } from '@/components/ModeProvider';
+import { setStoredItem } from '@/lib/safe-storage';
 import { SEED_ACCOUNTS } from '@/lib/seed';
-import { subscribeToKey } from '@/lib/store-factory';
+import { subscribeToKey, useHydrated } from '@/lib/store-factory';
 import type { Account, Scope } from '@/lib/types';
 
 const KEY = 'asset/accounts/v2';
@@ -24,6 +25,7 @@ const EMPTY_ACC: Account[] = [];
 
 function load(): Account[] {
   if (typeof window === 'undefined') return normalize(SEED_ACCOUNTS);
+  const seed = normalize(SEED_ACCOUNTS);
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw) return normalize(JSON.parse(raw) as Account[]);
@@ -33,15 +35,18 @@ function load(): Account[] {
       window.localStorage.setItem(KEY, JSON.stringify(migrated));
       return migrated;
     }
+    // First run: persist the seed, because balance updates (integrity.ts) read
+    // and rewrite this key directly and would otherwise save an empty list.
+    window.localStorage.setItem(KEY, JSON.stringify(seed));
   } catch {
-    // fall through
+    // Unreadable data is left in place (never overwritten with the seed).
   }
-  return normalize(SEED_ACCOUNTS);
+  return seed;
 }
 
 function save(list: Account[]) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(KEY, JSON.stringify(list));
+  setStoredItem(KEY, JSON.stringify(list));
 }
 
 function getCachedAccounts(): Account[] {
@@ -50,38 +55,45 @@ function getCachedAccounts(): Account[] {
 }
 
 function commitAccounts(next: Account[]) {
-  cachedAccounts = next;
   save(next);
+  cachedAccounts = next;
   accListeners.forEach((fn) => fn());
 }
+
+// integrity.ts moves balances through store-factory's writeStorageValue, which
+// bypasses this singleton. One module-level bridge keeps the cache honest even
+// when no account hook is mounted — a per-hook bridge left it stale on screens
+// without one, and the next save wrote the stale balances back.
+if (typeof window !== 'undefined') {
+  const invalidate = () => {
+    cachedAccounts = null;
+    accListeners.forEach((fn) => fn());
+  };
+  subscribeToKey(KEY, invalidate);
+  window.addEventListener('storage', (e) => {
+    if (e.key === KEY) invalidate();
+  });
+}
+
+/** Account by id across both ledgers — a plain lookup for list rows, no subscription. */
+export function findAccount(id: string): Account | undefined {
+  return getCachedAccounts().find((a) => a.id === id);
+}
+
+function subscribeAccounts(fn: () => void) {
+  accListeners.add(fn);
+  return () => {
+    accListeners.delete(fn);
+  };
+}
+const serverAccounts = () => EMPTY_ACC;
 
 /**
  * Returns all accounts, regardless of mode.
  */
 export function useAllAccounts() {
-  const [accounts, setAccounts] = useState<Account[]>(EMPTY_ACC);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    setAccounts(getCachedAccounts());
-    setReady(true);
-    if (typeof window !== 'undefined' && !window.localStorage.getItem(KEY)) {
-      save(cachedAccounts!);
-    }
-    const refresh = () => setAccounts(getCachedAccounts());
-    accListeners.add(refresh);
-    // integrity.ts mutates account balances via store-factory's writeStorageValue,
-    // which bypasses our singleton. Bridge that by also listening to store-factory's
-    // notify channel for the same key — refresh from disk and fan out to local listeners.
-    const unsubFactory = subscribeToKey(KEY, () => {
-      cachedAccounts = load();
-      accListeners.forEach((fn) => fn());
-    });
-    return () => {
-      accListeners.delete(refresh);
-      unsubFactory();
-    };
-  }, []);
+  const accounts = useSyncExternalStore(subscribeAccounts, getCachedAccounts, serverAccounts);
+  const ready = useHydrated();
 
   const add = (a: Account) => commitAccounts([...getCachedAccounts(), a]);
   const update = (id: string, patch: Partial<Account>) =>

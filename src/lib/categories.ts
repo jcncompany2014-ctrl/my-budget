@@ -17,13 +17,24 @@ export const CATEGORIES: Record<string, Category> = {
   subs: { id: 'subs', name: '구독', emoji: '🔁', color: '#0EA5E9', scope: 'personal' },
   transfer: { id: 'transfer', name: '이체', emoji: '↔️', color: '#94A3B8', scope: 'personal' },
   saving: { id: 'saving', name: '저축', emoji: '🌱', color: '#1FBA6E', scope: 'personal' },
+  // Interest is the cost of a loan; the principal part of a payment only moves
+  // money from an account to the debt, so it is posted separately and not as spending.
   loan_payment: {
     id: 'loan_payment',
-    name: '대출 상환',
+    name: '대출 이자',
     emoji: '🏛️',
     color: '#64748B',
     scope: 'personal',
   },
+  loan_principal: {
+    id: 'loan_principal',
+    name: '대출 원금',
+    emoji: '🏛️',
+    color: '#94A3B8',
+    scope: 'personal',
+  },
+  // 잔액 보정 — brings a balance in line with the bank; neither income nor spending.
+  adjust: { id: 'adjust', name: '잔액 보정', emoji: '⚖️', color: '#94A3B8', scope: 'personal' },
 
   // ─── Personal income ───
   salary: {
@@ -229,8 +240,11 @@ export const isTransferCategory = (catId: string) =>
   catId === 'biz_capital' ||
   catId === 'owner_pay';
 
+/** Posted by the app itself (in either ledger), never picked by hand. */
+const SYSTEM_CATS = new Set(['loan_principal', 'adjust']);
+
 export const categoriesByScope = (scope: Scope) =>
-  Object.values(CATEGORIES).filter((c) => c.scope === scope);
+  Object.values(CATEGORIES).filter((c) => c.scope === scope && !SYSTEM_CATS.has(c.id));
 
 export const expenseCategoriesByScope = (scope: Scope) =>
   categoriesByScope(scope).filter((c) => c.kind !== 'income' && !isTransferCategory(c.id));

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
 import { todayKey } from '@/lib/dates';
@@ -21,6 +22,7 @@ export default function EmployeesPage() {
   const { items, ready, add, update, remove } = useEmployees();
   const [editing, setEditing] = useState<Employee | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready)
     return (
@@ -77,12 +79,7 @@ export default function EmployeesPage() {
 
       <section className="px-5 pb-3 pt-2">
         {items.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            iconColor="#3182F6"
-            title="직원을 추가해 보세요"
-            hint="월 기본급을 등록하면 매월 인건비 거래가 자동 생성됩니다"
-          />
+          <EmptyState icon={Users} iconColor="#3182F6" title="직원이 없어요" />
         ) : (
           <div className="space-y-2">
             {items.map((e) => (
@@ -169,21 +166,27 @@ export default function EmployeesPage() {
             setEditing(null);
             setCreating(false);
           }}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 직원을 삭제할까요?`}
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }

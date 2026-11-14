@@ -57,8 +57,7 @@ export default function GoalsPage() {
           <EmptyState
             icon={Target}
             iconColor="#1FBA6E"
-            title="아직 목표가 없어요"
-            hint="여행, 비상금 같은 첫 목표를 만들어 보세요"
+            title="목표가 없어요"
             cta={{ href: '/settings/goals', label: '목표 만들기' }}
           />
         ) : (

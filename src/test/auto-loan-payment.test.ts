@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ensureAutoLoanPayment } from '@/lib/auto-loan-payment';
+import { isExpense } from '@/lib/format';
 import { KEYS } from '@/lib/storage-keys';
 import type { Account, Loan, Transaction } from '@/lib/types';
 
@@ -75,12 +76,12 @@ describe('ensureAutoLoanPayment', () => {
     vi.setSystemTime(new Date('2026-04-15T09:00:00Z'));
     ensureAutoLoanPayment();
     const txs = readTxs();
-    // 3-month backfill — Feb / Mar / Apr
-    expect(txs.length).toBeGreaterThanOrEqual(1);
-    expect(txs.length).toBeLessThanOrEqual(3);
+    // 3-month backfill — Feb / Mar / Apr, an interest row and a principal row each
+    expect(txs.length).toBeGreaterThanOrEqual(2);
+    expect(txs.length).toBeLessThanOrEqual(6);
     // Each has correct shape
     for (const t of txs) {
-      expect(t.cat).toBe('loan_payment');
+      expect(['loan_payment', 'loan_principal']).toContain(t.cat);
       expect(t.acc).toBe('acc-1');
       expect(t.amount).toBeLessThan(0);
       expect(t.id).toMatch(/^loan-/);
@@ -126,10 +127,13 @@ describe('ensureAutoLoanPayment', () => {
     vi.setSystemTime(new Date(2026, 10, 14, 12, 0, 0));
     ensureAutoLoanPayment();
 
-    const txs = readTxs();
-    expect(txs).toHaveLength(1);
-    expect(txs[0]).toMatchObject({ amount: -459_285, acc: 'acc-1' });
-    expect(txs[0].memo).toContain('원금 385,467 + 이자 73,818');
+    // Interest is spending; the principal only moves money to the debt.
+    const [interest, principal] = readTxs();
+    expect(interest).toMatchObject({ amount: -73_818, cat: 'loan_payment', acc: 'acc-1' });
+    expect(principal).toMatchObject({ amount: -385_467, cat: 'loan_principal', acc: 'acc-1' });
+    expect(isExpense(interest)).toBe(true);
+    expect(isExpense(principal)).toBe(false);
+    expect(readTxs()).toHaveLength(2);
     expect(readLoans()[0].remaining).toBe(22_327_811);
     const acc = JSON.parse(window.localStorage.getItem(KEYS.accounts) ?? '[]') as Account[];
     expect(acc[0].balance).toBe(2_654_596);

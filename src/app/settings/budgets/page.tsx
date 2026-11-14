@@ -45,13 +45,7 @@ export default function BudgetsSettingsPage() {
         }
       />
 
-      <section className="px-5 pb-3 pt-1">
-        <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-          {mode === 'business' ? '사업 카테고리' : '개인 카테고리'}별로 한 달 한도를 정해두세요.
-        </p>
-      </section>
-
-      <section className="px-5 pb-10 pt-2">
+      <section className="px-5 pb-10 pt-1">
         <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
           {cats.map((c, i) => {
             const limit = budgets[c.id]?.limit ?? 0;
@@ -147,7 +141,7 @@ function BudgetEditor({
         style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
       />
       <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
-        0으로 두거나 비우면 예산이 해제돼요
+        0 입력 시 해제
       </p>
 
       <div className="mt-4 flex gap-2">

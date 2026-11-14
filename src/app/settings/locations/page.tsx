@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useLocations } from '@/lib/locations';
+import { useAllTransactions } from '@/lib/storage';
 import type { BusinessLocation } from '@/lib/types';
 
 const COLORS = ['#3182F6', '#00B956', '#F472B6', '#FF8A1F', '#8B5CF6', '#14B8A6'];
@@ -17,8 +19,10 @@ export default function LocationsPage() {
   const router = useRouter();
   const toast = useToast();
   const { items, ready, add, update, remove, activeId, setActive } = useLocations();
+  const { tx: allTx } = useAllTransactions();
   const [editing, setEditing] = useState<BusinessLocation | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready)
     return (
@@ -26,6 +30,7 @@ export default function LocationsPage() {
         로딩 중...
       </div>
     );
+  const usedBy = editing ? allTx.filter((t) => t.location === editing.id).length : 0;
 
   const startNew = () => {
     setEditing({
@@ -56,12 +61,7 @@ export default function LocationsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {items.length === 0 ? (
-          <EmptyState
-            icon={Store}
-            iconColor="#FF8A1F"
-            title="사업장을 추가하면 매장별로 분리할 수 있어요"
-            hint="매장 A, 매장 B처럼 등록하고 거래에 태그하세요"
-          />
+          <EmptyState icon={Store} iconColor="#FF8A1F" title="사업장이 없어요" />
         ) : (
           <div className="space-y-2">
             <button
@@ -183,21 +183,32 @@ export default function LocationsPage() {
             setEditing(null);
             setCreating(false);
           }}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 사업장을 삭제할까요?`}
+        description={
+          usedBy > 0
+            ? `이 사업장으로 기록된 거래 ${usedBy}건은 남지만, 사업장 이름은 더 이상 표시되지 않아요.`
+            : undefined
+        }
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }

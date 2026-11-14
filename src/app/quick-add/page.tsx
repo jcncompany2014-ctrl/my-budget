@@ -8,10 +8,13 @@ import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import { useAccounts } from '@/lib/accounts';
-import { CATEGORIES, suggestCategory } from '@/lib/categories';
+import { CATEGORIES } from '@/lib/categories';
+import { useCategoryRules } from '@/lib/category-rules';
+import { defaultAccountId } from '@/lib/default-account';
 import { useFavorites } from '@/lib/favorites';
 import { fmt } from '@/lib/format';
 import { previewNotification } from '@/lib/inbox';
+import { parseQuickText, resolveQuick } from '@/lib/quick-parse';
 import { useAllTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
@@ -41,84 +44,6 @@ function parseNotificationText(raw: string): Parsed | null {
   };
 }
 
-/**
- * Parse strings like:
- *  - "어제 스타벅스 5천원"
- *  - "오늘 점심 12,000"
- *  - "스타벅스 4500"
- */
-function parseQuick(raw: string, mode: 'personal' | 'business'): Parsed | null {
-  if (!raw.trim()) return null;
-
-  let str = raw.trim();
-  let date = new Date();
-  let type: 'expense' | 'income' = 'expense';
-
-  // Date hints
-  if (/어제|yesterday/i.test(str)) {
-    date = new Date();
-    date.setDate(date.getDate() - 1);
-    str = str.replace(/어제|yesterday/i, '').trim();
-  } else if (/그저께|그제/i.test(str)) {
-    date = new Date();
-    date.setDate(date.getDate() - 2);
-    str = str.replace(/그저께|그제/i, '').trim();
-  } else if (/오늘|today/i.test(str)) {
-    str = str.replace(/오늘|today/i, '').trim();
-  }
-
-  if (/수입|받|급여|월급|입금/.test(str)) {
-    type = 'income';
-  }
-
-  // Amount: support 천/만/억, comma-separated, plain numbers
-  const cleanedAmount = str.replace(/,/g, '');
-  let amount = 0;
-  // 십만, 만원, 천원 etc
-  const eokMatch = cleanedAmount.match(/(\d+(?:\.\d+)?)\s*억/);
-  const manMatch = cleanedAmount.match(/(\d+(?:\.\d+)?)\s*만/);
-  const cheonMatch = cleanedAmount.match(/(\d+(?:\.\d+)?)\s*천/);
-  if (eokMatch) amount += Math.round(parseFloat(eokMatch[1]) * 100_000_000);
-  if (manMatch) amount += Math.round(parseFloat(manMatch[1]) * 10_000);
-  if (cheonMatch) amount += Math.round(parseFloat(cheonMatch[1]) * 1_000);
-
-  if (amount === 0) {
-    // Plain number — find a sequence of digits, prefer the largest
-    const numbers = cleanedAmount.match(/\d{2,}/g);
-    if (numbers) {
-      amount = Math.max(...numbers.map(Number));
-    }
-  }
-
-  if (amount <= 0) return null;
-
-  // Strip amount portions
-  let merchant = str
-    .replace(/\d+(?:\.\d+)?\s*억/g, '')
-    .replace(/\d+(?:\.\d+)?\s*만/g, '')
-    .replace(/\d+(?:\.\d+)?\s*천/g, '')
-    .replace(/\d{2,}/g, '')
-    .replace(/원/g, '')
-    .replace(/지출|수입|받|급여|월급|입금/g, '')
-    .trim();
-
-  if (!merchant) merchant = type === 'income' ? '수입' : '지출';
-
-  let cat = suggestCategory(merchant, mode);
-  if (!cat) {
-    cat =
-      type === 'expense'
-        ? mode === 'business'
-          ? 'biz_etc'
-          : 'living'
-        : mode === 'business'
-          ? 'biz_other'
-          : 'income';
-  }
-
-  return { amount, merchant, date, cat, type };
-}
-
 export default function QuickAddPageWrap() {
   return (
     <Suspense fallback={null}>
@@ -133,8 +58,9 @@ function QuickAddPage() {
   const toast = useToast();
   const { mode } = useMode();
   const { accounts, allAccounts } = useAccounts();
-  const { add } = useAllTransactions();
+  const { tx: history, add, remove } = useAllTransactions();
   const { items: favorites } = useFavorites();
+  const { items: rules } = useCategoryRules();
   const [text, setText] = useState('');
   const deferredText = useDeferredValue(text);
   // ?text= arrives from the auto-record inbox ("못 읽은 알림 → 직접 입력"). Applied
@@ -144,52 +70,87 @@ function QuickAddPage() {
     if (presetText) setText(presetText);
   }, [presetText]);
 
-  const parsed = useMemo(
-    () => parseNotificationText(deferredText) ?? parseQuick(deferredText, mode),
-    [deferredText, mode],
-  );
+  const parsed = useMemo<Parsed | null>(() => {
+    const notice = parseNotificationText(deferredText);
+    if (notice) return notice;
+    const q = parseQuickText(deferredText);
+    if (!q) return null;
+    return { amount: q.amount, date: q.date, ...resolveQuick(q, mode, history, rules) };
+  }, [deferredText, mode, history, rules]);
+
+  // The card a pasted notification named, else the one last used for this kind of row.
+  const account = useMemo(() => {
+    if (!parsed) return undefined;
+    const named = allAccounts.find((a) => a.id === parsed.acc);
+    if (named) return named;
+    const id = defaultAccountId(history, accounts, mode, parsed.type === 'income');
+    return accounts.find((a) => a.id === id);
+  }, [parsed, allAccounts, accounts, history, mode]);
 
   const myFavorites = favorites.filter((f) => f.scope === mode);
 
+  const save = (tx: Transaction, message: string) => {
+    add(tx);
+    toast.show(message, {
+      variant: 'success',
+      durationMs: 4500,
+      action: {
+        label: '되돌리기',
+        onClick: () => {
+          remove(tx.id);
+          toast.show('취소됨', 'info');
+        },
+      },
+    });
+    // Back to wherever this was opened from, like the full entry screen.
+    router.back();
+  };
+
   const submitParsed = () => {
     if (!parsed) return;
-    if (accounts.length === 0) {
-      toast.show('먼저 계좌를 추가해 주세요', 'error');
+    if (!account) {
+      toast.show('계좌가 없어요', 'error');
       return;
     }
-    const acc =
-      allAccounts.find((a) => a.id === parsed.acc) ?? accounts.find((a) => a.main) ?? accounts[0];
-    const tx: Transaction = {
-      id: 'tn-' + Date.now().toString(36),
-      date: parsed.date.toISOString(),
-      amount: parsed.type === 'expense' ? -parsed.amount : parsed.amount,
-      cat: parsed.cat,
-      merchant: parsed.merchant,
-      memo: '',
-      acc: acc?.id ?? 'a-default',
-      scope: acc?.scope ?? mode,
-    };
-    add(tx);
-    toast.show('빠르게 저장 완료', 'success');
-    router.replace('/');
+    save(
+      {
+        id: 'tn-' + Date.now().toString(36),
+        date: parsed.date.toISOString(),
+        amount: parsed.type === 'expense' ? -parsed.amount : parsed.amount,
+        cat: parsed.cat,
+        merchant: parsed.merchant,
+        memo: '',
+        acc: account.id,
+        scope: account.scope,
+      },
+      '저장 완료',
+    );
   };
 
   const applyFavorite = (favId: string) => {
     const f = myFavorites.find((x) => x.id === favId);
     if (!f) return;
-    const tx: Transaction = {
-      id: 'tn-' + Date.now().toString(36),
-      date: new Date().toISOString(),
-      amount: f.type === 'expense' ? -f.amount : f.amount,
-      cat: f.cat,
-      merchant: f.name,
-      memo: '',
-      acc: f.acc || accounts[0]?.id || '',
-      scope: f.scope,
-    };
-    add(tx);
-    toast.show(`${f.name} 추가 완료`, 'success');
-    router.replace('/');
+    // A favourite can outlive the account it was saved with.
+    const acc = allAccounts.some((a) => a.id === f.acc)
+      ? f.acc
+      : defaultAccountId(history, accounts, mode, f.type === 'income');
+    if (!acc) {
+      toast.show('계좌가 없어요', 'error');
+      return;
+    }
+    save(
+      {
+        id: 'tn-' + Date.now().toString(36),
+        date: new Date().toISOString(),
+        amount: f.type === 'expense' ? -f.amount : f.amount,
+        cat: f.cat,
+        merchant: f.name,
+        memo: '',
+        acc,
+        scope: f.scope,
+      },
+      `${f.name} 저장 완료`,
+    );
   };
 
   return (
@@ -244,7 +205,7 @@ function QuickAddPage() {
                 submitParsed();
               }
             }}
-            placeholder="어제 스타벅스 5천원 · 카드 문자 붙여넣기"
+            placeholder="스타벅스 5천"
             enterKeyHint="done"
             // biome-ignore lint/a11y/noAutofocus: this page exists only to type one line
             autoFocus
@@ -260,40 +221,36 @@ function QuickAddPage() {
 
         {parsed && (
           <div className="mt-3 rounded-2xl p-4" style={{ background: 'var(--color-primary-soft)' }}>
-            <p
-              style={{
-                color: 'var(--color-primary)',
-                fontSize: 'var(--text-xxs)',
-                fontWeight: 700,
-              }}
-            >
-              해석 미리보기
-            </p>
-            <div className="mt-1 flex items-center gap-2">
-              <MerchantAvatar merchant={parsed.merchant} catId={parsed.cat} size={28} />
-              <p
-                className="truncate"
-                style={{
-                  color: 'var(--color-text-1)',
-                  fontSize: 'var(--text-base)',
-                  fontWeight: 700,
-                }}
-              >
-                {parsed.merchant}
-              </p>
-            </div>
-            <div className="mt-1 flex items-baseline justify-between">
-              <span style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}>
-                {parsed.date.toLocaleDateString('ko-KR', {
-                  month: 'long',
-                  day: 'numeric',
-                  weekday: 'short',
-                })}{' '}
-                · {CATEGORIES[parsed.cat]?.name ?? '기타'}
-              </span>
+            <div className="flex items-center gap-3">
+              <MerchantAvatar merchant={parsed.merchant} catId={parsed.cat} size={40} />
+              <div className="min-w-0 flex-1">
+                <p
+                  className="truncate"
+                  style={{
+                    color: 'var(--color-text-1)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {parsed.merchant}
+                </p>
+                <p
+                  className="truncate"
+                  style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)' }}
+                >
+                  {parsed.date.toLocaleDateString('ko-KR', {
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'short',
+                  })}{' '}
+                  · {CATEGORIES[parsed.cat]?.name ?? '기타'}
+                  {account ? ` · ${account.name}` : ''}
+                </p>
+              </div>
               <Money
                 value={parsed.amount}
                 sign={parsed.type === 'income' ? 'positive' : 'negative'}
+                className="shrink-0"
                 style={{
                   fontSize: 'var(--text-lg)',
                   fontWeight: 800,
@@ -312,7 +269,7 @@ function QuickAddPage() {
                 fontWeight: 700,
               }}
             >
-              저장하기
+              저장
             </button>
           </div>
         )}

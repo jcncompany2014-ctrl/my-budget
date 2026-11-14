@@ -42,4 +42,58 @@ describe('transactions singleton', () => {
     expect(savedIds()).toEqual(['b']);
     expect(storage.removeTransaction('missing')).toEqual([]);
   });
+
+  it('editing one leg of a transfer keeps the other leg and both balances in step', async () => {
+    const account = (id: string, balance: number) => ({
+      id,
+      name: id,
+      bank: '',
+      type: 'bank',
+      balance,
+      color: '#000',
+      scope: 'personal',
+    });
+    const leg = (id: string, acc: string, amount: number): Transaction => ({
+      ...tx(id),
+      acc,
+      amount,
+      cat: 'transfer',
+      transferPairId: 'p1',
+    });
+    window.localStorage.setItem(
+      KEYS.accounts,
+      JSON.stringify([account('a1', 900_000), account('a2', 100_000)]),
+    );
+    window.localStorage.setItem(
+      KEYS.transactions,
+      JSON.stringify([leg('out', 'a1', -100_000), leg('in', 'a2', 100_000)]),
+    );
+    const storage = await import('@/lib/storage');
+
+    storage.updateTransaction('out', { amount: -150_000, memo: '수정' });
+
+    const saved = JSON.parse(
+      window.localStorage.getItem(KEYS.transactions) ?? '[]',
+    ) as Transaction[];
+    expect(saved.map((t) => [t.id, t.amount, t.memo])).toEqual([
+      ['out', -150_000, '수정'],
+      ['in', 150_000, '수정'],
+    ]);
+    const balances = (
+      JSON.parse(window.localStorage.getItem(KEYS.accounts) ?? '[]') as { balance: number }[]
+    ).map((a) => a.balance);
+    expect(balances).toEqual([850_000, 150_000]);
+  });
+
+  it('does not show a row whose save failed', async () => {
+    const storage = await import('@/lib/storage');
+    const real = window.localStorage.setItem.bind(window.localStorage);
+    window.localStorage.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
+    (window as unknown as { dispatchEvent: () => void }).dispatchEvent = () => {};
+    expect(() => storage.addTransactions([tx('lost')])).toThrow();
+    window.localStorage.setItem = real;
+    expect(storage.allTransactions()).toEqual([]);
+  });
 });

@@ -47,72 +47,7 @@ export default function BusinessProfilePage() {
         }
       />
 
-      <Section topGap={4} bottomGap={4}>
-        <div className="rounded-2xl p-4" style={{ background: 'var(--color-primary-soft)' }}>
-          <p
-            style={{
-              color: 'var(--color-primary)',
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-            }}
-          >
-            지금 입력값이 어디에 적용되나요
-          </p>
-          <ul
-            className="mt-2 space-y-2"
-            style={{ color: 'var(--color-text-2)', fontSize: 13, fontWeight: 500 }}
-          >
-            <li>
-              <span style={{ color: 'var(--color-text-3)' }}>부가세 추정 →</span>{' '}
-              <span style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
-                {draft.taxClass === 'general' && '매출의 1/11 (≈9.09%)'}
-                {draft.taxClass === 'simplified' && '업종별 부가가치율 적용'}
-                {draft.taxClass === 'taxFree' && '면세사업자 — 부가세 없음'}
-              </span>
-            </li>
-            <li>
-              <span style={{ color: 'var(--color-text-3)' }}>카드 매출 100,000원 →</span>{' '}
-              <span className="tnum" style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
-                {draft.cardFeeRate > 0
-                  ? `메모 "카드 수수료 약 ${Math.round(1000 * draft.cardFeeRate).toLocaleString('ko-KR')}원"`
-                  : '수수료 메모 비활성'}
-              </span>
-            </li>
-            <li>
-              <span style={{ color: 'var(--color-text-3)' }}>배달앱 매출 100,000원 →</span>{' '}
-              <span className="tnum" style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
-                {draft.deliveryFeeRate > 0
-                  ? `메모 "배달앱 수수료 약 ${Math.round(1000 * draft.deliveryFeeRate).toLocaleString('ko-KR')}원"`
-                  : '수수료 메모 비활성'}
-              </span>
-            </li>
-            <li>
-              <span style={{ color: 'var(--color-text-3)' }}>손익계산서 헤더 →</span>{' '}
-              <span style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
-                {draft.companyName ? (
-                  <>
-                    {draft.companyName}
-                    {draft.ownerName && ` (대표 ${draft.ownerName})`}
-                  </>
-                ) : (
-                  <span style={{ color: 'var(--color-text-3)' }}>(상호명 미입력)</span>
-                )}
-              </span>
-            </li>
-            <li>
-              <span style={{ color: 'var(--color-text-3)' }}>자동 인건비 →</span>{' '}
-              <span className="tnum" style={{ color: 'var(--color-text-1)', fontWeight: 700 }}>
-                {draft.autoPayroll
-                  ? `매월 ${draft.payrollDay}일 (4대보험 +${draft.socialInsuranceRate}%)`
-                  : '비활성'}
-              </span>
-            </li>
-          </ul>
-        </div>
-      </Section>
-
-      <Section title="기본 정보">
+      <Section title="기본 정보" topGap={4}>
         <div className="space-y-2 rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
           <Field label="상호명">
             <input
@@ -283,13 +218,6 @@ export default function BusinessProfilePage() {
               />
             </Field>
           )}
-          <p
-            className="mt-2 px-1"
-            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}
-          >
-            앱을 열 때 인건비 발생일이 지났으면 자동으로 직원별 거래를 생성해요. 4대보험 부담률만큼
-            가산.
-          </p>
         </div>
       </Section>
     </>

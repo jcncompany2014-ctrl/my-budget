@@ -48,10 +48,10 @@ export default function MonthlyReportPage() {
     accById[a.id] = { name: a.name };
   });
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     const csv = transactionsToCSV(data.monthTx, accById);
-    downloadCSV(`asset-${mode}-${year}-${String(month + 1).padStart(2, '0')}.csv`, csv);
-    toast.show('CSV 내보내기 완료', 'success');
+    const name = `가계부-${mode === 'business' ? '사업' : '개인'}-${year}-${String(month + 1).padStart(2, '0')}.csv`;
+    if (await downloadCSV(name, csv)) toast.show('CSV로 내보냈어요', 'success');
   };
 
   const printReport = () => {

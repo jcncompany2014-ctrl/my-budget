@@ -173,6 +173,20 @@ function toNumber(s: string): number {
   return Number(s.replace(/,/g, ''));
 }
 
+/**
+ * Whether "<number><unit>" at `idx` is an amount rather than the tail of a
+ * time or date followed by a name: in "14:23 원할머니보쌈" the minutes are not
+ * 23원, and in "11/08 엔제리너스" the day is not 8엔. A unit glued to its number
+ * may carry a particle ("5,600원을", "1,200엔입니다").
+ */
+function unitBelongs(s: string, idx: number, match: string, number: string): boolean {
+  const prev = s[idx - 1] ?? '';
+  if (/[\d:]/.test(prev)) return false;
+  if (/[./-]/.test(prev) && /\d/.test(s[idx - 2] ?? '')) return false;
+  const gap = /\s/.test(match[number.length] ?? '');
+  return !(gap && /[가-힣]/.test(s[idx + match.length] ?? ''));
+}
+
 /** Replace spans with line breaks (or a marker line) so the leftovers split apart. */
 function blank(s: string, spans: Span[]): string {
   const sorted = [...spans].sort((a, b) => b.start - a.start);
@@ -287,6 +301,7 @@ export function parseCardNotification(raw: string, now: Date = new Date()): Pars
   let krw: number | undefined;
   for (const m of s.matchAll(KRW_RE)) {
     const idx = m.index ?? 0;
+    if (m[2] !== undefined && !unitBelongs(s, idx, m[0], m[2])) continue;
     const ctx = s.slice(Math.max(0, idx - 10), idx).match(TOTAL_CONTEXT);
     if (ctx) {
       spans.push({ start: idx - ctx[0].length, end: idx + m[0].length });
@@ -305,6 +320,7 @@ export function parseCardNotification(raw: string, now: Date = new Date()): Pars
       const idx = m.index ?? 0;
       if (TOTAL_CONTEXT.test(s.slice(Math.max(0, idx - 10), idx))) continue;
       const [code, value] = re === FX_PRE_RE ? [m[1], m[2]] : [m[2], m[1]];
+      if (re === FX_POST_RE && /[가-힣]/.test(code) && !unitBelongs(s, idx, m[0], value)) continue;
       const first = !fx;
       if (first) fx = { amount: toNumber(value), currency: FX_ALIAS[code] ?? code.toUpperCase() };
       spans.push({

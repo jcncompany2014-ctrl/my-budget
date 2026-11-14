@@ -6,10 +6,12 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import { useCustomCategories } from '@/lib/customCategories';
+import { useAllTransactions } from '@/lib/storage';
 import type { CustomCategory } from '@/lib/types';
 
 const COLORS = [
@@ -34,9 +36,11 @@ export default function CategoriesPage() {
   const toast = useToast();
   const { mode } = useMode();
   const { items, ready, add, update, remove } = useCustomCategories();
+  const { tx: allTx } = useAllTransactions();
 
   const [editing, setEditing] = useState<CustomCategory | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [tab, setTab] = useState<'expense' | 'income'>('expense');
 
   const builtinExpense = useMemo(() => expenseCategoriesByScope(mode), [mode]);
@@ -55,6 +59,8 @@ export default function CategoriesPage() {
         로딩 중...
       </div>
     );
+
+  const usedBy = editing ? allTx.filter((t) => t.cat === editing.id).length : 0;
 
   const startNew = () => {
     setEditing({
@@ -239,21 +245,32 @@ export default function CategoriesPage() {
             setEditing(null);
             setCreating(false);
           }}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 카테고리를 삭제할까요?`}
+        description={
+          usedBy > 0
+            ? `이 카테고리로 기록된 거래 ${usedBy}건은 남지만, 카테고리 이름은 더 이상 표시되지 않아요.`
+            : undefined
+        }
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }

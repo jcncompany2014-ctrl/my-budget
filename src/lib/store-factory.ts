@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+import { setStoredItem } from '@/lib/safe-storage';
 
 type Migrator<T> = (data: unknown) => T;
 
@@ -29,6 +30,21 @@ function subscribe(key: string, fn: () => void) {
 
 function notify(key: string) {
   subscribers.get(key)?.forEach((fn) => fn());
+}
+
+const noSubscription = () => () => {};
+
+/**
+ * False while server-rendering and hydrating, true from then on. Stores read
+ * localStorage synchronously, so after hydration a page has its data on the
+ * very first render — no skeleton flash on every tab switch.
+ */
+export function useHydrated(): boolean {
+  return useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false,
+  );
 }
 
 // Module-level parse cache. N components reading the same key share one
@@ -83,7 +99,7 @@ function readRaw<T>(key: string, opts: StoreOptions<T>): T {
 
 function writeRaw<T>(key: string, value: T) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(key, JSON.stringify(value));
+  setStoredItem(key, JSON.stringify(value));
   parseCache.set(key, value);
   notify(key);
 }
@@ -99,24 +115,17 @@ export function createListStore<T extends { id: string }>(
 ) {
   const opts: StoreOptions<T[]> = { defaultValue: defaults, ...options };
 
+  const onChange = (fn: () => void) => subscribe(key, fn);
+  const snapshot = () => readRaw(key, opts);
+  // What the server rendered: nothing. Must be one stable reference.
+  const empty: T[] = [];
+  const serverSnapshot = () => empty;
+
   return function useStore() {
-    const [items, setItems] = useState<T[]>([]);
-    const [ready, setReady] = useState(false);
+    const items = useSyncExternalStore(onChange, snapshot, serverSnapshot);
+    const ready = useHydrated();
 
-    useEffect(() => {
-      const refresh = () => setItems(readRaw(key, opts));
-      refresh();
-      setReady(true);
-      const unsubscribe = subscribe(key, refresh);
-      return () => {
-        unsubscribe();
-      };
-    }, []);
-
-    const set = (next: T[]) => {
-      setItems(next);
-      writeRaw(key, next);
-    };
+    const set = (next: T[]) => writeRaw(key, next);
     const add = (item: T) => set([...readRaw(key, opts), item]);
     const update = (id: string, patch: Partial<T>) =>
       set(readRaw(key, opts).map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -144,29 +153,19 @@ export function createRecordStore<V>(
 ) {
   const opts: StoreOptions<Record<string, V>> = { defaultValue: defaults, ...options };
 
+  const onChange = (fn: () => void) => subscribe(key, fn);
+  const snapshot = () => readRaw(key, opts);
+  const empty: Record<string, V> = {};
+  const serverSnapshot = () => empty;
+
   return function useStore() {
-    const [data, setData] = useState<Record<string, V>>({});
-    const [ready, setReady] = useState(false);
+    const data = useSyncExternalStore(onChange, snapshot, serverSnapshot);
+    const ready = useHydrated();
 
-    useEffect(() => {
-      const refresh = () => setData(readRaw(key, opts));
-      refresh();
-      setReady(true);
-      const unsubscribe = subscribe(key, refresh);
-      return () => {
-        unsubscribe();
-      };
-    }, []);
-
-    const setKey = (k: string, v: V) => {
-      const next = { ...readRaw(key, opts), [k]: v };
-      setData(next);
-      writeRaw(key, next);
-    };
+    const setKey = (k: string, v: V) => writeRaw(key, { ...readRaw(key, opts), [k]: v });
     const removeKey = (k: string) => {
       const next = { ...readRaw(key, opts) };
       delete next[k];
-      setData(next);
       writeRaw(key, next);
     };
 
@@ -184,24 +183,15 @@ export function createValueStore<T>(
 ) {
   const opts: StoreOptions<T> = { defaultValue, ...options };
 
+  const onChange = (fn: () => void) => subscribe(key, fn);
+  const snapshot = () => readRaw(key, opts);
+  const serverSnapshot = () => defaultValue;
+
   return function useStore() {
-    const [value, setValue] = useState<T>(defaultValue);
-    const [ready, setReady] = useState(false);
+    const value = useSyncExternalStore(onChange, snapshot, serverSnapshot);
+    const ready = useHydrated();
 
-    useEffect(() => {
-      const refresh = () => setValue(readRaw(key, opts));
-      refresh();
-      setReady(true);
-      const unsubscribe = subscribe(key, refresh);
-      return () => {
-        unsubscribe();
-      };
-    }, []);
-
-    const set = (v: T) => {
-      setValue(v);
-      writeRaw(key, v);
-    };
+    const set = (v: T) => writeRaw(key, v);
 
     return { value, ready, set };
   };

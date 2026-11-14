@@ -7,6 +7,7 @@ import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DecimalInput from '@/components/ui/DecimalInput';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
@@ -25,6 +26,7 @@ export default function CreditLinePage() {
   const { items, ready, add, update, remove } = useCreditLines();
   const [editing, setEditing] = useState<LineOfCredit | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready) {
     return (
@@ -88,12 +90,7 @@ export default function CreditLinePage() {
 
       <section className="px-5 pb-3 pt-2">
         {list.length === 0 ? (
-          <EmptyState
-            icon={CreditCard}
-            iconColor="#DC2626"
-            title="마이너스 통장이 없어요"
-            hint="한도·사용액·이자를 추적하고, 결제일에 이자 자동 차감"
-          />
+          <EmptyState icon={CreditCard} iconColor="#DC2626" title="마이너스 통장이 없어요" />
         ) : (
           <div className="space-y-2">
             {list.map((l) => {
@@ -214,21 +211,27 @@ export default function CreditLinePage() {
             setEditing(null);
             setCreating(false);
           }}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 마이너스 통장을 삭제할까요?`}
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }
@@ -397,14 +400,12 @@ function Editor({
           className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
           style={{ background: 'var(--color-gray-100)' }}
         >
-          <div className="text-left">
-            <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>
-              매월 이자 자동 차감
-            </p>
-            <p style={{ color: 'var(--color-text-3)', fontSize: 11, marginTop: 2 }}>
-              결제일에 출금 계좌에서 한 달치 이자 차감
-            </p>
-          </div>
+          <p
+            className="text-left"
+            style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}
+          >
+            매월 이자 자동 차감
+          </p>
           <SmallSwitch on={!!draft.autoInterest} />
         </button>
       </Field>
@@ -433,15 +434,12 @@ function Editor({
                 fontWeight: 500,
               }}
             />
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-              그 달에 해당 날짜가 없으면 그 달의 마지막 날에 처리
-            </p>
           </Field>
 
           <Field label="출금 계좌">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {accounts.length === 0 ? (
-                <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>먼저 계좌를 추가하세요</p>
+                <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>계좌 없음</p>
               ) : (
                 accounts.map((a) => {
                   const sel = draft.linkedAccountId === a.id;

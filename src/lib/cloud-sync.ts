@@ -1,5 +1,6 @@
 'use client';
 
+import { ensureAutoCardPayment } from '@/lib/auto-card-payment';
 import { ensureAutoLoanPayment } from '@/lib/auto-loan-payment';
 import { ensureAutoRecurring } from '@/lib/auto-recurring';
 import { applyTxToAccounts, reverseTxFromAccounts } from '@/lib/integrity';
@@ -41,6 +42,7 @@ const MIRRORED: string[] = [
   KEYS.profile,
   KEYS.businessProfile,
   KEYS.taxpayerType,
+  KEYS.netWorthHistory,
   'asset/category-rules/v1',
 ];
 
@@ -222,6 +224,10 @@ export function syncCloud(opts: { keepalive?: boolean } = {}): Promise<AppliedBa
   if (typeof window === 'undefined' || !cloudSyncConfigured() || cloudSyncOff()) {
     return Promise.resolve(null);
   }
+  // Vercel's deploy screenshot bots run the app too; they would each register a vault.
+  if (navigator.webdriver || /HeadlessChrome/.test(navigator.userAgent)) {
+    return Promise.resolve(null);
+  }
   if (inFlight) return inFlight;
   inFlight = run(opts.keepalive ?? false).finally(() => {
     inFlight = null;
@@ -256,6 +262,7 @@ async function run(keepalive: boolean): Promise<AppliedBatch | null> {
   // An edit may add an item that is already due (e.g. today's loan payment).
   ensureAutoRecurring();
   ensureAutoLoanPayment();
+  ensureAutoCardPayment();
   writeStorageValue(
     KEYS.syncLog,
     [...log.reverse(), ...readStorageValue<CloudLogEntry[]>(KEYS.syncLog, [])].slice(0, 30),
@@ -307,7 +314,7 @@ const isTx = (v: unknown): v is Transaction =>
  *   { type: 'patch',  key, id, patch: { … } }        merge fields into one item
  *   { type: 'remove', key, ids: [...] }
  *   { type: 'set',    key, value }                   replace a whole collection / value
- *   { type: 'tx.add',    items: [Transaction] }      moves account balances
+ *   { type: 'tx.add',    items: [Transaction], keepBalances? }  moves account balances unless keepBalances
  *   { type: 'tx.patch',  id, patch }                 re-applies balances if amount/acc change
  *   { type: 'tx.remove', ids, keepBalances? }        reverses balances unless keepBalances
  *
@@ -323,7 +330,7 @@ export function applyRemoteOp(op: unknown): string {
       const cur = readStorageValue<Transaction[]>(KEYS.transactions, []);
       const have = new Set(cur.map((t) => t.id));
       const fresh = (op.items as Transaction[]).filter((t) => !have.has(t.id));
-      fresh.forEach(applyTxToAccounts);
+      if (op.keepBalances !== true) fresh.forEach(applyTxToAccounts);
       writeStorageValue(KEYS.transactions, [...fresh, ...cur]);
       return 'ok';
     }

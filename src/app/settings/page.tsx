@@ -7,7 +7,6 @@ import {
   Banknote,
   BarChart3,
   BellRing,
-  Briefcase,
   CalendarDays,
   CalendarRange,
   CircleDollarSign,
@@ -19,7 +18,6 @@ import {
   FileText,
   Globe,
   HardDrive,
-  Home,
   Info,
   Languages,
   LayoutGrid,
@@ -55,8 +53,10 @@ import { parseTransactionsCSV } from '@/lib/csv-import';
 import { useInboxKey } from '@/lib/inbox';
 import { useCurrency, useLanguage } from '@/lib/locale';
 import { useProfile } from '@/lib/profile';
-import { localStorageBytes, STORAGE_LIMIT_BYTES } from '@/lib/storage-keys';
+import { KEYS, localStorageBytes, STORAGE_LIMIT_BYTES } from '@/lib/storage-keys';
+import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import { useTaxpayerType } from '@/lib/taxpayer';
+import type { Account, Transaction } from '@/lib/types';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -69,7 +69,9 @@ export default function SettingsPage() {
   const { value: inboxKey } = useInboxKey();
   const inboxOn = !!inboxKey;
   const fileInput = useRef<HTMLInputElement>(null);
-  const [confirming, setConfirming] = useState<null | 'reset'>(null);
+  const [confirming, setConfirming] = useState<null | 'reset' | 'restore-auto'>(null);
+  // A backup file waiting for the user to confirm that it may replace current data.
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [nameDraft, setNameDraft] = useState(profile.name);
   const [storageBytes, setStorageBytes] = useState(0);
   // Read after mount — the prerendered HTML can't know it ("아직 없음" vs a date
@@ -88,18 +90,29 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const txs = parseTransactionsCSV(reader.result as string);
-        if (txs.length === 0) {
-          toast.show('CSV에서 거래를 찾지 못했어요', 'error');
+        const existing = readStorageValue<Transaction[]>(KEYS.transactions, []);
+        const { rows, skipped } = parseTransactionsCSV(reader.result as string, {
+          accounts: readStorageValue<Account[]>(KEYS.accounts, []).map((a) =>
+            a.scope ? a : { ...a, scope: 'personal' as const },
+          ),
+          scope: mode,
+          existing,
+        });
+        if (rows.length === 0) {
+          toast.show(
+            skipped > 0 ? '새로 가져올 내역이 없어요' : 'CSV에서 거래를 찾지 못했어요',
+            'error',
+          );
           return;
         }
-        const raw = window.localStorage.getItem('asset/transactions/v2');
-        const cur = raw ? JSON.parse(raw) : [];
-        window.localStorage.setItem('asset/transactions/v2', JSON.stringify([...txs, ...cur]));
-        toast.show(`${txs.length}건 가져오기 완료`, 'success');
-        setTimeout(() => window.location.reload(), 600);
+        // History only: balances are entered by hand and already include these rows.
+        writeStorageValue(KEYS.transactions, [...rows, ...existing]);
+        toast.show(
+          skipped > 0 ? `${rows.length}건 가져옴 · ${skipped}건 건너뜀` : `${rows.length}건 가져옴`,
+          'success',
+        );
       } catch {
-        toast.show('CSV 파싱 실패', 'error');
+        toast.show('CSV를 읽지 못했어요', 'error');
       }
     };
     reader.readAsText(file);
@@ -152,7 +165,7 @@ export default function SettingsPage() {
                 toast.show('이름 저장 완료', 'success');
               }
             }}
-            placeholder="홈 화면에 표시될 이름"
+            placeholder="이름"
             className="h-11 w-full rounded-xl px-3 text-[15px] font-medium outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
           />
@@ -164,11 +177,7 @@ export default function SettingsPage() {
           icon={BellRing}
           iconBg="#2E3561"
           label="카드 알림 자동 기록"
-          subtitle={
-            inboxOn
-              ? '켜짐 · 결제 알림 → 단축어 → 자동 기록'
-              : '결제 알림이 오면 알아서 기록 (아이폰 단축어)'
-          }
+          subtitle={inboxOn ? '켜짐' : '꺼짐'}
           onClick={() => router.push('/settings/auto-record')}
         />
         {cloudSyncConfigured() && (
@@ -176,7 +185,7 @@ export default function SettingsPage() {
             icon={Sparkles}
             iconBg="#D97757"
             label="Claude 연결"
-            subtitle="대화에서 요청한 수정이 바로 반영"
+            subtitle="대화로 원격 수정"
             onClick={() => router.push('/settings/claude')}
           />
         )}
@@ -425,36 +434,13 @@ export default function SettingsPage() {
         />
       </Section>
 
-      {/* 다른 모드 안내 */}
-      <section className="px-5 pb-1">
-        <p
-          className="flex items-center gap-1.5 px-1 py-2"
-          style={{
-            color: 'var(--color-text-3)',
-            fontSize: 11,
-            fontWeight: 500,
-          }}
-        >
-          {mode === 'personal' ? (
-            <Briefcase size={12} strokeWidth={2.4} aria-hidden />
-          ) : (
-            <Home size={12} strokeWidth={2.4} aria-hidden />
-          )}
-          <span>
-            {mode === 'personal'
-              ? '사업 모드로 전환하면 거래처·직원·세무 메뉴가 보여요'
-              : '개인 모드로 전환하면 예산·저축 목표·정기결제 메뉴가 보여요'}
-          </span>
-        </p>
-      </section>
-
       <Section title="리포트">
         <Row
           icon={Sparkles}
           iconBg="#2E3561"
           label="월말 결산"
           subtitle="지난 달 저축률·단골·무지출 데이"
-          onClick={() => router.push(`/reports/closing/${previousMonthKey()}`)}
+          onClick={() => router.push(`/reports/closing?ym=${previousMonthKey()}`)}
         />
         <Row
           icon={CalendarRange}
@@ -492,9 +478,8 @@ export default function SettingsPage() {
           iconBg="#3182F6"
           label="백업 내보내기"
           subtitle="JSON 파일로 저장"
-          onClick={() => {
-            downloadBackup();
-            toast.show('백업 파일을 저장했어요', 'success');
+          onClick={async () => {
+            if (await downloadBackup()) toast.show('백업 파일을 저장했어요', 'success');
           }}
         />
         <Row
@@ -511,7 +496,7 @@ export default function SettingsPage() {
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) void onImport(f);
+            if (f) setPendingFile(f);
             e.target.value = '';
           }}
         />
@@ -549,20 +534,13 @@ export default function SettingsPage() {
               매주 자동
             </span>
           }
-          onClick={() => {
-            if (restoreLastAutoBackup()) {
-              toast.show('자동 백업으로 복원 완료', 'success');
-              setTimeout(() => window.location.reload(), 400);
-            } else {
-              toast.show('자동 백업이 없어요', 'info');
-            }
-          }}
+          onClick={lastBackup ? () => setConfirming('restore-auto') : undefined}
         />
         <Row
           icon={ShieldCheck}
           iconBg="#14B8A6"
           label="데이터 무결성 검사"
-          subtitle="누락된 참조·잔액 표류·이체 짝 점검"
+          subtitle="누락된 계좌·카테고리, 이체 짝 점검"
           onClick={() => router.push('/settings/data-check')}
         />
         <Row
@@ -613,6 +591,36 @@ export default function SettingsPage() {
           toast.show('초기화 완료', 'info');
           setConfirming(null);
           window.location.replace('/');
+        }}
+      />
+      <ConfirmDialog
+        open={confirming === 'restore-auto'}
+        title="자동 백업으로 되돌릴까요?"
+        description={`${lastBackup?.toLocaleDateString('ko-KR') ?? ''} 백업으로 바뀌어요. 그 뒤에 기록한 내용은 사라져요.`}
+        confirmLabel="되돌리기"
+        danger
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          setConfirming(null);
+          if (restoreLastAutoBackup()) {
+            toast.show('자동 백업으로 복원 완료', 'success');
+            setTimeout(() => window.location.reload(), 400);
+          } else {
+            toast.show('자동 백업이 없어요', 'info');
+          }
+        }}
+      />
+      <ConfirmDialog
+        open={pendingFile !== null}
+        title="백업 파일로 복원할까요?"
+        description="파일에 들어 있는 항목이 지금 데이터를 대신해요."
+        confirmLabel="복원"
+        danger
+        onCancel={() => setPendingFile(null)}
+        onConfirm={() => {
+          const f = pendingFile;
+          setPendingFile(null);
+          if (f) void onImport(f);
         }}
       />
     </>

@@ -14,8 +14,8 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { use, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Confetti from '@/components/Confetti';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
@@ -32,8 +32,16 @@ const monthKey = (y: number, m: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-export default function ClosingPage({ params }: { params: Promise<{ ym: string }> }) {
-  const { ym } = use(params);
+export default function ClosingPageWrap() {
+  return (
+    <Suspense fallback={null}>
+      <ClosingPage />
+    </Suspense>
+  );
+}
+
+function ClosingPage() {
+  const ym = useSearchParams().get('ym') ?? '';
   const router = useRouter();
   const { tx, ready } = useTransactions();
   const { mode } = useMode();
@@ -91,7 +99,7 @@ export default function ClosingPage({ params }: { params: Promise<{ ym: string }
   const nav = (
     <div className="flex items-center justify-between px-5 pb-10 pt-2">
       <Link
-        href={`/reports/closing/${monthKey(year, month - 1)}`}
+        href={`/reports/closing?ym=${monthKey(year, month - 1)}`}
         className="tap flex items-center gap-1 rounded-full px-3 py-2"
         style={{
           background: 'var(--color-card)',
@@ -105,7 +113,7 @@ export default function ClosingPage({ params }: { params: Promise<{ ym: string }
       </Link>
       {!isFutureNext && (
         <Link
-          href={`/reports/closing/${monthKey(year, month + 1)}`}
+          href={`/reports/closing?ym=${monthKey(year, month + 1)}`}
           className="tap flex items-center gap-1 rounded-full px-3 py-2"
           style={{
             background: 'var(--color-card)',
@@ -126,12 +134,7 @@ export default function ClosingPage({ params }: { params: Promise<{ ym: string }
       <>
         <TopBar title={`${year}년 ${label} 결산`} left={back} />
         <div className="px-5 pt-4">
-          <EmptyState
-            icon={NotebookPen}
-            iconColor="#94A3B8"
-            title={`${label}엔 기록이 없어요`}
-            hint="다른 달의 결산을 확인해 보세요"
-          />
+          <EmptyState icon={NotebookPen} iconColor="#94A3B8" title={`${label}엔 기록이 없어요`} />
         </div>
         {nav}
       </>
@@ -316,7 +319,7 @@ export default function ClosingPage({ params }: { params: Promise<{ ym: string }
                 icon={<Crown size={16} strokeWidth={2.4} />}
                 color="#F59E0B"
                 title="가장 큰 지출"
-                href={`/merchant/${encodeURIComponent(data.biggest.merchant.trim())}`}
+                href={`/merchant?name=${encodeURIComponent(data.biggest.merchant.trim())}`}
               >
                 <b>{data.biggest.merchant}</b> {fmt(data.biggest.amount)}원 ·{' '}
                 {new Date(data.biggest.date).getMonth() + 1}월{' '}
@@ -328,7 +331,7 @@ export default function ClosingPage({ params }: { params: Promise<{ ym: string }
                 icon={<Heart size={16} strokeWidth={2.4} />}
                 color="#EC4899"
                 title="단골"
-                href={`/merchant/${encodeURIComponent(data.favoriteMerchant.merchant)}`}
+                href={`/merchant?name=${encodeURIComponent(data.favoriteMerchant.merchant)}`}
               >
                 <b>{data.favoriteMerchant.merchant}</b> {data.favoriteMerchant.visits}번 ·{' '}
                 {fmt(data.favoriteMerchant.total)}원

@@ -109,6 +109,8 @@ function buildContext(): ImportContext {
     rules: readStorageValue<CategoryRule[]>(CATEGORY_RULES_KEY, []),
     customCategories: readStorageValue<CustomCategory[]>(KEYS.customCategories, []),
     fxRate: (c) => fxRateToKRW(c) ?? fetchedFx[c] ?? null,
+    // Recent entries only: a repeat cancellation notice arrives within minutes.
+    log: readStorageValue<InboxLogEntry[]>(KEYS.inboxLog, []).slice(0, 30),
   };
 }
 

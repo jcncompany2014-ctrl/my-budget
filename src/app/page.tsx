@@ -29,18 +29,18 @@ import CategoryIcon from '@/components/icons/CategoryIcon';
 import LiveInvestmentPnL from '@/components/LiveInvestmentPnL';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
+import NetWorthCard from '@/components/NetWorthCard';
 import { SkeletonHome } from '@/components/Skeleton';
 import SmartPrompts from '@/components/SmartPrompts';
 import StreakBadge from '@/components/StreakBadge';
 import TxRow from '@/components/TxRow';
 import UpcomingRecurring from '@/components/UpcomingRecurring';
 import { IconDisplay } from '@/components/ui/IconPicker';
-import { useAccounts } from '@/lib/accounts';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
 import { dailyAllowance } from '@/lib/daily-allowance';
 import { dayKeyOffset, localDayKey, todayKey } from '@/lib/dates';
-import { fmt, fmtKRW, fmtShort, isExpense, isIncome } from '@/lib/format';
+import { fmt, fmtKRW, fmtShort, isExpense, isIncome, spendByCategory } from '@/lib/format';
 import { useGoals } from '@/lib/goals';
 import {
   budgetAlerts,
@@ -48,7 +48,6 @@ import {
   detectOutlierTransaction,
   weeklyDigest,
 } from '@/lib/insights';
-import { useLoans } from '@/lib/loans';
 import { useProfile } from '@/lib/profile';
 import { useTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
@@ -58,10 +57,8 @@ const isIncomeTx = isIncome;
 
 export default function HomePage() {
   const { tx, ready } = useTransactions();
-  const { accounts } = useAccounts();
   const { budgets } = useBudgets();
   const { goals } = useGoals();
-  const { items: loans } = useLoans();
   const { profile } = useProfile();
   const { mode } = useMode();
 
@@ -156,19 +153,9 @@ export default function HomePage() {
       <SmartPrompts />
 
       {mode === 'personal' ? (
-        <PersonalHome
-          tx={tx}
-          accounts={accounts}
-          budgets={budgets}
-          goals={goals}
-          loanCount={loans.filter((l) => l.scope === 'personal').length}
-        />
+        <PersonalHome tx={tx} budgets={budgets} goals={goals} />
       ) : (
-        <BusinessHome
-          tx={tx}
-          accounts={accounts}
-          loanCount={loans.filter((l) => l.scope === 'business').length}
-        />
+        <BusinessHome tx={tx} />
       )}
     </div>
   );
@@ -191,68 +178,59 @@ function lastNDaysCategory(tx: Transaction[], catId: string, n: number): number[
 
 function PersonalHome({
   tx,
-  accounts,
   budgets,
   goals,
-  loanCount,
 }: {
   tx: Transaction[];
-  accounts: ReturnType<typeof useAccounts>['accounts'];
   budgets: ReturnType<typeof useBudgets>['budgets'];
   goals: ReturnType<typeof useGoals>['goals'];
-  loanCount: number;
 }) {
-  const now = new Date();
+  // A string, not a Date: a fresh Date every render would defeat every memo below.
+  const monthKey = todayKey().slice(0, 7);
   const monthTx = useMemo(
-    () =>
-      tx.filter((t) => {
-        const d = new Date(t.date);
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-      }),
-    [tx, now],
+    () => tx.filter((t) => localDayKey(t.date).startsWith(monthKey)),
+    [tx, monthKey],
   );
 
-  const expense = monthTx.filter(isExpenseTx).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const income = monthTx.filter(isIncomeTx).reduce((s, t) => s + t.amount, 0);
-  const saving = monthTx
-    .filter((t) => t.cat === 'saving')
-    .reduce((s, t) => s + Math.abs(t.amount), 0);
+  // One pass over the month feeds every card on this screen.
+  const month = useMemo(() => {
+    let expense = 0;
+    let income = 0;
+    let saving = 0;
+    for (const t of monthTx) {
+      if (isExpenseTx(t)) expense -= t.amount;
+      else if (isIncomeTx(t)) income += t.amount;
+      // Outflows only: a savings transfer has a deposit leg in the same category.
+      if (t.cat === 'saving' && t.amount < 0) saving -= t.amount;
+    }
+    // Splits count under their own categories, as on the stats and budget screens.
+    const spentByCat = spendByCategory(monthTx);
+    const topCats = Array.from(spentByCat.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+    return { expense, income, saving, spentByCat, topCats };
+  }, [monthTx]);
+  const { expense, income, saving, spentByCat, topCats } = month;
   const net = income - expense;
 
   const today = todayKey();
-  const todayTx = tx.filter((t) => localDayKey(t.date) === today && isExpenseTx(t));
+  const todayTx = useMemo(
+    () => monthTx.filter((t) => localDayKey(t.date) === today && isExpenseTx(t)),
+    [monthTx, today],
+  );
   const todaySpend = todayTx.reduce((s, t) => s + Math.abs(t.amount), 0);
-
-  const totalAssets = accounts.reduce((s, a) => s + a.balance, 0);
-
-  const topCats = useMemo(() => {
-    const map = new Map<string, number>();
-    monthTx.filter(isExpenseTx).forEach((t) => {
-      map.set(t.cat, (map.get(t.cat) ?? 0) + Math.abs(t.amount));
-    });
-    return Array.from(map.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-  }, [monthTx]);
 
   const budgetEntries = Object.entries(budgets);
   const budgetTotal = budgetEntries.reduce((s, [, b]) => s + b.limit, 0);
-  const spentByCat = useMemo(() => {
-    const map = new Map<string, number>();
-    monthTx.filter(isExpenseTx).forEach((t) => {
-      map.set(t.cat, (map.get(t.cat) ?? 0) + Math.abs(t.amount));
-    });
-    return map;
-  }, [monthTx]);
   const budgetUsed = budgetEntries.reduce((s, [k]) => s + (spentByCat.get(k) ?? 0), 0);
 
   // 오늘 쓸 수 있는 돈 — fixed at start of day, only budgeted categories
   const allowance = useMemo(() => {
     if (budgetTotal <= 0) return null;
-    const budgeted = new Set(Object.keys(budgets));
-    const spentTodayBudgeted = todayTx
-      .filter((t) => budgeted.has(t.cat))
-      .reduce((s, t) => s + Math.abs(t.amount), 0);
+    let spentTodayBudgeted = 0;
+    spendByCategory(todayTx).forEach((amt, cat) => {
+      if (budgets[cat]) spentTodayBudgeted += amt;
+    });
     return dailyAllowance({
       budgetTotal,
       spentBeforeToday: budgetUsed - spentTodayBudgeted,
@@ -291,33 +269,7 @@ function PersonalHome({
             {todayTx.length === 0 ? '거래 없음' : `${todayTx.length}건의 지출`}
           </p>
         </div>
-        <Link
-          href="/wallet"
-          className="tap rounded-2xl p-4"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 500 }}>
-            전체 자산
-          </p>
-          <p
-            className="tnum mt-1.5 tracking-tight"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 800 }}
-          >
-            {fmtShort(totalAssets)}원
-          </p>
-          <p
-            style={{
-              color: 'var(--color-primary)',
-              fontSize: 'var(--text-xxs)',
-              marginTop: 4,
-              fontWeight: 600,
-            }}
-          >
-            {accounts.length === 0
-              ? '계좌 추가'
-              : `${accounts.length}개 계좌${loanCount > 0 ? ` · 대출 ${loanCount}` : ''}`}
-          </p>
-        </Link>
+        <NetWorthCard />
       </section>
 
       {/* Live investment P&L — only if user has investments */}
@@ -340,12 +292,7 @@ function PersonalHome({
           style={{ background: 'var(--color-card)' }}
         >
           {budgetEntries.length === 0 ? (
-            <EmptyInline
-              icon={BarChart3}
-              iconColor="#FF8A1F"
-              title="예산 미설정"
-              hint="눌러서 카테고리별 한도 정하기"
-            />
+            <EmptyInline icon={BarChart3} iconColor="#FF8A1F" title="예산 미설정" />
           ) : (
             <>
               <div className="flex items-center justify-between gap-2">
@@ -534,7 +481,6 @@ function PersonalHome({
               icon={Target}
               iconColor="#1FBA6E"
               title="저축 목표"
-              hint="아직 목표가 없어요"
               cta={{ href: '/settings/goals', label: '만들기' }}
             />
           ) : (
@@ -638,32 +584,30 @@ function PersonalHome({
   );
 }
 
-function BusinessHome({
-  tx,
-  accounts,
-  loanCount,
-}: {
-  tx: Transaction[];
-  accounts: ReturnType<typeof useAccounts>['accounts'];
-  loanCount: number;
-}) {
-  const now = new Date();
-  const monthTx = tx.filter((t) => {
-    const d = new Date(t.date);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  });
-  const revenue = monthTx.filter(isIncomeTx).reduce((s, t) => s + t.amount, 0);
-  const expense = monthTx
-    .filter((t) => t.amount < 0 && t.cat !== 'biz_transfer' && t.cat !== 'biz_owner_draw')
-    .reduce((s, t) => s + Math.abs(t.amount), 0);
+function BusinessHome({ tx }: { tx: Transaction[] }) {
+  const monthKey = todayKey().slice(0, 7);
+  const today = todayKey();
+  const { revenue, expense, todayRevenue, todayCount } = useMemo(() => {
+    let revenue = 0;
+    let expense = 0;
+    let todayRevenue = 0;
+    let todayCount = 0;
+    for (const t of tx) {
+      const day = localDayKey(t.date);
+      if (!day.startsWith(monthKey)) continue;
+      // Same definition as the monthly report: transfers and owner draws are not costs.
+      if (isIncomeTx(t)) revenue += t.amount;
+      else if (isExpenseTx(t)) expense -= t.amount;
+      if (day === today) {
+        todayCount += 1;
+        if (isIncomeTx(t)) todayRevenue += t.amount;
+      }
+    }
+    return { revenue, expense, todayRevenue, todayCount };
+  }, [tx, monthKey, today]);
   const profit = revenue - expense;
   const vatEstimate = Math.round(revenue / 11);
   const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
-
-  const today = todayKey();
-  const todayTx = tx.filter((t) => localDayKey(t.date) === today);
-  const todayRevenue = todayTx.filter(isIncomeTx).reduce((s, t) => s + t.amount, 0);
-  const totalAssets = accounts.reduce((s, a) => s + a.balance, 0);
 
   return (
     <>
@@ -687,36 +631,10 @@ function BusinessHome({
             +{fmt(todayRevenue)}원
           </p>
           <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', marginTop: 4 }}>
-            {todayTx.length}건 거래
+            {todayCount}건 거래
           </p>
         </div>
-        <Link
-          href="/wallet"
-          className="tap rounded-2xl p-4"
-          style={{ background: 'var(--color-card)' }}
-        >
-          <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 500 }}>
-            전체 자산
-          </p>
-          <p
-            className="tnum mt-1.5 tracking-tight"
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 800 }}
-          >
-            {fmtShort(totalAssets)}원
-          </p>
-          <p
-            style={{
-              color: 'var(--color-primary)',
-              fontSize: 'var(--text-xxs)',
-              marginTop: 4,
-              fontWeight: 600,
-            }}
-          >
-            {accounts.length === 0
-              ? '계좌 추가'
-              : `${accounts.length}개${loanCount > 0 ? ` · 대출 ${loanCount}` : ''}`}
-          </p>
-        </Link>
+        <NetWorthCard />
       </section>
 
       <LiveInvestmentPnL />
@@ -728,20 +646,15 @@ function BusinessHome({
           className="tap flex items-center justify-between rounded-2xl px-5 py-4"
           style={{ background: 'var(--color-primary-soft)' }}
         >
-          <div>
-            <p
-              style={{
-                color: 'var(--color-primary)',
-                fontSize: 'var(--text-xxs)',
-                fontWeight: 700,
-              }}
-            >
-              부가세 예상액
-            </p>
-            <p style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xxs)', marginTop: 2 }}>
-              매출의 약 1/11 · 분기말 신고 준비
-            </p>
-          </div>
+          <p
+            style={{
+              color: 'var(--color-primary)',
+              fontSize: 'var(--text-xxs)',
+              fontWeight: 700,
+            }}
+          >
+            부가세 예상액
+          </p>
           <p
             className="tnum tracking-tight"
             style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 800 }}
@@ -1034,13 +947,11 @@ function EmptyInline({
   icon: Icon,
   iconColor = 'var(--color-text-3)',
   title,
-  hint,
   cta,
 }: {
   icon: LucideIcon;
   iconColor?: string;
   title: string;
-  hint?: string;
   cta?: { href: string; label: string };
 }) {
   return (
@@ -1053,19 +964,12 @@ function EmptyInline({
       >
         <Icon size={18} strokeWidth={2.2} />
       </span>
-      <div className="min-w-0 flex-1">
-        <p style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
-          {title}
-        </p>
-        {hint && (
-          <p
-            className="truncate"
-            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)', marginTop: 1 }}
-          >
-            {hint}
-          </p>
-        )}
-      </div>
+      <p
+        className="min-w-0 flex-1"
+        style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
+      >
+        {title}
+      </p>
       {cta && (
         <Link
           href={cta.href}
@@ -1085,6 +989,23 @@ function EmptyInline({
 }
 
 function RecentTransactions({ tx, businessLabel }: { tx: Transaction[]; businessLabel?: boolean }) {
+  // The store keeps entry order, not date order: a backdated row or one a
+  // generator posted would sit on top. Rows dated ahead (planned) are left out.
+  const { recent, today } = useMemo(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const limit = end.toISOString();
+    const top: Transaction[] = [];
+    for (const t of tx) {
+      if (t.date > limit) continue;
+      if (top.length === 4 && t.date <= top[3].date) continue;
+      let i = top.length;
+      while (i > 0 && top[i - 1].date < t.date) i--;
+      top.splice(i, 0, t);
+      if (top.length > 4) top.pop();
+    }
+    return { recent: top, today: todayKey() };
+  }, [tx]);
   return (
     <section className="px-5 pb-3 pt-1">
       <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
@@ -1111,11 +1032,12 @@ function RecentTransactions({ tx, businessLabel }: { tx: Transaction[]; business
           </div>
         ) : (
           <>
-            {tx.slice(0, 4).map((t, i, arr) => (
+            {recent.map((t, i, arr) => (
               <TxRow
                 key={t.id}
                 tx={t}
                 showTime
+                showDate={localDayKey(t.date) !== today}
                 showAccount
                 compact
                 borderBottom={i < arr.length - 1}

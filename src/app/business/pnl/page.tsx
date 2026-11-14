@@ -13,35 +13,16 @@ import IconCircle from '@/components/ui/IconCircle';
 import { IconDisplay } from '@/components/ui/IconPicker';
 import Pill from '@/components/ui/Pill';
 import Section from '@/components/ui/Section';
+import { computePnl } from '@/lib/biz-pnl';
 import { CATEGORIES } from '@/lib/categories';
-import { useEmployees } from '@/lib/employees';
-import { fmt } from '@/lib/format';
+import { fmt, isExpense, isIncome } from '@/lib/format';
 import { useLocations } from '@/lib/locations';
 import { useTransactions } from '@/lib/storage';
 
 type Period = 'month' | 'quarter' | 'year';
 
-const REVENUE_CATS = [
-  'biz_sales_card',
-  'biz_sales_cash',
-  'biz_sales_xfer',
-  'biz_sales_app',
-  'biz_other',
-];
-const COGS_CATS = ['biz_purchase'];
-const FIXED_CATS = ['biz_rent', 'biz_payroll', 'biz_utility', 'biz_insurance']; // 고정비
-const VARIABLE_CATS = [
-  'biz_marketing',
-  'biz_supplies',
-  'biz_meal',
-  'biz_travel',
-  'biz_fee',
-  'biz_etc',
-]; // 변동비
-
 export default function PnLPage() {
   const { tx, ready } = useTransactions();
-  const { items: employees } = useEmployees();
   const { items: locations } = useLocations();
   const [period, setPeriod] = useState<Period>('month');
 
@@ -61,57 +42,19 @@ export default function PnLPage() {
       to = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
     }
 
-    let revenue = 0;
-    let cogs = 0;
-    let fixedSga = 0;
-    let variableSga = 0;
-    const byCategory = new Map<string, number>();
+    // Per-location view: everything recorded at that location, costs and sales.
     const byLocation = new Map<string, { revenue: number; expense: number }>();
-    tx.forEach((t) => {
+    for (const t of tx) {
+      if (!t.location) continue;
       const d = new Date(t.date);
-      if (d < from || d > to) return;
-      const isRev = REVENUE_CATS.includes(t.cat) && t.amount > 0;
-      if (isRev) revenue += t.amount;
-      if (COGS_CATS.includes(t.cat) && t.amount < 0) cogs += Math.abs(t.amount);
-      if (FIXED_CATS.includes(t.cat) && t.amount < 0) {
-        fixedSga += Math.abs(t.amount);
-        byCategory.set(t.cat, (byCategory.get(t.cat) ?? 0) + Math.abs(t.amount));
-      }
-      if (VARIABLE_CATS.includes(t.cat) && t.amount < 0) {
-        variableSga += Math.abs(t.amount);
-        byCategory.set(t.cat, (byCategory.get(t.cat) ?? 0) + Math.abs(t.amount));
-      }
-      if (t.location) {
-        const cur = byLocation.get(t.location) ?? { revenue: 0, expense: 0 };
-        if (t.amount > 0) cur.revenue += t.amount;
-        else cur.expense += Math.abs(t.amount);
-        byLocation.set(t.location, cur);
-      }
-    });
-
-    const monthsInPeriod = period === 'month' ? 1 : period === 'quarter' ? 3 : 12;
-    const employeeCost =
-      employees.filter((e) => e.active).reduce((s, e) => s + e.baseSalary, 0) *
-      monthsInPeriod *
-      1.1;
-    const sga = fixedSga + variableSga + employeeCost;
-    const gross = revenue - cogs;
-    const operating = gross - sga;
-    const tax = Math.max(0, Math.round(operating * 0.1));
-    return {
-      revenue,
-      cogs,
-      fixedSga,
-      variableSga,
-      sga,
-      gross,
-      operating,
-      byCategory,
-      byLocation,
-      tax,
-      employeeCost,
-    };
-  }, [tx, employees, period, ready]);
+      if (d < from || d > to) continue;
+      const cur = byLocation.get(t.location) ?? { revenue: 0, expense: 0 };
+      if (isIncome(t)) cur.revenue += t.amount;
+      else if (isExpense(t)) cur.expense += Math.abs(t.amount);
+      byLocation.set(t.location, cur);
+    }
+    return { ...computePnl(tx, from, to), byLocation };
+  }, [tx, period, ready]);
 
   // 6-month operating income trend
   const trend = useMemo(() => {
@@ -120,35 +63,16 @@ export default function PnLPage() {
     const months: { label: string; operating: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthTx = tx.filter((t) => {
-        const d = new Date(t.date);
-        return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
-      });
-      const revenue = monthTx
-        .filter((t) => t.amount > 0 && REVENUE_CATS.includes(t.cat))
-        .reduce((s, t) => s + t.amount, 0);
-      const cogs = monthTx
-        .filter((t) => COGS_CATS.includes(t.cat) && t.amount < 0)
-        .reduce((s, t) => s + Math.abs(t.amount), 0);
-      const sga = monthTx
-        .filter(
-          (t) => (FIXED_CATS.includes(t.cat) || VARIABLE_CATS.includes(t.cat)) && t.amount < 0,
-        )
-        .reduce((s, t) => s + Math.abs(t.amount), 0);
-      const empCost = employees.filter((e) => e.active).reduce((s, e) => s + e.baseSalary, 0) * 1.1;
-      months.push({
-        label: `${m.getMonth() + 1}월`,
-        operating: revenue - cogs - sga - empCost,
-      });
+      const end = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59, 999);
+      months.push({ label: `${m.getMonth() + 1}월`, operating: computePnl(tx, m, end).operating });
     }
     return months;
-  }, [tx, employees, ready]);
+  }, [tx, ready]);
 
   if (!data) return <SkeletonHome />;
   const margin = data.revenue > 0 ? Math.round((data.operating / data.revenue) * 100) : 0;
-  const fixedRatio =
-    data.revenue > 0 ? Math.round(((data.fixedSga + data.employeeCost) / data.revenue) * 100) : 0;
-  const variableRatio = data.revenue > 0 ? Math.round((data.variableSga / data.revenue) * 100) : 0;
+  const fixedRatio = data.revenue > 0 ? Math.round((data.fixed / data.revenue) * 100) : 0;
+  const variableRatio = data.revenue > 0 ? Math.round((data.variable / data.revenue) * 100) : 0;
   const cogsRatio = data.revenue > 0 ? Math.round((data.cogs / data.revenue) * 100) : 0;
 
   return (
@@ -269,17 +193,15 @@ export default function PnLPage() {
             />
             <CostRow
               label="고정비"
-              value={data.fixedSga + data.employeeCost}
+              value={data.fixed}
               ratio={fixedRatio}
               color="var(--color-blue-500)"
-              hint="임대료·인건비·공과금"
             />
             <CostRow
               label="변동비"
-              value={data.variableSga}
+              value={data.variable}
               ratio={variableRatio}
               color="var(--color-purple-500)"
-              hint="마케팅·소모품·기타"
             />
           </div>
           <div
@@ -289,17 +211,31 @@ export default function PnLPage() {
             <p
               style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}
             >
-              손익분기점 (BEP) 추정
+              손익분기 매출
             </p>
-            <Money
-              value={data.fixedSga + data.employeeCost}
-              sign="never"
-              className="mt-0.5 block"
-              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}
-            />
-            <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-              매출이 이 금액 넘으면 영업이익 발생
-            </p>
+            {data.breakEven === null ? (
+              <p
+                className="mt-0.5"
+                style={{
+                  color: 'var(--color-text-3)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 700,
+                }}
+              >
+                –
+              </p>
+            ) : (
+              <Money
+                value={data.breakEven}
+                sign="never"
+                className="mt-0.5 block"
+                style={{
+                  color: 'var(--color-text-1)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 700,
+                }}
+              />
+            )}
           </div>
         </Card>
       </Section>
@@ -309,10 +245,9 @@ export default function PnLPage() {
           <Row label="매출액 (Revenue)" value={data.revenue} bold />
           <Row label="(−) 매출원가 (COGS)" value={data.cogs} muted />
           <Row label="매출총이익 (Gross Profit)" value={data.gross} highlight />
-          <Row label="(−) 고정비" value={data.fixedSga + data.employeeCost} muted />
-          <Row label="(−) 변동비" value={data.variableSga} muted />
-          <Row label="영업이익 (Operating)" value={data.operating} highlight strong />
-          <Row label="추정 세금 (10%)" value={data.tax} muted last />
+          <Row label="(−) 고정비" value={data.fixed} muted />
+          <Row label="(−) 변동비" value={data.variable} muted />
+          <Row label="영업이익 (Operating)" value={data.operating} highlight strong last />
         </div>
       </Section>
 
@@ -372,44 +307,42 @@ export default function PnLPage() {
         </Section>
       )}
 
-      {data.byCategory.size > 0 && (
+      {data.byCategory.length > 0 && (
         <Section title="판관비 세부" bottomGap={40}>
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
-            {Array.from(data.byCategory.entries())
-              .sort((a, b) => b[1] - a[1])
-              .map(([cat, val], i, arr) => {
-                const c = CATEGORIES[cat];
-                return (
-                  <div
-                    key={cat}
-                    className="flex items-center gap-3 px-4 py-3"
+            {data.byCategory.map(([cat, val], i, arr) => {
+              const c = CATEGORIES[cat];
+              return (
+                <div
+                  key={cat}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={{
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                  }}
+                >
+                  <CategoryIcon catId={cat} size={36} />
+                  <span
+                    className="flex-1"
                     style={{
-                      borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',
+                      color: 'var(--color-text-1)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 600,
                     }}
                   >
-                    <CategoryIcon catId={cat} size={36} />
-                    <span
-                      className="flex-1"
-                      style={{
-                        color: 'var(--color-text-1)',
-                        fontSize: 'var(--text-sm)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {c?.name ?? cat}
-                    </span>
-                    <Money
-                      value={val}
-                      sign="never"
-                      style={{
-                        color: 'var(--color-text-1)',
-                        fontSize: 'var(--text-sm)',
-                        fontWeight: 700,
-                      }}
-                    />
-                  </div>
-                );
-              })}
+                    {c?.name ?? cat}
+                  </span>
+                  <Money
+                    value={val}
+                    sign="never"
+                    style={{
+                      color: 'var(--color-text-1)',
+                      fontSize: 'var(--text-sm)',
+                      fontWeight: 700,
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
         </Section>
       )}
@@ -473,20 +406,17 @@ function CostRow({
   value,
   ratio,
   color,
-  hint,
 }: {
   label: string;
   value: number;
   ratio: number;
   color: string;
-  hint?: string;
 }) {
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)', fontWeight: 600 }}>
-          {label}{' '}
-          {hint && <span style={{ color: 'var(--color-text-3)', fontWeight: 500 }}>· {hint}</span>}
+          {label}
         </span>
         <span
           className="tnum"

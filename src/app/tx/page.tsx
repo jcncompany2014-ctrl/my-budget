@@ -2,16 +2,16 @@
 
 import { BellRing } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { use, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, isTransferCategory } from '@/lib/categories';
 import { fmt } from '@/lib/format';
+import { canReimburse, toBusinessPatch, toPersonalPatch } from '@/lib/reimburse';
 import { useAllTransactions } from '@/lib/storage';
 
 const fmtDate = (iso: string) => {
@@ -28,13 +28,22 @@ const fmtTime = (iso: string) => {
   return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
-export default function TxDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+// A static route with ?id= (not /tx/[id]): a dynamic segment has to ask the
+// server on every tap, and this page only ever reads local data.
+export default function TxDetailPageWrap() {
+  return (
+    <Suspense fallback={null}>
+      <TxDetailPage />
+    </Suspense>
+  );
+}
+
+function TxDetailPage() {
+  const id = useSearchParams().get('id') ?? '';
   const router = useRouter();
   const toast = useToast();
   const { tx, ready, remove, update, restore, add } = useAllTransactions();
   const { allAccounts } = useAccounts();
-  const [confirming, setConfirming] = useState(false);
 
   const onCopy = () => {
     if (!item) return;
@@ -49,7 +58,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
     };
     add(copy);
     toast.show('거래 복사됨 (오늘 날짜로)', 'success');
-    router.replace(`/tx/${copy.id}`);
+    router.replace(`/tx?id=${copy.id}`);
   };
 
   const item = tx.find((t) => t.id === id);
@@ -97,12 +106,21 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
         },
       },
     });
-    router.replace('/');
+    router.back();
   };
 
   const updateField = (patch: Partial<typeof item>) => {
     update(item.id, patch);
     toast.show('수정 완료', 'success');
+  };
+
+  // 사업 대납: a business cost paid with my own card. The row moves to the
+  // business ledger and waits on the 정산 list until the business pays it back.
+  const due = item.reimburse === 'due';
+  const canFlag = due || canReimburse(item, allAccounts);
+  const toggleReimburse = () => {
+    update(item.id, due ? toPersonalPatch(item, tx) : toBusinessPatch(item, tx));
+    toast.show(due ? '개인 지출로 되돌렸어요' : '사업 비용으로 옮겼어요', 'success');
   };
 
   return (
@@ -125,18 +143,19 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
           </svg>
         </button>
         <div className="flex items-center gap-1">
+          {!item.transferPairId && (
+            <button
+              type="button"
+              onClick={onCopy}
+              className="tap rounded-full px-3 py-2 text-sm font-semibold"
+              style={{ color: 'var(--color-text-2)' }}
+            >
+              복사
+            </button>
+          )}
           <button
             type="button"
-            onClick={onCopy}
-            className="tap rounded-full px-3 py-2 text-sm font-semibold"
-            style={{ color: 'var(--color-text-2)' }}
-            title="이 거래를 오늘 날짜로 복제"
-          >
-            복사
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push(`/tx/${item.id}/edit`)}
+            onClick={() => router.push(`/tx/edit?id=${item.id}`)}
             className="tap rounded-full px-3 py-2 text-sm font-semibold"
             style={{ color: 'var(--color-primary)' }}
           >
@@ -144,7 +163,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
           </button>
           <button
             type="button"
-            onClick={() => setConfirming(true)}
+            onClick={onDelete}
             className="tap rounded-full px-3 py-2 text-sm font-semibold"
             style={{ color: 'var(--color-danger)' }}
           >
@@ -190,7 +209,7 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
           type="button"
           onClick={() => {
             if (item.merchant.trim()) {
-              router.push(`/merchant/${encodeURIComponent(item.merchant.trim())}`);
+              router.push(`/merchant?name=${encodeURIComponent(item.merchant.trim())}`);
             }
           }}
           className="tap mt-2 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5"
@@ -237,7 +256,39 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
       >
         <Row label="날짜" value={fmtDate(item.date)} />
         <Row label="시간" value={fmtTime(item.date)} />
-        <Row label="계좌" value={account?.name ?? item.acc} />
+        <Row label="계좌" value={account?.name ?? '삭제된 계좌'} />
+        {canFlag && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={due}
+            onClick={toggleReimburse}
+            className="tap flex w-full items-center justify-between px-5 py-3.5 text-left"
+            style={{ borderBottom: '1px solid var(--color-divider)' }}
+          >
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-3)' }}>
+              사업 대납
+            </span>
+            <span className="flex items-center gap-2.5">
+              {due && (
+                <span className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+                  정산 대기
+                </span>
+              )}
+              <span
+                aria-hidden
+                className="relative inline-block h-7 w-12 rounded-full transition-colors"
+                style={{ background: due ? 'var(--color-primary)' : 'var(--color-gray-200)' }}
+              >
+                <span
+                  className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform"
+                  style={{ left: 2, transform: due ? 'translateX(20px)' : 'translateX(0)' }}
+                />
+              </span>
+            </span>
+          </button>
+        )}
+        {item.reimburse === 'done' && <Row label="사업 대납" value="정산 완료" />}
         <RowEditable
           label="메모"
           placeholder="메모 추가"
@@ -249,19 +300,6 @@ export default function TxDetailPage({ params }: { params: Promise<{ id: string 
       <div className="flex-1" />
       {/* No bottom nav here, so the page clears the home indicator itself. */}
       <div style={{ height: 'calc(env(safe-area-inset-bottom) + 16px)' }} />
-
-      <ConfirmDialog
-        open={confirming}
-        title="이 거래를 삭제할까요?"
-        description="삭제 직후 5초 동안은 '되돌리기'로 복원할 수 있어요."
-        confirmLabel="삭제"
-        danger
-        onCancel={() => setConfirming(false)}
-        onConfirm={() => {
-          setConfirming(false);
-          onDelete();
-        }}
-      />
     </div>
   );
 }
@@ -295,6 +333,10 @@ function RowEditable({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+  const commit = () => {
+    if (draft.trim() !== value) onSave(draft.trim());
+    setEditing(false);
+  };
 
   if (!editing) {
     return (
@@ -327,17 +369,13 @@ function RowEditable({
       <input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          onSave(draft.trim());
-          setEditing(false);
-        }}
+        onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            onSave(draft.trim());
-            setEditing(false);
-          }
+          if (e.key === 'Enter' && !e.nativeEvent.isComposing) commit();
           if (e.key === 'Escape') setEditing(false);
         }}
+        // biome-ignore lint/a11y/noAutofocus: the field appears because the row was tapped
+        autoFocus
         placeholder={placeholder}
         className="h-10 flex-1 rounded-lg px-3 text-sm outline-none"
         style={{

@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { use, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
@@ -13,12 +13,20 @@ import { fmt } from '@/lib/format';
 import { useAllTransactions } from '@/lib/storage';
 import type { Scope, Transaction } from '@/lib/types';
 
-export default function EditTxPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function EditTxPageWrap() {
+  return (
+    <Suspense fallback={null}>
+      <EditTxPage />
+    </Suspense>
+  );
+}
+
+function EditTxPage() {
+  const id = useSearchParams().get('id') ?? '';
   const router = useRouter();
   const toast = useToast();
   const { tx, ready, update } = useAllTransactions();
-  const { accounts } = useAccounts();
+  const { allAccounts } = useAccounts();
 
   const item = tx.find((t) => t.id === id);
 
@@ -75,7 +83,18 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
     );
   }
 
-  const valid = Number(amount) > 0 && cat !== '';
+  // Both legs of a transfer share amount, date and memo; its direction and category are fixed.
+  const isLeg = !!item.transferPairId;
+  // The row's own ledger, plus its current account (a 대납 row sits on a personal card).
+  const accounts = allAccounts.filter((a) => a.scope === scope || a.id === item.acc);
+  const totalSplit = splits.reduce((s, x) => s + Math.abs(x.amount), 0);
+  const numericAbs = Math.abs(Number(amount) || 0);
+  const splitsRemainder = numericAbs - totalSplit;
+  const valid =
+    Number(amount) > 0 &&
+    cat !== '' &&
+    date !== '' &&
+    (splits.length === 0 || splitsRemainder === 0);
 
   const submit = () => {
     if (!valid) return;
@@ -91,12 +110,12 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
       splits: splits.length > 0 ? splits : undefined,
     });
     toast.show('수정 완료', 'success');
-    router.replace(`/tx/${item.id}`);
+    // Back to the detail page underneath — replacing would stack a second copy of it.
+    router.back();
   };
-
-  const totalSplit = splits.reduce((s, x) => s + Math.abs(x.amount), 0);
-  const numericAbs = Math.abs(Number(amount) || 0);
-  const splitsRemainder = numericAbs - totalSplit;
+  const submitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit();
+  };
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ background: 'var(--color-card)' }}>
@@ -112,41 +131,54 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
         <h1 className="text-base font-bold" style={{ color: 'var(--color-text-1)' }}>
           거래 편집
         </h1>
-        <div className="w-12" />
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={submit}
+          className="tap rounded-full px-3 py-2 text-sm font-bold disabled:opacity-40"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          저장
+        </button>
       </header>
 
-      <section className="px-4 pb-3 pt-4">
-        <div className="flex rounded-full p-[3px]" style={{ background: 'var(--color-gray-100)' }}>
-          {(['expense', 'income'] as const).map((k) => {
-            const sel = type === k;
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => {
-                  setType(k);
-                  const list = k === 'expense' ? expenseList : incomeList;
-                  if (!list.find((c) => c.id === cat)) setCat(list[0]?.id ?? '');
-                }}
-                className="tap flex-1 rounded-full py-2 text-[13px] font-bold"
-                style={{
-                  background: sel ? 'var(--color-card)' : 'transparent',
-                  color: sel ? 'var(--color-text-1)' : 'var(--color-text-3)',
-                  boxShadow: sel ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-                }}
-              >
-                {scope === 'business'
-                  ? k === 'expense'
-                    ? '비용'
-                    : '매출'
-                  : k === 'expense'
-                    ? '지출'
-                    : '수입'}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      {!isLeg && (
+        <section className="px-4 pb-3 pt-4">
+          <div
+            className="flex rounded-full p-[3px]"
+            style={{ background: 'var(--color-gray-100)' }}
+          >
+            {(['expense', 'income'] as const).map((k) => {
+              const sel = type === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setType(k);
+                    const list = k === 'expense' ? expenseList : incomeList;
+                    if (!list.find((c) => c.id === cat)) setCat(list[0]?.id ?? '');
+                  }}
+                  className="tap flex-1 rounded-full py-2 text-[13px] font-bold"
+                  style={{
+                    background: sel ? 'var(--color-card)' : 'transparent',
+                    color: sel ? 'var(--color-text-1)' : 'var(--color-text-3)',
+                    boxShadow: sel ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                  }}
+                >
+                  {scope === 'business'
+                    ? k === 'expense'
+                      ? '비용'
+                      : '매출'
+                    : k === 'expense'
+                      ? '지출'
+                      : '수입'}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <Field label="금액">
         <div
@@ -173,38 +205,42 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
         )}
       </Field>
 
-      <Field label="카테고리">
-        <div className="grid grid-cols-4 gap-2">
-          {cats.map((c) => {
-            const sel = cat === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setCat(c.id)}
-                className="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
-                style={{
-                  background: sel ? `${c.color}1f` : 'var(--color-gray-100)',
-                  border: `2px solid ${sel ? c.color : 'transparent'}`,
-                }}
-              >
-                <CategoryIcon catId={c.id} size={28} />
-                <span
-                  className="text-[11px] font-semibold"
-                  style={{ color: sel ? c.color : 'var(--color-text-2)' }}
+      {!isLeg && (
+        <Field label="카테고리">
+          <div className="grid grid-cols-4 gap-2">
+            {cats.map((c) => {
+              const sel = cat === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCat(c.id)}
+                  className="tap flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3"
+                  style={{
+                    background: sel ? `${c.color}1f` : 'var(--color-gray-100)',
+                    border: `2px solid ${sel ? c.color : 'transparent'}`,
+                  }}
                 >
-                  {c.name}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </Field>
+                  <CategoryIcon catId={c.id} size={28} />
+                  <span
+                    className="text-[11px] font-semibold"
+                    style={{ color: sel ? c.color : 'var(--color-text-2)' }}
+                  >
+                    {c.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+      )}
 
       <Field label="소비처/거래처">
         <input
           value={merchant}
           onChange={(e) => setMerchant(e.target.value)}
+          onKeyDown={submitOnEnter}
+          enterKeyHint="done"
           placeholder="이름"
           className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
           style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
@@ -215,7 +251,9 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
         <input
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
-          placeholder="짧은 메모 (선택)"
+          onKeyDown={submitOnEnter}
+          enterKeyHint="done"
+          placeholder="메모"
           className="h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
           style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
         />
@@ -244,31 +282,30 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
         </div>
       </Field>
 
-      <Field label="카테고리 분할">
-        <button
-          type="button"
-          onClick={() => setSplitOpen(true)}
-          className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
-          style={{ background: 'var(--color-gray-100)' }}
-        >
-          <span
-            style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
+      {!isLeg && (
+        <Field label="카테고리 분할">
+          <button
+            type="button"
+            onClick={() => setSplitOpen(true)}
+            className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
+            style={{ background: 'var(--color-gray-100)' }}
           >
-            {splits.length === 0 ? '단일 카테고리' : `${splits.length}개로 분할`}
-          </span>
-          {splits.length > 0 && (
             <span
-              className="tnum"
-              style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+              style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}
             >
-              합계 {fmt(totalSplit)}원
+              {splits.length === 0 ? '단일 카테고리' : `${splits.length}개로 분할`}
             </span>
-          )}
-        </button>
-        <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)' }}>
-          마트 영수증을 식비/생활용품으로 나눌 때 같은 거래에 두 카테고리를 적용
-        </p>
-      </Field>
+            {splits.length > 0 && (
+              <span
+                className="tnum"
+                style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
+              >
+                합계 {fmt(totalSplit)}원
+              </span>
+            )}
+          </button>
+        </Field>
+      )}
 
       <Field label="날짜·시간">
         <div className="grid grid-cols-2 gap-2">
@@ -291,9 +328,13 @@ export default function EditTxPage({ params }: { params: Promise<{ id: string }>
 
       <div className="flex-1" />
 
+      {/* Sticky: the form is taller than the screen, and 저장 must not need a scroll. */}
       <div
-        className="flex gap-2 px-4 pb-6 pt-2"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+        className="sticky bottom-0 flex gap-2 px-4 pt-2"
+        style={{
+          background: 'var(--color-card)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+        }}
       >
         <button
           type="button"

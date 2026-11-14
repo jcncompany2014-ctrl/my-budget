@@ -7,6 +7,8 @@ export type TxTemplate = {
   cat: string;
   count: number;
   lastUsed: string; // ISO
+  /** Account the most recent matching row used. */
+  acc?: string;
 };
 
 /**
@@ -37,6 +39,7 @@ export function deriveTemplates(
     cat: string;
     count: number;
     lastUsed: string;
+    acc: string;
     amounts: Map<number, { n: number; last: string }>;
   };
   const groups = new Map<string, Group>();
@@ -52,13 +55,14 @@ export function deriveTemplates(
     const key = `${merchant.toLowerCase()}\u0000${t.cat}`;
     let g = groups.get(key);
     if (!g) {
-      g = { merchant, cat: t.cat, count: 0, lastUsed: t.date, amounts: new Map() };
+      g = { merchant, cat: t.cat, count: 0, lastUsed: t.date, acc: t.acc, amounts: new Map() };
       groups.set(key, g);
     }
     g.count += 1;
     if (t.date > g.lastUsed) {
       g.lastUsed = t.date;
       g.merchant = merchant; // keep the most recent spelling
+      g.acc = t.acc;
     }
     const amt = Math.abs(t.amount);
     const a = g.amounts.get(amt);
@@ -87,6 +91,7 @@ export function deriveTemplates(
       cat: g.cat,
       count: g.count,
       lastUsed: g.lastUsed,
+      acc: g.acc,
     });
   }
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import { applyTxToAccounts, reverseTxFromAccounts, transferPairIds } from '@/lib/integrity';
+import { setStoredItem } from '@/lib/safe-storage';
 import { SEED_TRANSACTIONS } from '@/lib/seed';
 import { KEYS } from '@/lib/storage-keys';
-import { subscribeToKey } from '@/lib/store-factory';
-import type { Scope, Transaction } from '@/lib/types';
+import { subscribeToKey, useHydrated } from '@/lib/store-factory';
+import type { Transaction } from '@/lib/types';
 
 const KEY = KEYS.transactions;
 
@@ -38,7 +39,7 @@ function loadFromStorage(): Transaction[] {
 
 function saveToStorage(tx: Transaction[]) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(KEY, JSON.stringify(tx));
+  setStoredItem(KEY, JSON.stringify(tx));
 }
 
 function getCachedTx(): Transaction[] {
@@ -47,8 +48,9 @@ function getCachedTx(): Transaction[] {
 }
 
 function commitTx(next: Transaction[]) {
-  cachedTx = next;
+  // Persist first: if the write fails the screen must not show rows that are not saved.
   saveToStorage(next);
+  cachedTx = next;
   txListeners.forEach((fn) => fn());
 }
 
@@ -75,8 +77,9 @@ export function allTransactions(): Transaction[] {
 /** Insert transactions (newest-first order kept) and apply their balance effect. */
 export function addTransactions(list: Transaction[]) {
   if (list.length === 0) return;
-  list.forEach((t) => applyTxToAccounts(t));
+  // Rows before balances — a failed save must not leave a balance moved by a row that is gone.
   commitTx([...list, ...getCachedTx()]);
+  list.forEach((t) => applyTxToAccounts(t));
 }
 
 /**
@@ -89,9 +92,54 @@ export function removeTransaction(id: string): Transaction[] {
   if (!target) return [];
   const idsToRemove = target.transferPairId ? transferPairIds(target, cur) : [id];
   const removed = cur.filter((t) => idsToRemove.includes(t.id));
-  removed.forEach((t) => reverseTxFromAccounts(t));
   commitTx(cur.filter((t) => !idsToRemove.includes(t.id)));
+  removed.forEach((t) => reverseTxFromAccounts(t));
   return removed;
+}
+
+/**
+ * Edit a transaction. A transfer is two rows: amount, date and memo stay
+ * identical on both legs (the amount with opposite sign), so editing one side
+ * cannot leave money unaccounted for.
+ */
+export function updateTransaction(id: string, patch: Partial<Transaction>) {
+  const cur = getCachedTx();
+  const target = cur.find((t) => t.id === id);
+  if (!target) return;
+  const changes: [Transaction, Transaction][] = [[target, { ...target, ...patch }]];
+  const pair = target.transferPairId
+    ? cur.find((t) => t.id !== id && t.transferPairId === target.transferPairId)
+    : undefined;
+  if (pair) {
+    const mirrored: Partial<Transaction> = {};
+    if (patch.amount !== undefined) mirrored.amount = -patch.amount;
+    if (patch.date !== undefined) mirrored.date = patch.date;
+    if (patch.memo !== undefined) mirrored.memo = patch.memo;
+    if (patch.acc !== undefined) mirrored.transferTo = patch.acc;
+    if (Object.keys(mirrored).length > 0) changes.push([pair, { ...pair, ...mirrored }]);
+  }
+  const edited = new Map(changes.map(([old, now]) => [old.id, now]));
+  commitTx(cur.map((t) => edited.get(t.id) ?? t));
+  for (const [old, now] of changes) {
+    if (now.amount !== old.amount || now.acc !== old.acc) {
+      reverseTxFromAccounts(old);
+      applyTxToAccounts(now);
+    }
+  }
+}
+
+/**
+ * Set the same non-monetary fields (flags, category, ledger) on several rows in
+ * one write. Amount and account are excluded — those move balances and go
+ * through updateTransaction.
+ */
+export function patchTransactions(
+  ids: string[],
+  patch: Omit<Partial<Transaction>, 'id' | 'amount' | 'acc'>,
+) {
+  if (ids.length === 0) return;
+  const set = new Set(ids);
+  commitTx(getCachedTx().map((t) => (set.has(t.id) ? { ...t, ...patch } : t)));
 }
 
 export function useTransactions() {
@@ -101,57 +149,26 @@ export function useTransactions() {
   return { ...all, tx, allTx: all.tx };
 }
 
-export function useAllTransactions() {
-  const [tx, setTx] = useState<Transaction[]>(EMPTY_TX);
-  const [ready, setReady] = useState(false);
+function subscribeTx(fn: () => void) {
+  txListeners.add(fn);
+  return () => {
+    txListeners.delete(fn);
+  };
+}
+const serverTx = () => EMPTY_TX;
 
-  useEffect(() => {
-    setTx(getCachedTx());
-    setReady(true);
-    if (typeof window !== 'undefined' && !window.localStorage.getItem(KEY)) {
-      saveToStorage(cachedTx!);
-    }
-    const refresh = () => setTx(getCachedTx());
-    txListeners.add(refresh);
-    return () => {
-      txListeners.delete(refresh);
-    };
-  }, []);
+export function useAllTransactions() {
+  const tx = useSyncExternalStore(subscribeTx, getCachedTx, serverTx);
+  const ready = useHydrated();
 
   const add = (t: Transaction) => addTransactions([t]);
 
   const remove = (id: string): Transaction[] => removeTransaction(id);
 
-  const update = (id: string, patch: Partial<Transaction>) => {
-    const cur = getCachedTx();
-    const target = cur.find((t) => t.id === id);
-    if (!target) return;
-    const oldAmount = target.amount;
-    const oldAcc = target.acc;
-    const merged = { ...target, ...patch };
-    if (patch.amount !== undefined && patch.amount !== oldAmount) {
-      reverseTxFromAccounts(target);
-      applyTxToAccounts(merged);
-    } else if (patch.acc !== undefined && patch.acc !== oldAcc) {
-      reverseTxFromAccounts(target);
-      applyTxToAccounts(merged);
-    }
-    commitTx(cur.map((t) => (t.id === id ? merged : t)));
-  };
+  const update = updateTransaction;
 
   /** Restore a previously removed transaction (used by undo). */
   const restore = (txs: Transaction[]) => addTransactions(txs);
 
   return { tx, ready, add, remove, update, restore };
-}
-
-export function txCountByScope(tx: Transaction[]): Record<Scope, number> {
-  return tx.reduce(
-    (acc, t) => {
-      const s = t.scope ?? 'personal';
-      acc[s] += 1;
-      return acc;
-    },
-    { personal: 0, business: 0 } as Record<Scope, number>,
-  );
 }

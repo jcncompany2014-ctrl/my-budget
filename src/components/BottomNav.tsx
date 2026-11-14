@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { haptics } from '@/lib/haptics';
 
 type Tab = {
@@ -77,10 +77,26 @@ const TABS: Tab[] = [
   },
 ];
 
+const ADD_HREF = '/add?type=expense';
+const LONG_PRESS_MS = 380;
+
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const pressTimer = useRef<number | null>(null);
+  const longPressed = useRef(false);
+
+  // router.push() targets are not prefetched the way <Link>s are; without this
+  // the first tap on + waited on the network before the screen changed.
+  useEffect(() => {
+    for (const href of [ADD_HREF, '/transfer', '/quick-add']) router.prefetch(href);
+  }, [router]);
+
+  const endPress = () => {
+    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+  };
 
   const tabs = TABS;
   const left = tabs.slice(0, 2);
@@ -102,11 +118,26 @@ export default function BottomNav() {
           <NavItem key={tab.href} tab={tab} active={pathname === tab.href} />
         ))}
 
+        {/* Tap goes straight to entering an expense (the everyday case); a long
+            press opens the menu with 수입 · 이체 · 빠른 입력. */}
         <button
           type="button"
+          onPointerDown={() => {
+            longPressed.current = false;
+            pressTimer.current = window.setTimeout(() => {
+              longPressed.current = true;
+              haptics.medium();
+              setMenuOpen(true);
+            }, LONG_PRESS_MS);
+          }}
+          onPointerUp={endPress}
+          onPointerLeave={endPress}
+          onPointerCancel={endPress}
+          onContextMenu={(e) => e.preventDefault()}
           onClick={() => {
-            haptics.medium();
-            setMenuOpen(true);
+            if (longPressed.current) return;
+            haptics.light();
+            router.push(ADD_HREF);
           }}
           className="tap relative -mt-6 flex h-14 w-14 items-center justify-center rounded-full"
           style={{

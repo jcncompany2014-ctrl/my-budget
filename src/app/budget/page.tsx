@@ -10,27 +10,21 @@ import TopBar from '@/components/TopBar';
 import EmptyState from '@/components/ui/EmptyState';
 import { useBudgets } from '@/lib/budgets';
 import { CATEGORIES } from '@/lib/categories';
-import { fmt } from '@/lib/format';
+import { localDayKey, todayKey } from '@/lib/dates';
+import { fmt, spendByCategory } from '@/lib/format';
 import { useTransactions } from '@/lib/storage';
 
 export default function BudgetPage() {
   const router = useRouter();
-  const { tx, ready } = useTransactions();
+  const { tx } = useTransactions();
   const { mode } = useMode();
   const { budgets, ready: budgetsReady } = useBudgets();
 
+  // Same figure as the home budget card: real spending this month, splits honoured.
   const spent = useMemo(() => {
-    if (!ready) return new Map<string, number>();
-    const map = new Map<string, number>();
-    const now = new Date();
-    tx.forEach((t) => {
-      if (t.amount >= 0) return;
-      const d = new Date(t.date);
-      if (d.getFullYear() !== now.getFullYear() || d.getMonth() !== now.getMonth()) return;
-      map.set(t.cat, (map.get(t.cat) ?? 0) + Math.abs(t.amount));
-    });
-    return map;
-  }, [tx, ready]);
+    const monthKey = todayKey().slice(0, 7);
+    return spendByCategory(tx.filter((t) => localDayKey(t.date).startsWith(monthKey)));
+  }, [tx]);
 
   const personalBudgets = Object.entries(budgets).map(([cat, b]) => {
     const used = spent.get(cat) ?? 0;
@@ -76,9 +70,7 @@ export default function BudgetPage() {
               -{fmt(businessBreakdown.total)}원
             </p>
             <p className="mt-1 text-xs" style={{ color: 'var(--color-text-3)' }}>
-              {businessBreakdown.arr.length === 0
-                ? '아직 비용 거래가 없어요'
-                : `${businessBreakdown.arr.length}개 카테고리`}
+              {businessBreakdown.arr.length}개 카테고리
             </p>
           </div>
         </section>
@@ -89,12 +81,7 @@ export default function BudgetPage() {
           </h2>
 
           {businessBreakdown.arr.length === 0 ? (
-            <EmptyState
-              icon={Receipt}
-              iconColor="#F59E0B"
-              title="사업 비용 거래를 추가해 보세요"
-              hint="+ 버튼으로 임대료, 인건비, 매입을 기록하면 분석돼요"
-            />
+            <EmptyState icon={Receipt} iconColor="#F59E0B" title="비용 거래가 없어요" />
           ) : (
             <div
               className="overflow-hidden rounded-2xl"
@@ -185,8 +172,7 @@ export default function BudgetPage() {
           <EmptyState
             icon={BarChart3}
             iconColor="#FF8A1F"
-            title="예산을 설정해 보세요"
-            hint="카테고리별로 한 달 한도를 정해두면 진행률이 보여요"
+            title="설정된 예산이 없어요"
             cta={{ href: '/settings/budgets', label: '예산 설정' }}
           />
         </section>

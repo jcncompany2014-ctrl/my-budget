@@ -4,7 +4,7 @@
  * Reusable date picker — 3 quick presets (오늘/어제/그제) + a 4th chip
  * that's a transparent native <input type="date"> overlay. The 4th
  * chip lights up + shows a smart label whenever a non-preset date is
- * selected. Used in /add and /tx/[id]/edit for consistency.
+ * selected. Used in /add and /tx/edit for consistency.
  */
 
 import type { CSSProperties } from 'react';

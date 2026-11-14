@@ -6,8 +6,10 @@ import { useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
+import { useAllTransactions } from '@/lib/storage';
 import type { Vendor } from '@/lib/types';
 import { useVendors } from '@/lib/vendors';
 
@@ -27,8 +29,10 @@ export default function VendorsPage() {
   const toast = useToast();
   const { mode } = useMode();
   const { items, ready, add, update, remove } = useVendors();
+  const { tx: allTx } = useAllTransactions();
   const [editing, setEditing] = useState<Vendor | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready)
     return (
@@ -37,6 +41,7 @@ export default function VendorsPage() {
       </div>
     );
   const list = items.filter((v) => v.scope === mode);
+  const usedBy = editing ? allTx.filter((t) => t.vendor === editing.id).length : 0;
 
   const startNew = () => {
     setEditing({
@@ -67,12 +72,7 @@ export default function VendorsPage() {
 
       <section className="px-5 pb-3 pt-1">
         {list.length === 0 ? (
-          <EmptyState
-            icon={Users}
-            iconColor="#0EA5E9"
-            title="거래처를 추가해 보세요"
-            hint="매출처(클라이언트), 매입처(공급자) — 카테고리 자동 매칭에도 활용"
-          />
+          <EmptyState icon={Users} iconColor="#0EA5E9" title="거래처가 없어요" />
         ) : (
           <div className="space-y-2">
             {list.map((v) => (
@@ -141,21 +141,32 @@ export default function VendorsPage() {
             setEditing(null);
             setCreating(false);
           }}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 거래처를 삭제할까요?`}
+        description={
+          usedBy > 0
+            ? `이 거래처로 기록된 거래 ${usedBy}건은 남지만, 거래처 이름은 더 이상 표시되지 않아요.`
+            : undefined
+        }
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }

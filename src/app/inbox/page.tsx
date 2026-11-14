@@ -159,7 +159,6 @@ export default function InboxPage() {
             icon={BellRing}
             iconColor="#2E3561"
             title="카드 알림 자동 기록이 꺼져 있어요"
-            hint="결제 알림을 아이폰 단축어로 보내면, 앱을 열 때 알아서 기록돼요."
             cta={{ href: '/settings/auto-record', label: '설정하기' }}
           />
         </section>
@@ -193,8 +192,7 @@ export default function InboxPage() {
               <EmptyState
                 icon={Inbox}
                 iconColor="var(--color-primary)"
-                title="아직 들어온 알림이 없어요"
-                hint="단축어를 만들고 결제를 한 번 해보세요. 앱을 열면 여기에 쌓여요."
+                title="들어온 알림이 없어요"
                 cta={{ href: '/settings/auto-record', label: '단축어 설정 보기' }}
               />
             </section>
@@ -234,7 +232,7 @@ export default function InboxPage() {
               className="px-5 pb-12 pt-1 text-center"
               style={{ color: 'var(--color-text-4)', fontSize: 11 }}
             >
-              최근 100건까지 보관돼요
+              최근 100건 보관
             </p>
           )}
         </>
@@ -310,7 +308,7 @@ function LogRow({
       <div className="flex items-center gap-3 px-4 py-3">
         <button
           type="button"
-          onClick={() => (live ? router.push(`/tx/${tx.id}`) : setShowRaw((v) => !v))}
+          onClick={() => (live ? router.push(`/tx?id=${tx.id}`) : setShowRaw((v) => !v))}
           className="tap flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           {live ? (

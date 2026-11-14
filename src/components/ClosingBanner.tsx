@@ -8,7 +8,7 @@ import { previousMonthKey } from '@/lib/closing';
 import { useTransactions } from '@/lib/storage';
 
 /**
- * Days 1–7 of a month: "N월 결산이 준비됐어요" → /reports/closing/YYYY-MM.
+ * Days 1–7 of a month: "N월 결산이 준비됐어요" → /reports/closing?ym=YYYY-MM.
  * Only when last month actually has records; dismissible per month.
  */
 export default function ClosingBanner() {
@@ -48,7 +48,7 @@ export default function ClosingBanner() {
         }}
       >
         <Link
-          href={`/reports/closing/${ym}`}
+          href={`/reports/closing?ym=${ym}`}
           className="tap flex min-w-0 flex-1 items-center gap-3"
         >
           <span
@@ -57,16 +57,8 @@ export default function ClosingBanner() {
           >
             <Sparkles size={18} strokeWidth={2.4} />
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="block" style={{ color: '#fff', fontSize: 14, fontWeight: 800 }}>
-              {monthLabel} 결산이 준비됐어요
-            </span>
-            <span
-              className="block"
-              style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 600 }}
-            >
-              얼마 남겼는지, 어디에 많이 썼는지 확인해 보세요
-            </span>
+          <span className="min-w-0 flex-1" style={{ color: '#fff', fontSize: 14, fontWeight: 800 }}>
+            {monthLabel} 결산이 준비됐어요
           </span>
           <ChevronRight size={18} strokeWidth={2.4} color="rgba(255,255,255,0.7)" />
         </Link>

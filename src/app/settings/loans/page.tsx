@@ -7,6 +7,7 @@ import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DecimalInput from '@/components/ui/DecimalInput';
 import EmptyState from '@/components/ui/EmptyState';
 import { IconDisplay, IconPicker } from '@/components/ui/IconPicker';
@@ -26,6 +27,7 @@ export default function LoansPage() {
   const { items, ready, add, update, remove } = useLoans();
   const [editing, setEditing] = useState<Loan | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!ready) {
     return (
@@ -91,12 +93,7 @@ export default function LoansPage() {
 
       <section className="px-5 pb-3 pt-2">
         {list.length === 0 ? (
-          <EmptyState
-            icon={Banknote}
-            iconColor="#EF4444"
-            title="대출이 없어요"
-            hint="주택담보·신용대출·할부까지 — 원리금, 이자율, 만기를 한 번에 추적"
-          />
+          <EmptyState icon={Banknote} iconColor="#EF4444" title="대출이 없어요" />
         ) : (
           <div className="space-y-2">
             {list.map((l) => {
@@ -231,21 +228,28 @@ export default function LoansPage() {
             setEditing(null);
             setCreating(false);
           }}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('대출 삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 대출을 삭제할까요?`}
+        description="이미 기록된 상환 거래는 그대로 남아요."
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('대출 삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }
@@ -265,9 +269,23 @@ function LoanEditor({
 }) {
   const [draft, setDraft] = useState(loan);
   const { accounts } = useAccounts();
-  const valid = draft.name.trim().length > 0 && draft.principal > 0 && draft.termMonths > 0;
-  const monthly =
-    draft.monthlyPayment ?? computeMonthlyPayment(draft.principal, draft.rate, draft.termMonths);
+  const computed = computeMonthlyPayment(draft.principal, draft.rate, draft.termMonths);
+  const monthly = draft.monthlyPayment ?? computed;
+  const valid =
+    draft.name.trim().length > 0 &&
+    draft.principal > 0 &&
+    draft.termMonths > 0 &&
+    // Auto payment silently never posts without both.
+    (!draft.autoPayment || (!!draft.paymentDay && !!draft.linkedAccountId));
+
+  // A stored payment that merely equals the formula keeps following it when the
+  // terms change; one the user typed (an interest-only loan, a rounded bank figure) stays.
+  const setTerms = (patch: Partial<Loan>) =>
+    setDraft({
+      ...draft,
+      ...patch,
+      monthlyPayment: draft.monthlyPayment === computed ? undefined : draft.monthlyPayment,
+    });
 
   return (
     <Sheet open onClose={onCancel}>
@@ -321,7 +339,13 @@ function LoanEditor({
         <Field label="원금 *">
           <NumInput
             value={draft.principal}
-            onChange={(n) => setDraft({ ...draft, principal: n, remaining: draft.remaining || n })}
+            // 잔액 follows 원금 until it is given its own value.
+            onChange={(n) =>
+              setTerms({
+                principal: n,
+                remaining: draft.remaining === draft.principal ? n : draft.remaining,
+              })
+            }
           />
         </Field>
         <Field label="잔액">
@@ -334,37 +358,20 @@ function LoanEditor({
 
       <div className="grid grid-cols-2 gap-2">
         <Field label="연 이자율 (%)">
-          <NumInput
-            value={draft.rate}
-            onChange={(n) => setDraft({ ...draft, rate: n })}
-            step="0.01"
-          />
+          <NumInput value={draft.rate} onChange={(n) => setTerms({ rate: n })} step="0.01" />
         </Field>
         <Field label="기간 (개월)">
-          <NumInput
-            value={draft.termMonths}
-            onChange={(n) => setDraft({ ...draft, termMonths: n })}
-          />
+          <NumInput value={draft.termMonths} onChange={(n) => setTerms({ termMonths: n })} />
         </Field>
       </div>
 
-      <div className="rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-soft)' }}>
-        <p
-          style={{
-            color: 'var(--color-primary)',
-            fontSize: 'var(--text-xxs)',
-            fontWeight: 700,
-          }}
-        >
-          예상 월 상환액
-        </p>
-        <Money
+      {/* Editable: 원리금균등 by default, but an interest-only loan pays just the interest. */}
+      <Field label={draft.monthlyPayment === undefined ? '월 상환액 (원리금균등)' : '월 상환액'}>
+        <NumInput
           value={monthly}
-          sign="never"
-          className="mt-1 block"
-          style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xl)', fontWeight: 800 }}
+          onChange={(n) => setDraft({ ...draft, monthlyPayment: n > 0 ? n : undefined })}
         />
-      </div>
+      </Field>
 
       <Field label="자동 상환">
         <button
@@ -376,9 +383,6 @@ function LoanEditor({
           <div className="text-left">
             <p style={{ color: 'var(--color-text-1)', fontSize: 13, fontWeight: 700 }}>
               매월 자동 상환
-            </p>
-            <p style={{ color: 'var(--color-text-3)', fontSize: 11, marginTop: 2 }}>
-              결제일에 출금 계좌에서 차감 + 잔액 자동 갱신
             </p>
           </div>
           <SmallSwitch on={!!draft.autoPayment} />
@@ -397,7 +401,11 @@ function LoanEditor({
               onChange={(e) =>
                 setDraft({
                   ...draft,
-                  paymentDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
+                  // Empty stays empty while typing — snapping to 1 made "5" impossible to enter.
+                  paymentDay:
+                    e.target.value === ''
+                      ? undefined
+                      : Math.min(31, Math.max(1, Number(e.target.value) || 1)),
                 })
               }
               placeholder="예) 25"
@@ -409,15 +417,12 @@ function LoanEditor({
                 fontWeight: 500,
               }}
             />
-            <p className="mt-1" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-              그 달에 해당 날짜가 없으면 (예: 31일) 그 달의 마지막 날에 처리
-            </p>
           </Field>
 
           <Field label="출금 계좌">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {accounts.length === 0 ? (
-                <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>먼저 계좌를 추가하세요</p>
+                <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>계좌 없음</p>
               ) : (
                 accounts.map((a) => {
                   const sel = draft.linkedAccountId === a.id;
@@ -475,7 +480,7 @@ function LoanEditor({
         <button
           type="button"
           disabled={!valid}
-          onClick={() => onSave({ ...draft, monthlyPayment: monthly })}
+          onClick={() => onSave(draft)}
           className="tap h-12 flex-1 rounded-xl"
           style={{
             background: valid ? 'var(--color-primary)' : 'var(--color-gray-200)',

@@ -224,8 +224,7 @@ export default function StatsPage() {
           <EmptyState
             icon={BarChart3}
             iconColor="#3182F6"
-            title={mode === 'business' ? '아직 분석할 비용이 없어요' : '아직 분석할 지출이 없어요'}
-            hint="거래를 몇 건 추가하면 카테고리별 분포 + 추세가 나타납니다"
+            title={mode === 'business' ? '분석할 비용이 없어요' : '분석할 지출이 없어요'}
           />
         </div>
       ) : (
@@ -350,14 +349,12 @@ export default function StatsPage() {
                     label="고정"
                     value={fixedVar.fixed}
                     pct={fixedVar.fixed / (fixedVar.fixed + fixedVar.variable)}
-                    hint="구독·정기결제·대출"
                   />
                   <SplitStat
                     color="var(--color-primary)"
                     label="변동"
                     value={fixedVar.variable}
                     pct={fixedVar.variable / (fixedVar.fixed + fixedVar.variable)}
-                    hint="식비·쇼핑·카페 등"
                     alignRight
                   />
                 </div>
@@ -658,14 +655,12 @@ function SplitStat({
   label,
   value,
   pct,
-  hint,
   alignRight,
 }: {
   color: string;
   label: string;
   value: number;
   pct: number;
-  hint: string;
   alignRight?: boolean;
 }) {
   return (
@@ -696,7 +691,6 @@ function SplitStat({
       >
         {fmt(value)}원
       </p>
-      <p style={{ color: 'var(--color-text-3)', fontSize: 10, fontWeight: 600 }}>{hint}</p>
     </div>
   );
 }
@@ -830,7 +824,7 @@ function TopMerchants({
         {list.map((m, i) => (
           <Link
             key={m.merchant}
-            href={`/merchant/${encodeURIComponent(m.merchant.trim())}`}
+            href={`/merchant?name=${encodeURIComponent(m.merchant.trim())}`}
             className="tap flex items-center justify-between gap-2 px-4 py-3"
             style={{
               borderBottom: i < list.length - 1 ? '1px solid var(--color-divider)' : 'none',

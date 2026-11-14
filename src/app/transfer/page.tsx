@@ -1,29 +1,49 @@
 'use client';
 
+import { ArrowLeftRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import DatePickerSection from '@/components/DatePickerSection';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
 import Keypad from '@/components/Keypad';
+import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
 import Sheet from '@/components/ui/Sheet';
 import { useAllAccounts } from '@/lib/accounts';
+import { lastTransferTarget } from '@/lib/default-account';
 import { fmt } from '@/lib/format';
-import { useAllTransactions } from '@/lib/storage';
+import { addTransactions, useAllTransactions } from '@/lib/storage';
 import { buildTransferLegs } from '@/lib/transfers';
 import type { Account } from '@/lib/types';
 
 export default function TransferPage() {
   const router = useRouter();
   const toast = useToast();
+  const { mode } = useMode();
   const { accounts } = useAllAccounts();
-  const { add } = useAllTransactions();
+  const { tx: history, remove } = useAllTransactions();
 
   const [amount, setAmount] = useState('');
   const [fromId, setFromId] = useState<string>('');
   const [toId, setToId] = useState<string>('');
+  const [toTouched, setToTouched] = useState(false);
   const [memo, setMemo] = useState('');
+  const [date, setDate] = useState<Date>(() => new Date());
+
+  // Starts filled in: money leaves the main account of the ledger on screen,
+  // and goes where it went the last time it left that account.
+  useEffect(() => {
+    if (fromId || accounts.length === 0) return;
+    const mine = accounts.filter((a) => a.scope === mode && a.type !== 'receivable');
+    const start = mine.find((a) => a.main) ?? mine.find((a) => a.type !== 'card') ?? mine[0];
+    if (start) setFromId(start.id);
+  }, [accounts, mode, fromId]);
+  useEffect(() => {
+    if (toTouched || !fromId) return;
+    setToId(lastTransferTarget(history, accounts, fromId));
+  }, [fromId, toTouched, history, accounts]);
 
   const fromAcc = accounts.find((a) => a.id === fromId);
   const toAcc = accounts.find((a) => a.id === toId);
@@ -37,16 +57,36 @@ export default function TransferPage() {
       fromAcc,
       toAcc,
       amount: Number(amount),
-      date: new Date().toISOString(),
+      date: date.toISOString(),
       memo: memo.trim(),
     });
-    legs.forEach((leg) => add(leg));
-    toast.show(isCross ? '계좌 이체 (크로스 모드)' : '계좌 이체 완료', 'success');
-    router.replace('/');
+    // One write for both legs — never a transfer with only one side saved.
+    addTransactions(legs);
+    toast.show(`${toAcc.name}(으)로 ${fmt(Number(amount))}원`, {
+      variant: 'success',
+      durationMs: 4500,
+      action: {
+        label: '되돌리기',
+        onClick: () => {
+          // Removing one leg takes its pair with it.
+          remove(legs[0].id);
+          toast.show('취소됨', 'info');
+        },
+      },
+    });
+    router.back();
   };
 
-  const personalAccs = useMemo(() => accounts.filter((a) => a.scope === 'personal'), [accounts]);
-  const businessAccs = useMemo(() => accounts.filter((a) => a.scope === 'business'), [accounts]);
+  const swap = () => {
+    setToTouched(true);
+    setFromId(toId);
+    setToId(fromId);
+  };
+
+  const crossLabel = useMemo(() => {
+    if (!fromAcc || !toAcc || fromAcc.scope === toAcc.scope) return '';
+    return fromAcc.scope === 'business' ? '사장 인출' : '자본 투입';
+  }, [fromAcc, toAcc]);
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ background: 'var(--color-card)' }}>
@@ -65,61 +105,38 @@ export default function TransferPage() {
         <div className="w-12" />
       </header>
 
-      <section className="px-6 pb-3 pt-6 text-center">
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-sm)', fontWeight: 500 }}>
-          이체할 금액
-        </p>
-        {Number(amount) > 0 ? (
-          <Money
-            value={Number(amount)}
-            sign="never"
-            className="mt-2 block tracking-tight"
-            style={{
-              fontSize: 'var(--text-3xl)',
-              fontWeight: 800,
-              color: 'var(--color-text-1)',
-            }}
-          />
-        ) : (
-          <p
-            className="mt-2 block tracking-tight"
-            style={{
-              fontSize: 28,
-              fontWeight: 500,
-              color: 'var(--color-text-4)',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            얼마를 이체할까요?
-          </p>
-        )}
-        {fromAcc && toAcc && Number(amount) > 0 && (
-          <p
-            className="mt-2 text-center"
-            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
-          >
-            {fromAcc.name} → {toAcc.name}
-            {isCross && (
-              <span
-                className="ml-2 rounded-full px-2 py-0.5"
-                style={{
-                  background: 'var(--color-primary-soft)',
-                  color: 'var(--color-primary)',
-                  fontSize: 'var(--text-xxs)',
-                  fontWeight: 700,
-                }}
-              >
-                크로스 모드 ·{' '}
-                {fromAcc.scope === 'business' && toAcc.scope === 'personal'
-                  ? '사장 인출 / 사장 보수'
-                  : '자본 투입'}
+      <section className="px-6 pb-3 pt-5 text-center">
+        <p className="tnum text-[40px] font-extrabold tracking-tight">
+          {Number(amount) > 0 ? (
+            <>
+              <span style={{ color: 'var(--color-text-1)' }}>{fmt(Number(amount))}</span>
+              <span className="ml-1 text-[26px]" style={{ color: 'var(--color-text-3)' }}>
+                원
               </span>
-            )}
-          </p>
-        )}
+            </>
+          ) : (
+            <span style={{ color: 'var(--color-text-4)' }}>0원</span>
+          )}
+        </p>
+        {/* Fixed height so the keypad does not jump when the tag appears. */}
+        <p className="mt-1 h-5">
+          {isCross && (
+            <span
+              className="rounded-full px-2 py-0.5"
+              style={{
+                background: 'var(--color-primary-soft)',
+                color: 'var(--color-primary)',
+                fontSize: 'var(--text-xxs)',
+                fontWeight: 700,
+              }}
+            >
+              {crossLabel}
+            </span>
+          )}
+        </p>
       </section>
 
-      <section className="grid grid-cols-2 gap-2 px-4 pb-3">
+      <section className="relative grid grid-cols-2 gap-2 px-4 pb-2">
         <AccountPicker
           label="보낼 계좌"
           accounts={accounts}
@@ -131,16 +148,38 @@ export default function TransferPage() {
           label="받을 계좌"
           accounts={accounts}
           selectedId={toId}
-          onSelect={setToId}
+          onSelect={(id) => {
+            setToTouched(true);
+            setToId(id);
+          }}
           excludeId={fromId}
         />
+        <button
+          type="button"
+          onClick={swap}
+          disabled={!fromId || !toId}
+          className="tap absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full disabled:opacity-40"
+          style={{
+            background: 'var(--color-card)',
+            boxShadow: '0 1px 4px rgba(20, 28, 40, 0.14)',
+            marginTop: -4,
+          }}
+          aria-label="보낼 계좌와 받을 계좌 바꾸기"
+        >
+          <ArrowLeftRight size={16} strokeWidth={2.4} color="var(--color-text-2)" />
+        </button>
       </section>
 
-      <section className="px-4 pb-2">
+      <section className="flex flex-col gap-2 px-4 pb-2">
+        <DatePickerSection date={date} onChange={setDate} bare />
         <input
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
-          placeholder="메모 (선택)"
+          placeholder="메모"
+          enterKeyHint="done"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur();
+          }}
           className="h-12 w-full rounded-xl px-4 outline-none"
           style={{
             background: 'var(--color-gray-100)',
@@ -150,15 +189,6 @@ export default function TransferPage() {
           }}
         />
       </section>
-
-      {(personalAccs.length === 0 || businessAccs.length === 0) && (
-        <p
-          className="px-5 pb-1 text-center"
-          style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
-        >
-          크로스 모드 이체를 하려면 양쪽 모드에 계좌가 모두 있어야 해요
-        </p>
-      )}
 
       <div className="flex-1" />
 
@@ -243,9 +273,9 @@ function AccountPicker({
         ) : (
           <p
             className="mt-1"
-            style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-base)' }}
+            style={{ color: 'var(--color-text-4)', fontSize: 'var(--text-base)', fontWeight: 700 }}
           >
-            계좌 선택
+            선택
           </p>
         )}
       </button>

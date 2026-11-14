@@ -60,7 +60,7 @@ export default function BusinessVendorsPage() {
           <EmptyState
             icon={Handshake}
             iconColor="#0EA5E9"
-            title="거래처를 등록하고 거래 추가 시 연결하세요"
+            title="거래처가 없어요"
             cta={{ href: '/settings/vendors', label: '거래처 등록' }}
           />
         ) : (

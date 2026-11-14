@@ -62,13 +62,6 @@ export default function DataCheckPage() {
         }
       />
 
-      <section className="px-5 pb-3 pt-1">
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          저장된 거래 / 계좌 / 카테고리의 일관성을 검사합니다. 백업 복원 후나 수동 편집 후에 한 번씩
-          돌려보세요.
-        </p>
-      </section>
-
       {report && (
         <section className="px-5 pb-3 pt-1">
           <div className="rounded-2xl p-5" style={{ background: 'var(--color-card)' }}>

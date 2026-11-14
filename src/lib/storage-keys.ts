@@ -27,6 +27,7 @@ export const KEYS = {
   language: 'asset/language/v1',
   currency: 'asset/currency/v1',
   taxpayerType: 'asset/taxpayer-type/v1',
+  netWorthHistory: 'asset/networth-history/v1',
   // Card-notification auto-record (iPhone Shortcut → /api/inbox)
   inboxKey: 'asset/inbox-key/v1',
   inboxLog: 'asset/inbox-log/v1',

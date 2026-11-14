@@ -397,12 +397,7 @@ export default function SearchPage() {
             )}
           </div>
           {results.length === 0 ? (
-            <EmptyState
-              icon={Search}
-              iconColor="#94A3B8"
-              title="검색 결과가 없어요"
-              hint="다른 키워드를 시도하거나 필터를 풀어보세요"
-            />
+            <EmptyState icon={Search} iconColor="#94A3B8" title="검색 결과가 없어요" />
           ) : (
             <div
               className="overflow-hidden rounded-2xl"
@@ -414,7 +409,7 @@ export default function SearchPage() {
                 return (
                   <Link
                     key={t.id}
-                    href={`/tx/${t.id}`}
+                    href={`/tx?id=${t.id}`}
                     className="tap flex items-center gap-3 px-4 py-3"
                     style={{
                       borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',

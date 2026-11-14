@@ -1,19 +1,13 @@
 'use client';
 
-import { Briefcase, Repeat, ShieldAlert } from 'lucide-react';
-import Link from 'next/link';
+import { Briefcase, Repeat } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/components/Toast';
-import { lastAutoBackupAt } from '@/lib/auto-backup';
 import { detectRecurringPatterns, detectSalaryIncome } from '@/lib/auto-categorize';
-import { downloadBackup } from '@/lib/backup';
-import { localDayKey } from '@/lib/dates';
 import { fmt } from '@/lib/format';
 import { useAllRecurring } from '@/lib/recurring';
-import { useAllTransactions } from '@/lib/storage';
+import { patchTransactions, useAllTransactions } from '@/lib/storage';
 import type { RecurringItem } from '@/lib/types';
-
-const BACKUP_REMIND_AFTER_DAYS = 30;
 
 const DISMISS_KEY = 'asset/smart-dismissed/v1';
 
@@ -66,121 +60,24 @@ export default function SmartPrompts() {
     });
   }, [tx, recurring, dismissed]);
 
-  const salaryHints = useMemo(() => {
-    const hints = detectSalaryIncome(tx);
-    return hints
-      .filter((h) => !dismissed.has(`salary:${h.id}`))
-      .filter((h) => h.cat !== 'salary' && h.cat !== 'biz_sales_xfer')
-      .slice(0, 1);
-  }, [tx, dismissed]);
+  const salaryHints = useMemo(
+    () =>
+      detectSalaryIncome(tx)
+        .filter((h) => !dismissed.has(`salary:${h.merchant}`))
+        .slice(0, 1),
+    [tx, dismissed],
+  );
 
-  // Backup nag — surface a soft reminder when the auto-backup snapshot is
-  // older than 30 days (or has never run). Local-only data; this is the most
-  // important habit to keep alive.
-  const backupNagKey = useMemo(() => {
-    if (tx.length < 5) return null; // don't nag empty installs
-    const last = lastAutoBackupAt();
-    const daysSince = last
-      ? Math.floor((Date.now() - last.getTime()) / 86400000)
-      : Number.POSITIVE_INFINITY;
-    if (daysSince < BACKUP_REMIND_AFTER_DAYS) return null;
-    const key = `backup:${last ? localDayKey(last) : 'never'}`;
-    if (dismissed.has(key)) return null;
-    return { key, daysSince, last };
-  }, [tx.length, dismissed]);
-
-  if (recurringSuggestions.length === 0 && salaryHints.length === 0 && !backupNagKey) {
+  if (recurringSuggestions.length === 0 && salaryHints.length === 0) {
     return null;
   }
 
   return (
     <section className="px-5 pb-3 pt-1">
       <div className="space-y-2">
-        {backupNagKey && (
-          <div
-            className="flex items-start gap-3 rounded-2xl px-4 py-3"
-            style={{ background: 'rgba(180, 83, 9, 0.10)' }}
-          >
-            <span
-              aria-hidden
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: '#B45309',
-                color: '#fff',
-                flexShrink: 0,
-              }}
-            >
-              <ShieldAlert size={16} strokeWidth={2.4} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p style={{ color: '#B45309', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
-                백업이 오래됐어요
-              </p>
-              <p
-                className="mt-0.5"
-                style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)' }}
-              >
-                {Number.isFinite(backupNagKey.daysSince)
-                  ? `마지막 자동 백업이 ${backupNagKey.daysSince}일 전이에요.`
-                  : '아직 백업 파일이 없어요.'}{' '}
-                브라우저 캐시가 지워지면 데이터가 사라져요.
-              </p>
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    downloadBackup();
-                    toast.show('백업 파일을 저장했어요', 'success');
-                    dismiss(backupNagKey.key);
-                  }}
-                  className="tap rounded-full px-3 py-1.5"
-                  style={{
-                    background: '#B45309',
-                    color: '#fff',
-                    fontSize: 'var(--text-xxs)',
-                    fontWeight: 700,
-                  }}
-                >
-                  지금 백업
-                </button>
-                <Link
-                  href="/settings"
-                  className="tap rounded-full px-3 py-1.5"
-                  style={{
-                    background: 'transparent',
-                    color: '#B45309',
-                    fontSize: 'var(--text-xxs)',
-                    fontWeight: 700,
-                  }}
-                >
-                  설정에서
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => dismiss(backupNagKey.key)}
-                  className="tap rounded-full px-3 py-1.5"
-                  style={{
-                    background: 'transparent',
-                    color: 'var(--color-text-3)',
-                    fontSize: 'var(--text-xxs)',
-                    fontWeight: 700,
-                  }}
-                >
-                  나중에
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {recurringSuggestions.slice(0, 1).map((s) => {
           const key = `recurring:${s.scope}:${s.merchant}`;
-          const day = s.daysOfMonth.sort((a, b) => a - b)[Math.floor(s.daysOfMonth.length / 2)];
+          const day = s.day;
           return (
             <div
               key={key}
@@ -211,13 +108,13 @@ export default function SmartPrompts() {
                     fontWeight: 700,
                   }}
                 >
-                  정기결제 자동 발견
+                  매달 나가는 돈
                 </p>
                 <p
                   className="mt-0.5"
                   style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)' }}
                 >
-                  <span style={{ fontWeight: 700 }}>{s.merchant}</span> · 매월 약 {day}일에{' '}
+                  <span style={{ fontWeight: 700 }}>{s.merchant}</span> · 매월 {day}일쯤{' '}
                   <span className="tnum">{fmt(s.amount)}원</span>
                 </p>
                 <div className="mt-2 flex gap-2">
@@ -232,12 +129,13 @@ export default function SmartPrompts() {
                         day,
                         cat: s.cat,
                         scope: s.scope,
+                        acc: s.acc,
                         // The payments that got it detected are already in the ledger.
                         postedThrough: new Date().toISOString(),
                       };
                       addRecurring(item);
                       dismiss(key);
-                      toast.show('정기결제로 등록 완료', 'success');
+                      toast.show('정기결제로 등록했어요', 'success');
                     }}
                     className="tap rounded-full px-3 py-1.5"
                     style={{
@@ -247,7 +145,7 @@ export default function SmartPrompts() {
                       fontWeight: 700,
                     }}
                   >
-                    등록하기
+                    정기결제로 등록
                   </button>
                   <button
                     type="button"
@@ -269,7 +167,7 @@ export default function SmartPrompts() {
         })}
 
         {salaryHints.map((h) => {
-          const key = `salary:${h.id}`;
+          const key = `salary:${h.merchant}`;
           return (
             <div
               key={key}
@@ -294,40 +192,22 @@ export default function SmartPrompts() {
               </span>
               <div className="min-w-0 flex-1">
                 <p style={{ color: '#B45309', fontSize: 'var(--text-xxs)', fontWeight: 700 }}>
-                  급여로 보이는 거래
+                  급여로 보이는 입금
                 </p>
                 <p
                   className="mt-0.5"
                   style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-xs)' }}
                 >
                   <span style={{ fontWeight: 700 }}>{h.merchant}</span>{' '}
-                  <span className="tnum">+{fmt(h.amount)}원</span> — 카테고리를 '급여'로 바꿀까요?
+                  <span className="tnum">+{fmt(h.amount)}원</span>
+                  {h.ids.length > 1 ? ` 외 ${h.ids.length - 1}건` : ''}
                 </p>
                 <div className="mt-2 flex gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      // Re-tag the tx
-                      if (typeof window !== 'undefined') {
-                        try {
-                          const raw = window.localStorage.getItem('asset/transactions/v2');
-                          if (raw) {
-                            const list = JSON.parse(raw) as { id: string; cat: string }[];
-                            const next = list.map((t) =>
-                              t.id === h.id ? { ...t, cat: 'salary' } : t,
-                            );
-                            window.localStorage.setItem(
-                              'asset/transactions/v2',
-                              JSON.stringify(next),
-                            );
-                          }
-                        } catch {
-                          /* ignore */
-                        }
-                      }
-                      dismiss(key);
-                      toast.show('급여로 재분류 완료', 'success');
-                      setTimeout(() => window.location.reload(), 200);
+                      patchTransactions(h.ids, { cat: 'salary' });
+                      toast.show('급여로 바꿨어요', 'success');
                     }}
                     className="tap rounded-full px-3 py-1.5"
                     style={{
@@ -337,7 +217,7 @@ export default function SmartPrompts() {
                       fontWeight: 700,
                     }}
                   >
-                    급여로 변경
+                    급여로 분류
                   </button>
                   <button
                     type="button"
@@ -350,7 +230,7 @@ export default function SmartPrompts() {
                       fontWeight: 700,
                     }}
                   >
-                    아니요
+                    숨기기
                   </button>
                 </div>
               </div>

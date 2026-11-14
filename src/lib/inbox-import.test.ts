@@ -181,3 +181,110 @@ describe('planImport', () => {
     expect(plan.log[0].status).toBe('unparsed');
   });
 });
+
+describe('planImport — one payment, several notices', () => {
+  const at = (s: number) => new Date(2026, 10, 8, 14, 23, s);
+
+  it('the card SMS, the pay app and the wallet naming the shop differently are one charge', () => {
+    const plan = planImport(
+      [
+        item('스타벅스에서 5,600원 결제했어요', at(5)),
+        item(
+          '[Web발신]\n신한카드(1234)승인 홍*동 5,600원(일시불)11/08 14:23 스타벅스코리아',
+          at(20),
+        ),
+        item('Apple Pay\nSTARBUCKS\n₩5,600', at(40)),
+      ],
+      ctx(),
+    );
+    expect(plan.add).toHaveLength(1);
+    expect(plan.log.map((l) => l.status)).toEqual(['added', 'duplicate', 'duplicate']);
+  });
+
+  it('moves the row to the card once a later notice names it', () => {
+    const plan = planImport(
+      [
+        item('스타벅스에서 5,600원 결제했어요', at(5)),
+        item(
+          '[Web발신]\n신한카드(1234)승인 홍*동 5,600원(일시불)11/08 14:23 스타벅스코리아',
+          at(20),
+        ),
+      ],
+      ctx(),
+    );
+    expect(plan.add).toHaveLength(1);
+    // First landed on the main account (no card named), then moved to the 신한 card.
+    expect(plan.add[0]).toMatchObject({ acc: 'shinhan', merchant: '스타벅스', amount: -5_600 });
+    expect(plan.remove).toHaveLength(0);
+  });
+
+  it('moves a row that an earlier sync already saved', () => {
+    const saved: Transaction = {
+      id: 'ntf-first',
+      date: at(5).toISOString(),
+      amount: -5_600,
+      cat: 'cafe',
+      merchant: '스타벅스',
+      acc: 'main',
+      scope: 'personal',
+      source: 'notification',
+    };
+    const plan = planImport(
+      [
+        item(
+          '[Web발신]\n신한카드(1234)승인 홍*동 5,600원(일시불)11/08 14:23 스타벅스코리아',
+          at(50),
+        ),
+      ],
+      ctx({ history: [...history, saved] }),
+    );
+    expect(plan.remove).toEqual(['ntf-first']);
+    expect(plan.add).toEqual([{ ...saved, acc: 'shinhan' }]);
+    expect(plan.log[0].status).toBe('duplicate');
+  });
+
+  it('the same amount ten minutes later at another shop is a new charge', () => {
+    const plan = planImport(
+      [
+        item('스타벅스에서 5,600원 결제했어요', at(5)),
+        item('이디야에서 5,600원 결제했어요', new Date(2026, 10, 8, 14, 35)),
+      ],
+      ctx(),
+    );
+    expect(plan.add).toHaveLength(2);
+  });
+
+  it('a second 승인취소 notice does not refund twice', () => {
+    const cancelSms =
+      '[Web발신]\n신한카드(1234)승인취소 홍*동 12,500원(일시불)11/08 14:30 GS25 역삼점';
+    const cancelPush = 'GS25에서 12,500원 결제가 취소됐어요';
+    const sameBatch = planImport(
+      [
+        item(SHINHAN),
+        item(cancelSms, new Date(2026, 10, 8, 14, 30, 10)),
+        item(cancelPush, new Date(2026, 10, 8, 14, 30, 40)),
+      ],
+      ctx(),
+    );
+    expect(sameBatch.add).toHaveLength(0);
+    expect(sameBatch.log.map((l) => l.status)).toEqual(['added', 'cancelled', 'duplicate']);
+
+    // The first notice was handled by an earlier sync; only the log remembers it.
+    const first = planImport([item(cancelSms, new Date(2026, 10, 8, 14, 30, 10))], ctx());
+    const later = planImport(
+      [item(cancelPush, new Date(2026, 10, 8, 14, 30, 40))],
+      ctx({ log: first.log }),
+    );
+    expect(later.add).toHaveLength(0);
+    expect(later.log[0].status).toBe('duplicate');
+  });
+
+  it('a currency with no rate is left for review instead of saved as 0원', () => {
+    const plan = planImport(
+      [item('해외승인 신한카드(1234) BRL 120.00 11/08 14:23 PADARIA')],
+      ctx(),
+    );
+    expect(plan.add).toHaveLength(0);
+    expect(plan.log[0].status).toBe('unparsed');
+  });
+});

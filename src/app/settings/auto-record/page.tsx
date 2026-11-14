@@ -135,14 +135,7 @@ export default function AutoRecordPage() {
             <BellRing size={22} strokeWidth={2.4} />
           </span>
           <p className="mt-3" style={{ color: '#fff', fontSize: 19, fontWeight: 800 }}>
-            결제하면 알아서 적히는 가계부
-          </p>
-          <p
-            className="mt-1 leading-relaxed"
-            style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12.5, fontWeight: 500 }}
-          >
-            카드 결제 알림이 오면 아이폰 단축어가 내 전용 주소로 보내고, 앱을 열면 카테고리까지
-            붙여서 바로 기록돼요.
+            {!ready ? '자동 기록' : key ? '자동 기록 켜짐' : '자동 기록 꺼짐'}
           </p>
           {ready && key && (
             <div className="mt-4 flex flex-wrap gap-1.5">
@@ -167,7 +160,7 @@ export default function AutoRecordPage() {
               type="button"
               onClick={() => {
                 setKey(generateInboxKey());
-                toast.show('자동 기록을 켰어요 — 아래 순서대로 단축어를 만들어 주세요', 'success');
+                toast.show('자동 기록을 켰어요', 'success');
               }}
               className="tap mt-4 flex h-12 w-full items-center justify-center gap-1.5 rounded-2xl"
               style={{ background: '#FFD66B', color: '#1B1F3B', fontSize: 15, fontWeight: 800 }}
@@ -565,11 +558,7 @@ function CardLinks() {
   const { accounts, update } = useAllAccounts();
   const linkable = accounts.filter((a) => a.type === 'card' || a.type === 'bank');
   if (linkable.length === 0) {
-    return (
-      <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>
-        카드나 계좌를 먼저 추가하면 여기서 연결할 수 있어요.
-      </p>
-    );
+    return <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>연결할 카드·계좌가 없어요</p>;
   }
   return (
     <>
@@ -715,10 +704,6 @@ function TestPanel({ inboxKey }: { inboxKey: string }) {
   const ok = preview?.result.ok ? preview.result.notice : null;
   return (
     <div>
-      <p className="mb-2 leading-snug" style={{ color: 'var(--color-text-3)', fontSize: 11.5 }}>
-        받은 결제 알림 문구를 붙여넣으면 어떻게 기록될지 미리 보여줘요. 보내기를 누르면 서버를 거쳐
-        실제로 기록돼요.
-      </p>
       <div className="mb-2 flex flex-wrap gap-1.5">
         {SAMPLES.map((s) => (
           <button
@@ -741,7 +726,7 @@ function TestPanel({ inboxKey }: { inboxKey: string }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={4}
-        placeholder={'예) 신한카드(1234)승인 홍*동 12,500원(일시불)\n11/08 14:23 GS25 역삼점'}
+        placeholder="결제 알림 문구"
         className="w-full resize-none rounded-xl px-3.5 py-3 outline-none"
         style={{
           background: 'var(--color-gray-100)',

@@ -25,6 +25,16 @@ export type Account = {
   scope: Scope;
   /** When true, "저축" category transactions auto-create a transfer pair into this account. */
   savingsTarget?: boolean;
+  /** Card: day of the month the bill is paid (결제일). */
+  billingDay?: number;
+  /** Card: day a new usage period starts (이용기간 시작일). Defaults from the payment day. */
+  cycleStartDay?: number;
+  /** Card: account the bill is paid from. */
+  billingAccountId?: string;
+  /** Card: post the payment automatically on the payment day. */
+  autoBilling?: boolean;
+  /** Card: payment days at or before this instant (ISO) are settled. Managed by the generator. */
+  billingPostedThrough?: string;
 };
 
 export type Transaction = {
@@ -67,6 +77,13 @@ export type Transaction = {
 
   /** Recorded automatically from a card/pay notification (iPhone Shortcut → inbox). */
   source?: 'notification';
+
+  /**
+   * A business expense I paid with personal money (사업 대납): the row sits in
+   * the business ledger (`scope: 'business'`) but `acc` is a personal account.
+   * 'due' until the business pays me back, then 'done'.
+   */
+  reimburse?: 'due' | 'done';
 };
 
 export type Budget = {
@@ -148,6 +165,11 @@ export type LineOfCredit = {
   interestDay?: number;
   linkedAccountId?: string;
   autoInterest?: boolean;
+  /**
+   * Interest days at or before this instant (ISO) are settled. Stamped the first
+   * time the generator sees the line with auto interest on; dropped when it is off.
+   */
+  postedThrough?: string;
   color: string;
 };
 

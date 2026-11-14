@@ -110,13 +110,7 @@ export default function TaxCalendarPage() {
     <>
       <TopBar title="세무 일정" />
 
-      <Section topGap={8} bottomGap={4}>
-        <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-          연간 주요 신고·납부 일정 캘린더. 임박 순으로 표시.
-        </p>
-      </Section>
-
-      <Section bottomGap={40}>
+      <Section topGap={8} bottomGap={40}>
         <div className="space-y-2">
           {items.map((it, i) => {
             const urgent = it.daysUntil <= 14;

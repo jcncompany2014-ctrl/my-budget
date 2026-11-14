@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useMode } from '@/components/ModeProvider';
 import { useInvestments } from '@/lib/investments';
-import { type Currency, FX_IDS, type QuoteId, toKRW, useQuotes } from '@/lib/quotes';
+import { valueInvestment } from '@/lib/net-worth';
+import { FX_IDS, type QuoteId, useQuotes } from '@/lib/quotes';
 
 /**
  * Hero-style live P&L card for the home screen.
@@ -45,24 +46,22 @@ export default function LiveInvestmentPnL() {
 
   let totalKRW = 0;
   let totalCostKRW = 0;
+  let costKnown = true;
   let topMover: { name: string; change: number } | null = null;
   let lastTs = 0;
   for (const i of list) {
-    const live = i.autoQuote && i.quoteId ? quotes[i.quoteId as QuoteId] : undefined;
-    const productCcy = (i.currency ?? 'KRW') as Currency;
-    const livePriceKRW = live ? toKRW(live.price, live.currency) : undefined;
-    const shares = i.shares ?? 0;
-    const valueKRW = livePriceKRW != null ? livePriceKRW * shares : i.currentValue;
-    const costKRW = toKRW(shares * (i.avgPrice ?? 0), productCcy);
+    const { live, valueKRW, costKRW } = valueInvestment(i, quotes);
     totalKRW += valueKRW;
-    totalCostKRW += costKRW;
+    if (costKRW === null) costKnown = false;
+    else totalCostKRW += costKRW;
     if (live?.ts) lastTs = Math.max(lastTs, live.ts);
     if (live && (!topMover || Math.abs(live.change) > Math.abs(topMover.change))) {
       topMover = { name: i.name, change: live.change };
     }
   }
 
-  if (totalCostKRW === 0 && totalKRW === 0) return null;
+  // No P&L until every holding's cost can be converted — a partial sum would mislead.
+  if (!costKnown || (totalCostKRW === 0 && totalKRW === 0)) return null;
 
   const pnl = totalKRW - totalCostKRW;
   const pct = totalCostKRW > 0 ? (pnl / totalCostKRW) * 100 : 0;

@@ -2,6 +2,7 @@
 
 import { classifyBayes, getBayesModel } from '@/lib/bayes';
 import { suggestCategory } from '@/lib/categories';
+import { isExpense, isIncome } from '@/lib/format';
 import type { Scope, Transaction } from '@/lib/types';
 
 const BAYES_MIN_HISTORY = 10;
@@ -118,58 +119,107 @@ export function detectDuplicate(
   return null;
 }
 
-/**
- * Find recurring patterns in history — same merchant + similar amount + monthly cadence.
- */
-export function detectRecurringPatterns(history: Transaction[]): {
+export type RecurringPattern = {
   merchant: string;
   amount: number;
   cat: string;
   scope: Scope;
-  daysOfMonth: number[];
-}[] {
-  // Group by (merchant + scope)
-  const groups = new Map<string, Transaction[]>();
-  history.forEach((t) => {
-    const k = (t.scope ?? 'personal') + '::' + t.merchant.toLowerCase();
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k)?.push(t);
-  });
+  /** Typical day of the month. */
+  day: number;
+  /** Account the latest payment left. */
+  acc: string;
+};
 
-  const out: ReturnType<typeof detectRecurringPatterns> = [];
+/**
+ * Subscriptions and bills hiding in the ledger: the same merchant charging the
+ * same amount once a month, around the same day, for three months running and
+ * still going. Real spending only — salary, transfers and rows the app posted
+ * itself are not "payments to register". The once-a-month and same-day tests
+ * keep a daily coffee at a fixed price from being called a subscription.
+ */
+export function detectRecurringPatterns(
+  history: Transaction[],
+  now: Date = new Date(),
+): RecurringPattern[] {
+  const groups = new Map<string, Transaction[]>();
+  for (const t of history) {
+    if (!isExpense(t) || t.recurring || !t.merchant.trim()) continue;
+    const k = `${t.scope ?? 'personal'}::${t.merchant.trim().toLowerCase()}`;
+    const g = groups.get(k);
+    if (g) g.push(t);
+    else groups.set(k, [t]);
+  }
+
+  const out: RecurringPattern[] = [];
   groups.forEach((txs) => {
     if (txs.length < 3) return;
-    // Same amount required
-    const amounts = txs.map((t) => Math.abs(t.amount));
-    const med = amounts.sort((a, b) => a - b)[Math.floor(amounts.length / 2)];
-    const sameAmount = txs.filter((t) => Math.abs(Math.abs(t.amount) - med) <= 100);
-    if (sameAmount.length < 3) return;
-    // Within last 4 months
-    const months = new Set(
-      sameAmount.map((t) => {
-        const d = new Date(t.date);
-        return d.getFullYear() * 12 + d.getMonth();
-      }),
-    );
-    if (months.size < 3) return;
-    const daysOfMonth = sameAmount.map((t) => new Date(t.date).getDate());
+    const amounts = txs.map((t) => Math.abs(t.amount)).sort((a, b) => a - b);
+    const med = amounts[Math.floor(amounts.length / 2)];
+    const same = txs
+      .filter((t) => Math.abs(Math.abs(t.amount) - med) <= Math.max(100, med * 0.02))
+      .sort((a, b) => b.date.localeCompare(a.date));
+    if (same.length < 3) return;
+
+    const monthOf = (t: Transaction) => {
+      const d = new Date(t.date);
+      return d.getFullYear() * 12 + d.getMonth();
+    };
+    const months = new Set(same.map(monthOf));
+    // Once a month — not several times in some of them.
+    if (months.size < 3 || same.length > months.size + 1) return;
+    // Still running: charged within the last 45 days, in three consecutive months.
+    const latest = new Date(same[0].date);
+    if (now.getTime() - latest.getTime() > 45 * 86_400_000) return;
+    const last = monthOf(same[0]);
+    if (!months.has(last - 1) || !months.has(last - 2)) return;
+
+    const days = same.map((t) => new Date(t.date).getDate()).sort((a, b) => a - b);
+    const day = days[Math.floor(days.length / 2)];
+    // Around the same day (month-end days wrap: the 31st and the 1st are neighbours).
+    const off = (d: number) => Math.min(Math.abs(d - day), 31 - Math.abs(d - day));
+    if (days.some((d) => off(d) > 4)) return;
+
     out.push({
-      merchant: sameAmount[0].merchant,
-      amount: med,
-      cat: sameAmount[0].cat,
-      scope: (sameAmount[0].scope ?? 'personal') as Scope,
-      daysOfMonth,
+      merchant: same[0].merchant.trim(),
+      amount: Math.abs(same[0].amount),
+      cat: same[0].cat,
+      scope: (same[0].scope ?? 'personal') as Scope,
+      day,
+      acc: same[0].acc,
     });
   });
   return out;
 }
 
+export type SalaryPattern = { merchant: string; amount: number; ids: string[] };
+
 /**
- * Detect probable salary income — large positive transactions on similar day each month.
+ * Pay that is filed as something else: the same payer sending over 100만원 into
+ * the personal ledger in two or more different months. One large deposit — a
+ * friend paying back a loan, a refund — is not a salary.
  */
-export function detectSalaryIncome(history: Transaction[]): Transaction[] {
-  const incomes = history.filter((t) => t.amount > 1_000_000); // >100만원
-  if (incomes.length < 2) return [];
-  // Just return the candidates; UI can prompt user
-  return incomes;
+export function detectSalaryIncome(history: Transaction[]): SalaryPattern[] {
+  const groups = new Map<string, Transaction[]>();
+  for (const t of history) {
+    if ((t.scope ?? 'personal') !== 'personal' || !isIncome(t)) continue;
+    if (t.amount <= 1_000_000 || !t.merchant.trim()) continue;
+    const k = t.merchant.trim().toLowerCase();
+    const g = groups.get(k);
+    if (g) g.push(t);
+    else groups.set(k, [t]);
+  }
+  const out: SalaryPattern[] = [];
+  groups.forEach((txs) => {
+    const months = new Set(txs.map((t) => t.date.slice(0, 7)));
+    if (months.size < 2) return;
+    const unfiled = txs.filter((t) => t.cat !== 'salary');
+    if (unfiled.length === 0) return;
+    const latest = [...txs].sort((a, b) => b.date.localeCompare(a.date))[0];
+    out.push({
+      merchant: latest.merchant.trim(),
+      amount: latest.amount,
+      ids: unfiled.map((t) => t.id),
+    });
+  });
+  return out;
 }

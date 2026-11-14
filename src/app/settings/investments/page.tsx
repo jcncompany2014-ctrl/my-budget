@@ -9,6 +9,7 @@ import Money from '@/components/Money';
 import { SkeletonList } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DecimalInput from '@/components/ui/DecimalInput';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
@@ -87,6 +88,7 @@ export default function InvestmentsPage() {
   const { accounts } = useAccounts();
   const [editing, setEditing] = useState<Investment | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const list = useMemo(() => items.filter((i) => i.scope === mode), [items, mode]);
   const liveIds = useMemo<QuoteId[]>(() => {
@@ -219,12 +221,7 @@ export default function InvestmentsPage() {
 
       <section className="px-5 pb-3 pt-2">
         {list.length === 0 ? (
-          <EmptyState
-            icon={LineChart}
-            iconColor="#00B956"
-            title="투자 자산을 추가해 보세요"
-            hint="주 통화로 평단을 입력하면 KRW 환산까지 실시간으로"
-          />
+          <EmptyState icon={LineChart} iconColor="#00B956" title="투자 자산이 없어요" />
         ) : (
           <div className="space-y-2">
             {enriched.map((e) => {
@@ -384,21 +381,27 @@ export default function InvestmentsPage() {
             setEditing(null);
             setCreating(false);
           }}
-          onDelete={
-            creating
-              ? undefined
-              : () => {
-                  remove(editing.id);
-                  toast.show('삭제 완료', 'info');
-                  setEditing(null);
-                }
-          }
+          onDelete={creating ? undefined : () => setDeleting(true)}
           onCancel={() => {
             setEditing(null);
             setCreating(false);
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deleting && editing !== null}
+        title={`'${editing?.name ?? ''}' 투자를 삭제할까요?`}
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          if (editing) remove(editing.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(false);
+          setEditing(null);
+        }}
+      />
     </>
   );
 }
@@ -675,9 +678,9 @@ function Editor({
       <Field
         label={
           draft.kind === 'crypto'
-            ? '티커 (예: BTC, ETH, DOGE — Binance USDT 페어)'
+            ? '티커 (Binance USDT 페어)'
             : draft.kind === 'stock'
-              ? '티커 (예: 005930=삼성전자, AAPL=애플, 7203.T=토요타)'
+              ? '티커'
               : '티커 (선택)'
         }
       >
@@ -802,14 +805,6 @@ function Editor({
               );
             })}
           </div>
-          {lev > 1 && (
-            <p
-              className="mt-1.5"
-              style={{ color: 'var(--color-danger)', fontSize: 11, fontWeight: 600 }}
-            >
-              {lev}x 레버리지 — P&L 표시 % 가 {lev}배로 증폭됩니다
-            </p>
-          )}
         </Field>
       )}
 
@@ -909,9 +904,6 @@ function Editor({
               );
             })}
           </div>
-          <p className="mt-1.5" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-            연동하면 시세 변할 때마다 그 계좌의 잔액도 같이 움직입니다
-          </p>
         </Field>
       )}
 

@@ -2,10 +2,12 @@
 
 import { Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { useFavorites } from '@/lib/favorites';
 import { fmt } from '@/lib/format';
@@ -15,6 +17,7 @@ export default function FavoritesPage() {
   const toast = useToast();
   const { mode } = useMode();
   const { items, ready, remove } = useFavorites();
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
 
   if (!ready)
     return (
@@ -40,25 +43,9 @@ export default function FavoritesPage() {
         }
       />
 
-      <section className="px-5 pb-3 pt-1">
-        <p
-          className="inline-flex flex-wrap items-center gap-1"
-          style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}
-        >
-          거래 추가 화면
-          <Star size={12} strokeWidth={2.4} fill="currentColor" aria-hidden />
-          버튼으로 등록할 수 있어요. 빠른 입력에서 한 번 누르면 즉시 거래 추가됩니다.
-        </p>
-      </section>
-
-      <section className="px-5 pb-10 pt-2">
+      <section className="px-5 pb-10 pt-1">
         {list.length === 0 ? (
-          <EmptyState
-            icon={Star}
-            iconColor="#F59E0B"
-            title="즐겨찾기가 없어요"
-            hint="거래 추가 화면의 별 버튼을 누르면 한 번에 등록됩니다"
-          />
+          <EmptyState icon={Star} iconColor="#F59E0B" title="즐겨찾기가 없어요" />
         ) : (
           <div className="overflow-hidden rounded-2xl" style={{ background: 'var(--color-card)' }}>
             {list.map((f, i) => (
@@ -93,10 +80,7 @@ export default function FavoritesPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    remove(f.id);
-                    toast.show('삭제 완료', 'info');
-                  }}
+                  onClick={() => setDeleting({ id: f.id, name: f.name })}
                   className="tap rounded-full px-3 py-1.5"
                   style={{
                     background: 'var(--color-gray-100)',
@@ -112,6 +96,19 @@ export default function FavoritesPage() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title={`'${deleting?.name ?? ''}' 즐겨찾기를 삭제할까요?`}
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          if (deleting) remove(deleting.id);
+          toast.show('삭제 완료', 'info');
+          setDeleting(null);
+        }}
+      />
     </>
   );
 }
