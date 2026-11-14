@@ -1,6 +1,7 @@
 'use client';
 
 import { computeMonthlyInterest } from '@/lib/credit-lines';
+import { applyTxToAccounts } from '@/lib/integrity';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import type { Account, LineOfCredit, Transaction } from '@/lib/types';
@@ -82,6 +83,7 @@ export function ensureAutoCreditLine() {
 
   if (newTxs.length === 0) return;
 
+  newTxs.forEach(applyTxToAccounts);
   writeStorageValue(KEYS.transactions, [...newTxs, ...txs]);
   window.localStorage.setItem(LAST_RUN_KEY, now.toISOString());
 }

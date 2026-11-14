@@ -232,6 +232,8 @@ export default function SmartPrompts() {
                         day,
                         cat: s.cat,
                         scope: s.scope,
+                        // The payments that got it detected are already in the ledger.
+                        postedThrough: new Date().toISOString(),
                       };
                       addRecurring(item);
                       dismiss(key);

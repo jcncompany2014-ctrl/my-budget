@@ -1,6 +1,14 @@
 'use client';
 
-import { Banknote, CreditCard, Landmark, type LucideIcon, TrendingUp, Wallet } from 'lucide-react';
+import {
+  Banknote,
+  CreditCard,
+  HandCoins,
+  Landmark,
+  type LucideIcon,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import BankIcon from '@/components/icons/BankIcon';
@@ -30,12 +38,14 @@ const TYPE_META: Record<AccountType, { label: string; Icon: LucideIcon }> = {
   card: { label: '카드', Icon: CreditCard },
   cash: { label: '현금', Icon: Banknote },
   investment: { label: '투자', Icon: TrendingUp },
+  receivable: { label: '받을 돈', Icon: HandCoins },
 };
 const TYPE_LABELS: Record<AccountType, string> = {
   bank: '은행',
   card: '카드',
   cash: '현금',
   investment: '투자',
+  receivable: '받을 돈',
 };
 
 export default function AccountsSettingsPage() {
@@ -258,8 +268,8 @@ function AccountEditor({
       </Field>
 
       <Field label="종류">
-        <div className="grid grid-cols-4 gap-2">
-          {(['bank', 'card', 'cash', 'investment'] as AccountType[]).map((t) => {
+        <div className="grid grid-cols-5 gap-2">
+          {(['bank', 'card', 'cash', 'investment', 'receivable'] as AccountType[]).map((t) => {
             const sel = draft.type === t;
             const { Icon, label } = TYPE_META[t];
             return (

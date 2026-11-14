@@ -19,16 +19,14 @@ export type IntegrityIssue = {
     | 'tx_unknown_account'
     | 'tx_unknown_category'
     | 'transfer_pair_missing'
-    | 'category_sign_mismatch'
-    | 'account_balance_drift';
-  /** Tx id (or account id for balance drift) the issue is anchored to. */
+    | 'category_sign_mismatch';
+  /** Tx id the issue is anchored to. */
   refId: string;
   /** Repair payload. */
   repair?:
     | { type: 'reassign_account'; txId: string; toAccId: string }
     | { type: 'reassign_category'; txId: string; toCatId: string }
-    | { type: 'unpair_transfer'; txId: string }
-    | { type: 'recompute_balance'; accId: string; computed: number };
+    | { type: 'unpair_transfer'; txId: string };
 };
 
 export type IntegrityReport = {
@@ -137,32 +135,10 @@ export function checkDataIntegrity(): IntegrityReport {
     }
   }
 
-  // 5) Account balance drift — sum of tx for that account ≠ balance.
-  // We don't know "initial balance" separately so we compare *direction*: if
-  // the cumulative tx delta would push balance the wrong way by more than a
-  // tolerance, surface it. Tolerance 100원 to absorb rounding.
-  const txDeltaByAcc = new Map<string, number>();
-  for (const t of txs) {
-    txDeltaByAcc.set(t.acc, (txDeltaByAcc.get(t.acc) ?? 0) + t.amount);
-  }
-  for (const a of accounts) {
-    const delta = txDeltaByAcc.get(a.id) ?? 0;
-    // We don't know what the user's seed balance was, so we only flag when
-    // there's a >5,000,000원 mismatch between recorded balance and tx delta —
-    // that's loud enough to be a real symptom of a missed correction or wipe.
-    const abs = Math.abs(a.balance - delta);
-    if (abs > 5_000_000) {
-      issues.push({
-        id: `bal-${a.id}`,
-        severity: 'warning',
-        title: '계좌 잔액과 거래 합계 차이',
-        detail: `${a.name}: 잔액 ${a.balance.toLocaleString('ko-KR')}원 vs 거래 합계 ${delta.toLocaleString('ko-KR')}원`,
-        kind: 'account_balance_drift',
-        refId: a.id,
-        repair: { type: 'recompute_balance', accId: a.id, computed: delta },
-      });
-    }
-  }
+  // No balance-vs-transactions check: an account's starting balance is entered
+  // directly, not as a transaction, so the two legitimately differ. The old
+  // check flagged every account opened with more than 5,000,000원 and its
+  // "repair" overwrote the real balance with the transaction sum.
 
   return {
     issues,
@@ -183,7 +159,6 @@ export function applyRepair(issue: IntegrityIssue): boolean {
   if (!issue.repair) return false;
   const r = issue.repair;
   const txs = readStorageValue<Transaction[]>(KEYS.transactions, []);
-  const accounts = readStorageValue<Account[]>(KEYS.accounts, []);
 
   if (r.type === 'reassign_account') {
     const next = txs.map((t) => (t.id === r.txId ? { ...t, acc: r.toAccId } : t));
@@ -198,11 +173,6 @@ export function applyRepair(issue: IntegrityIssue): boolean {
   if (r.type === 'unpair_transfer') {
     const next = txs.map((t) => (t.id === r.txId ? { ...t, transferPairId: undefined } : t));
     window.localStorage.setItem(KEYS.transactions, JSON.stringify(next));
-    return true;
-  }
-  if (r.type === 'recompute_balance') {
-    const next = accounts.map((a) => (a.id === r.accId ? { ...a, balance: r.computed } : a));
-    window.localStorage.setItem(KEYS.accounts, JSON.stringify(next));
     return true;
   }
   return false;

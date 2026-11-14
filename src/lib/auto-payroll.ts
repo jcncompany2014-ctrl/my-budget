@@ -1,6 +1,7 @@
 'use client';
 
 import type { BusinessProfile } from '@/lib/business-profile';
+import { applyTxToAccounts } from '@/lib/integrity';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import type { Employee, Transaction } from '@/lib/types';
@@ -80,6 +81,7 @@ export function ensureAutoPayroll() {
   const toAdd = newTxs.filter((t) => !existingIds.has(t.id));
   if (toAdd.length === 0) return;
 
+  toAdd.forEach(applyTxToAccounts);
   writeStorageValue(KEYS.transactions, [...toAdd, ...txs]);
   const latest = targetMonths[targetMonths.length - 1];
   const latestKey = `${latest.year}-${String(latest.month + 1).padStart(2, '0')}`;

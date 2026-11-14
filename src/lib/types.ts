@@ -10,7 +10,8 @@ export type Category = {
   scope: Scope;
 };
 
-export type AccountType = 'bank' | 'card' | 'cash' | 'investment';
+/** `receivable` — money owed to me (a personal loan to someone, an unsettled advance). */
+export type AccountType = 'bank' | 'card' | 'cash' | 'investment' | 'receivable';
 
 export type Account = {
   id: string;
@@ -91,6 +92,15 @@ export type RecurringItem = {
   day: number;
   cat: string;
   scope: Scope;
+  /** Account the payment leaves. Falls back to the scope's main account. */
+  acc?: string;
+  /** Destination account — when set, each run posts a transfer pair (적금·공제 납입). */
+  toAcc?: string;
+  /**
+   * Occurrences at or before this instant (ISO) are settled and never generated.
+   * Stamped at creation so a new item doesn't backfill past months.
+   */
+  postedThrough?: string;
 };
 
 export type Loan = {
@@ -113,6 +123,11 @@ export type Loan = {
   paymentDay?: number;
   /** When true, auto-loan-payment generates the monthly debit and decrements remaining. */
   autoPayment?: boolean;
+  /**
+   * Payments due at or before this instant (ISO) are settled and never auto-posted.
+   * Stamped when auto payment is switched on, so `remaining` isn't decremented for past months.
+   */
+  postedThrough?: string;
 };
 
 /**

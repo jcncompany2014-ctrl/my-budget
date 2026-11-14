@@ -32,6 +32,13 @@ export const KEYS = {
   inboxLog: 'asset/inbox-log/v1',
   inboxSeen: 'asset/inbox-seen/v1',
   inboxStatus: 'asset/inbox-status/v1',
+  // Cloud mirror + remote edits (lib/cloud-sync.ts)
+  syncKey: 'asset/sync-key/v1',
+  syncOff: 'asset/sync-off/v1',
+  syncStatus: 'asset/sync-status/v1',
+  syncPushed: 'asset/sync-pushed/v1',
+  syncAcks: 'asset/sync-acks/v1',
+  syncLog: 'asset/sync-log/v1',
 } as const;
 
 export type StorageKey = (typeof KEYS)[keyof typeof KEYS];

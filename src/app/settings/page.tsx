@@ -50,6 +50,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { ensureAutoBackup, lastAutoBackupAt, restoreLastAutoBackup } from '@/lib/auto-backup';
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
 import { previousMonthKey } from '@/lib/closing';
+import { cloudSyncConfigured } from '@/lib/cloud-sync';
 import { parseTransactionsCSV } from '@/lib/csv-import';
 import { useInboxKey } from '@/lib/inbox';
 import { useCurrency, useLanguage } from '@/lib/locale';
@@ -170,6 +171,15 @@ export default function SettingsPage() {
           }
           onClick={() => router.push('/settings/auto-record')}
         />
+        {cloudSyncConfigured() && (
+          <Row
+            icon={Sparkles}
+            iconBg="#D97757"
+            label="Claude 연결"
+            subtitle="대화에서 요청한 수정이 바로 반영"
+            onClick={() => router.push('/settings/claude')}
+          />
+        )}
       </Section>
 
       <Section title="언어 · 통화">

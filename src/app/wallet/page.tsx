@@ -85,6 +85,7 @@ export default function WalletPage() {
   const cards = accounts.filter((a) => a.type === 'card');
   const cash = accounts.filter((a) => a.type === 'cash');
   const investments = accounts.filter((a) => a.type === 'investment');
+  const receivables = accounts.filter((a) => a.type === 'receivable');
   const modeLoans = loans.filter((l) => l.scope === mode);
 
   // Compute live KRW value + cost per investment product
@@ -138,7 +139,8 @@ export default function WalletPage() {
   const modeCreditLines = creditLines.filter((l) => l.scope === mode);
   const locUsedTotal = modeCreditLines.reduce((s, l) => s + l.used, 0);
   const locLimitTotal = modeCreditLines.reduce((s, l) => s + l.limit, 0);
-  const net = cashTotal + investmentTotal + debtTotal - loanDebt - locUsedTotal;
+  const receivableTotal = receivables.reduce((s, a) => s + a.balance, 0);
+  const net = cashTotal + investmentTotal + receivableTotal + debtTotal - loanDebt - locUsedTotal;
 
   return (
     <>
@@ -179,6 +181,7 @@ export default function WalletPage() {
         <SummaryRow label="투자" value={investmentTotal} tone="text" />
         <SummaryRow label="카드 사용" value={Math.abs(debtTotal)} tone="danger" prefix="−" />
         <SummaryRow label="대출 잔액" value={loanDebt} tone="danger" prefix="−" />
+        {receivableTotal > 0 && <SummaryRow label="받을 돈" value={receivableTotal} tone="text" />}
         {locUsedTotal > 0 && (
           <SummaryRow
             label={`마이너스 사용 (한도 ${fmt(locLimitTotal)})`}
@@ -387,6 +390,14 @@ export default function WalletPage() {
               />
             </Link>
           )}
+        </Section>
+      )}
+
+      {receivables.length > 0 && (
+        <Section title="받을 돈">
+          {receivables.map((a) => (
+            <AccountCard key={a.id} account={a} onCorrect={setCorrectingAcc} />
+          ))}
         </Section>
       )}
 

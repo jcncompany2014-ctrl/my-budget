@@ -34,7 +34,8 @@ export default function RecurringSettingsPage() {
 
   const handleSave = (r: RecurringItem) => {
     if (creating) {
-      add(r);
+      // Starts from the next due date — past months are not backfilled.
+      add({ ...r, postedThrough: new Date().toISOString() });
       toast.show('정기결제 추가 완료', 'success');
     } else {
       update(r.id, r);

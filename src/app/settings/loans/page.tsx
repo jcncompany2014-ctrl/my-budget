@@ -219,8 +219,14 @@ export default function LoansPage() {
           loan={editing}
           isNew={creating}
           onSave={(l) => {
-            if (creating) add(l);
-            else update(l.id, l);
+            // Switching auto payment on starts from the next due date: `remaining`
+            // as entered already reflects every payment made so far.
+            const next =
+              l.autoPayment && (creating || !editing.autoPayment)
+                ? { ...l, postedThrough: new Date().toISOString() }
+                : l;
+            if (creating) add(next);
+            else update(next.id, next);
             toast.show(creating ? '대출 추가 완료' : '수정 완료', 'success');
             setEditing(null);
             setCreating(false);

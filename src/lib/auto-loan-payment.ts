@@ -1,5 +1,6 @@
 'use client';
 
+import { applyTxToAccounts } from '@/lib/integrity';
 import { computeMonthlyPayment, splitMonthlyPayment } from '@/lib/loans';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
@@ -9,9 +10,11 @@ const LAST_RUN_KEY = 'asset/auto-loan-last/v1';
 
 /**
  * For every loan with autoPayment enabled, generate a debit transaction on
- * each paymentDay that has passed since last run (within the trailing 3
- * months — same backfill window as recurring), and decrement the loan's
- * remaining balance by the principal portion of that payment.
+ * each paymentDay that has passed since the loan was last settled (within the
+ * trailing 3 months — same backfill window as recurring), debit the linked
+ * account, and decrement the loan's remaining balance by the principal
+ * portion of that payment. `postedThrough` is stamped when auto payment is
+ * switched on, so payments the entered `remaining` already reflects are skipped.
  *
  * Idempotent: each (loan id, year, month) combo creates at most one tx,
  * keyed by `loan-{year}-{month}-{loanId}`. If the user changes paymentDay
@@ -43,6 +46,7 @@ export function ensureAutoLoanPayment() {
   const now = new Date();
 
   const newTxs: Transaction[] = [];
+  const posted = new Set<string>();
   // Mutable copy so successive months see the decremented remaining.
   const updatedLoans = loans.map((l) => ({ ...l }));
 
@@ -57,7 +61,9 @@ export function ensureAutoLoanPayment() {
       const targetDay = Math.min(loan.paymentDay, lastDayOfMonth);
       const targetDate = new Date(m.getFullYear(), m.getMonth(), targetDay, 9, 0, 0);
       if (targetDate > now) continue;
-      if (targetDate.getTime() <= lastRun) continue;
+      // Loans saved before postedThrough existed share the global last-run stamp.
+      const settled = loan.postedThrough ? new Date(loan.postedThrough).getTime() : lastRun;
+      if (targetDate.getTime() <= settled) continue;
 
       const id = `loan-${m.getFullYear()}-${m.getMonth()}-${loan.id}`;
       if (existingIds.has(id)) continue;
@@ -88,12 +94,18 @@ export function ensureAutoLoanPayment() {
       });
 
       loan.remaining = Math.max(0, loan.remaining - principal);
+      posted.add(loan.id);
     }
   }
 
   if (newTxs.length === 0) return;
 
+  newTxs.forEach(applyTxToAccounts);
   writeStorageValue(KEYS.transactions, [...newTxs, ...txs]);
-  writeStorageValue(KEYS.loans, updatedLoans);
-  window.localStorage.setItem(LAST_RUN_KEY, now.toISOString());
+  const stamp = now.toISOString();
+  writeStorageValue(
+    KEYS.loans,
+    updatedLoans.map((l) => (posted.has(l.id) ? { ...l, postedThrough: stamp } : l)),
+  );
+  window.localStorage.setItem(LAST_RUN_KEY, stamp);
 }

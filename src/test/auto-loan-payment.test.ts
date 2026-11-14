@@ -110,6 +110,31 @@ describe('ensureAutoLoanPayment', () => {
     expect(after.remaining).toBeGreaterThan(95_000_000);
   });
 
+  it('starts from postedThrough and debits the linked account', () => {
+    // A 25,000,000원 / 3.9% / 60-month car loan entered after its 6th payment,
+    // on the day the 7th is due.
+    seedLoan({
+      principal: 25_000_000,
+      remaining: 22_713_278,
+      rate: 3.9,
+      termMonths: 60,
+      monthlyPayment: 459_285,
+      paymentDay: 14,
+      postedThrough: new Date(2026, 10, 14).toISOString(),
+    });
+    seedAccount({ balance: 3_113_881 });
+    vi.setSystemTime(new Date(2026, 10, 14, 12, 0, 0));
+    ensureAutoLoanPayment();
+
+    const txs = readTxs();
+    expect(txs).toHaveLength(1);
+    expect(txs[0]).toMatchObject({ amount: -459_285, acc: 'acc-1' });
+    expect(txs[0].memo).toContain('원금 385,467 + 이자 73,818');
+    expect(readLoans()[0].remaining).toBe(22_327_811);
+    const acc = JSON.parse(window.localStorage.getItem(KEYS.accounts) ?? '[]') as Account[];
+    expect(acc[0].balance).toBe(2_654_596);
+  });
+
   it('skips a loan whose linkedAccount no longer exists', () => {
     seedLoan({ linkedAccountId: 'ghost-account' });
     seedAccount(); // id is acc-1, not ghost-account
