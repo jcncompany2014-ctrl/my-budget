@@ -38,6 +38,7 @@ import {
   useInboxStatus,
 } from '@/lib/inbox';
 import type { InboxLogEntry } from '@/lib/inbox-import';
+import { extractInboxKey, isInboxAddress } from '@/lib/inbox-key';
 import { removeTransaction, useAllTransactions } from '@/lib/storage';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue } from '@/lib/store-factory';
@@ -71,6 +72,7 @@ export default function AutoRecordPage() {
   const { tx } = useAllTransactions();
   const [backend, setBackend] = useState<Backend>('checking');
   const [confirm, setConfirm] = useState<null | 'rotate' | 'off'>(null);
+  const [adopting, setAdopting] = useState(false);
 
   useEffect(() => {
     fetchInboxBackend().then((r) =>
@@ -86,6 +88,22 @@ export default function AutoRecordPage() {
       return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     }).length;
   }, [tx]);
+
+  // The address lives only on this device, so re-adding the app to the Home
+  // Screen loses it while the Shortcut goes on posting to the old one. Taking
+  // that address back also brings in everything queued under it since.
+  const adopt = async (next: string) => {
+    setAdopting(false);
+    if (next === key) {
+      toast.show('지금 쓰는 주소예요', 'info');
+      return;
+    }
+    setKey(next);
+    toast.show('쓰던 주소로 연결했어요', 'success');
+    const s = await syncInbox({ force: true });
+    const msg = s && describeSync(s);
+    if (msg) toast.show(msg, 'success');
+  };
 
   const url = key ? inboxUrl(key) : '';
   const onCopy = async () => {
@@ -168,6 +186,11 @@ export default function AutoRecordPage() {
               자동 기록 켜기
               <ChevronRight size={18} strokeWidth={2.6} />
             </button>
+          )}
+          {ready && !key && (
+            <div className="mt-2.5">
+              <AdoptAddress onAdopt={adopt} dark />
+            </div>
           )}
         </div>
       </section>
@@ -276,7 +299,22 @@ export default function AutoRecordPage() {
             </Link>
           </section>
 
+          {adopting && (
+            <section className="px-5 pb-1">
+              <AdoptAddress onAdopt={adopt} autoFocus />
+            </section>
+          )}
+
           <section className="flex justify-center gap-4 px-5 pb-12 pt-2">
+            <button
+              type="button"
+              onClick={() => setAdopting((v) => !v)}
+              aria-expanded={adopting}
+              className="tap px-2 py-2"
+              style={{ color: 'var(--color-text-3)', fontSize: 12, fontWeight: 700 }}
+            >
+              쓰던 주소 넣기
+            </button>
             <button
               type="button"
               onClick={() => setConfirm('rotate')}
@@ -323,6 +361,66 @@ export default function AutoRecordPage() {
         }}
       />
     </>
+  );
+}
+
+/** Paste the address a Shortcut already posts to. */
+function AdoptAddress({
+  onAdopt,
+  dark,
+  autoFocus,
+}: {
+  onAdopt: (key: string) => void;
+  dark?: boolean;
+  autoFocus?: boolean;
+}) {
+  const [text, setText] = useState('');
+  const bad = text.trim() !== '' && extractInboxKey(text) === null;
+  const take = (raw: string) => {
+    const key = extractInboxKey(raw);
+    if (!key) return false;
+    setText('');
+    onAdopt(key);
+    return true;
+  };
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        take(text);
+      }}
+    >
+      <input
+        value={text}
+        onChange={(e) => {
+          const v = e.target.value;
+          // A pasted address arrives in one go and needs no further tap; one
+          // typed by hand is not cut short at the first length that would do.
+          const pasted = v.length - text.length > 1;
+          if (!(pasted && isInboxAddress(v) && take(v))) setText(v);
+        }}
+        // biome-ignore lint/a11y/noAutofocus: opened by the tap just before
+        autoFocus={autoFocus}
+        placeholder="단축어에 넣어둔 주소 붙여넣기"
+        aria-label="단축어에 넣어둔 주소"
+        aria-invalid={bad}
+        inputMode="url"
+        enterKeyHint="done"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        className={`h-12 w-full min-w-0 rounded-2xl px-4 outline-none ${
+          dark ? 'placeholder:text-white/55' : ''
+        }`}
+        style={{
+          background: dark ? 'rgba(255,255,255,0.1)' : 'var(--color-gray-100)',
+          color: dark ? '#fff' : 'var(--color-text-1)',
+          fontSize: 16,
+          fontWeight: 600,
+          boxShadow: bad ? 'inset 0 0 0 1.5px var(--color-danger)' : undefined,
+        }}
+      />
+    </form>
   );
 }
 

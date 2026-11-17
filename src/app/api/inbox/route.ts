@@ -29,6 +29,14 @@ const NO_STORE = { 'Cache-Control': 'no-store' };
 const FIELDS = ['title', 'subtitle', 'text', 'body', 'message', 'content', 'notification'];
 const PAYMENT_WORDS = /승인|결제|취소|사용/;
 
+/**
+ * One line per request in the function log: what happened and to which queue
+ * (the first characters of its hash). Never the notice or the key.
+ */
+function note(method: string, box: string | null, outcome: string) {
+  console.info(`inbox ${method} ${box ? box.slice(0, 6) : '------'} ${outcome}`);
+}
+
 function reply(body: string, status = 200) {
   return new Response(body, {
     status,
@@ -68,34 +76,48 @@ async function readNotificationText(req: Request): Promise<string> {
 export async function POST(req: NextRequest) {
   const key = req.nextUrl.searchParams.get('k') ?? '';
   if (!isValidInboxKey(key)) {
+    note('POST', null, 'bad-key');
     return reply('가계부 주소가 올바르지 않아요. 앱 설정에서 주소를 다시 복사해 주세요.', 401);
   }
+  const box = await boxIdForKey(key);
   const store = inboxStore();
-  if (!store) return reply('가계부 서버 저장소가 아직 연결되지 않았어요.', 503);
+  if (!store) {
+    note('POST', box, 'no-store');
+    return reply('가계부 서버 저장소가 아직 연결되지 않았어요.', 503);
+  }
   if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) {
+    note('POST', box, 'too-long');
     return reply('알림 내용이 너무 길어요.', 413);
   }
 
   const text = (await readNotificationText(req)).trim().slice(0, MAX_TEXT);
-  if (!text)
+  if (!text) {
+    note('POST', box, 'empty');
     return reply('알림 내용이 비어 있어요. 단축어의 요청 본문(text)을 확인해 주세요.', 400);
+  }
 
   const parsed = parseCardNotification(text);
   if (!parsed.ok) {
-    if (parsed.reason === 'declined') return reply('승인 거절 알림이라 기록하지 않았어요.');
+    if (parsed.reason === 'declined') {
+      note('POST', box, 'declined');
+      return reply('승인 거절 알림이라 기록하지 않았어요.');
+    }
     // Unreadable but payment-ish → keep it for review in the app; anything
     // else (logins, promos) is dropped so it never costs a write.
     if (parsed.reason !== 'no-amount' || !PAYMENT_WORDS.test(text)) {
+      note('POST', box, `skipped ${parsed.reason} len=${text.length}`);
       return reply('결제 알림이 아니라 건너뛰었어요.');
     }
   }
 
   const item: InboxItem = { id: newItemId(), text, at: new Date().toISOString() };
   try {
-    await store.push(await boxIdForKey(key), item);
+    await store.push(box, item);
   } catch {
+    note('POST', box, 'store-failed');
     return reply('가계부 서버에 저장하지 못했어요. 잠시 후 다시 시도돼요.', 502);
   }
+  note('POST', box, parsed.ok ? 'queued' : 'queued-for-review');
   return reply(
     parsed.ok
       ? `가계부 ✓ ${noticeSummary(parsed.notice)}`
@@ -111,11 +133,15 @@ export async function GET(req: NextRequest) {
   const key = sp.get('k') ?? '';
   if (!isValidInboxKey(key)) return json({ error: 'bad-key' }, 401);
   if (!store) return json({ error: 'not-configured' }, 503);
+  const box = await boxIdForKey(key);
   try {
-    const box = await boxIdForKey(key);
+    // The cheap "nothing new" answer is the app's once-a-minute tick: not logged.
     if (!sp.has('deep') && !(await store.pending(box))) return json({ items: [] });
-    return json({ items: await store.read(box) });
+    const items = await store.read(box);
+    note('GET', box, `items=${items.length}`);
+    return json({ items });
   } catch {
+    note('GET', box, 'store-failed');
     return json({ error: 'store-failed' }, 502);
   }
 }
@@ -131,10 +157,13 @@ export async function DELETE(req: NextRequest) {
         .filter((x): x is string => typeof x === 'string' && /^[a-z0-9]{4,16}-[a-f0-9]{8}$/.test(x))
         .slice(0, 200)
     : [];
+  const box = await boxIdForKey(key);
   try {
-    await store.ack(await boxIdForKey(key), ids);
+    await store.ack(box, ids);
   } catch {
+    note('DELETE', box, 'store-failed');
     return json({ error: 'store-failed' }, 502);
   }
+  note('DELETE', box, `acked=${ids.length}`);
   return json({ ok: true, removed: ids.length });
 }
