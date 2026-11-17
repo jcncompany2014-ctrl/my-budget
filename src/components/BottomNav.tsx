@@ -89,8 +89,17 @@ export default function BottomNav() {
 
   // router.push() targets are not prefetched the way <Link>s are; without this
   // the first tap on + waited on the network before the screen changed.
+  // Prefetched routes expire, so they are warmed again whenever the app comes back.
   useEffect(() => {
-    for (const href of [ADD_HREF, '/transfer', '/quick-add']) router.prefetch(href);
+    const warm = () => {
+      if (document.visibilityState !== 'visible') return;
+      for (const href of [ADD_HREF, '/transfer', '/quick-add', '/tx', '/tx/edit', '/settings']) {
+        router.prefetch(href);
+      }
+    };
+    warm();
+    document.addEventListener('visibilitychange', warm);
+    return () => document.removeEventListener('visibilitychange', warm);
   }, [router]);
 
   const endPress = () => {

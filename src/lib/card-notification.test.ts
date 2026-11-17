@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { type CardNotice, noticeSummary, parseCardNotification } from './card-notification';
+import {
+  type CardNotice,
+  issuerKind,
+  mentionsMoney,
+  noticeSummary,
+  parseCardNotification,
+} from './card-notification';
 
 const NOW = new Date(2026, 10, 8, 15, 0); // 2026-11-08 15:00 local
 
@@ -205,10 +211,11 @@ describe('parseCardNotification — foreign, cancel, rejects', () => {
     expect(reason('[Web발신]\n신한카드(1234)승인거절 홍*동 12,500원 잔액부족 GS25역삼점')).toBe(
       'declined',
     );
-    expect(reason('(광고)[신한카드] 11월 혜택 안내 최대 10,000원 할인')).toBe('not-transaction');
-    expect(reason('[KB국민카드] 홍*동님 12월 결제예정금액 1,234,567원')).toBe('not-transaction');
-    expect(reason('[현대카드] 홍*동님 10월 이용금액 1,234,567원')).toBe('not-transaction');
-    expect(reason('홍길동님에게 50,000원을 보냈어요')).toBe('not-transaction');
+    expect(reason('(광고)[신한카드] 11월 혜택 안내 최대 10,000원 할인')).toBe('ad');
+    expect(reason('[KB국민카드] 홍*동님 12월 결제예정금액 1,234,567원')).toBe('notice');
+    expect(reason('[현대카드] 홍*동님 10월 이용금액 1,234,567원')).toBe('notice');
+    expect(reason('홍길동님에게 50,000원을 보냈어요')).toBe('transfer');
+    expect(reason('[KB]11/17 16:04 123***456 입금 500,000 잔액 3,613,881 홍길동')).toBe('transfer');
     expect(reason('[신한카드] 홍*동님, 오늘 하루도 좋은 하루 보내세요')).toBe('no-amount');
   });
 });
@@ -268,5 +275,30 @@ describe('amount vs. a name that starts with a unit', () => {
       amount: 1_200,
       currency: 'JPY',
     });
+  });
+});
+
+describe('mentionsMoney / issuerKind', () => {
+  it('tells a text about money from one that is not', () => {
+    expect(mentionsMoney('[KB]11/17 16:04 입금 500,000 잔액 3,613,881')).toBe(true);
+    expect(mentionsMoney('홍길동님에게 5000원을 보냈어요')).toBe(true);
+    expect(mentionsMoney('USD 9.99 NETFLIX.COM')).toBe(true);
+    expect(mentionsMoney('[신한카드] 인증번호 [482913]을 입력해 주세요')).toBe(false);
+    expect(mentionsMoney('새 기기에서 로그인했어요 11/17 16:04')).toBe(false);
+  });
+
+  it('sorts senders into card companies, banks and pay apps', () => {
+    expect(issuerKind('현대카드')).toBe('card');
+    expect(issuerKind('카카오뱅크')).toBe('bank');
+    expect(issuerKind('IBK기업은행')).toBe('bank');
+    expect(issuerKind('네이버페이')).toBe('pay');
+    expect(issuerKind('Apple Pay')).toBe('pay');
+  });
+
+  it('marks a 체크 card notice as debit', () => {
+    const r = parseCardNotification('KB국민체크(5678)승인 홍*동 4,500원 11/17 16:04 스타벅스', NOW);
+    expect(r.ok && r.notice.debit).toBe(true);
+    const c = parseCardNotification('현대카드 승인 홍*동 4,500원 일시불 11/17 16:04 스타벅스', NOW);
+    expect(c.ok && c.notice.debit).toBeUndefined();
   });
 });

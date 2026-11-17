@@ -5,10 +5,11 @@ import { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
 import Money from '@/components/Money';
+import { AccountSheet, CategorySheet } from '@/components/PickerSheets';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import { useAccounts } from '@/lib/accounts';
-import { CATEGORIES } from '@/lib/categories';
+import { CATEGORIES, expenseCategoriesByScope, incomeCategoriesByScope } from '@/lib/categories';
 import { useCategoryRules } from '@/lib/category-rules';
 import { defaultAccountId } from '@/lib/default-account';
 import { useFavorites } from '@/lib/favorites';
@@ -78,14 +79,42 @@ function QuickAddPage() {
     return { amount: q.amount, date: q.date, ...resolveQuick(q, mode, history, rules) };
   }, [deferredText, mode, history, rules]);
 
-  // The card a pasted notification named, else the one last used for this kind of row.
+  // What the line was read as can be corrected with a tap before saving.
+  const [catPick, setCatPick] = useState<string | null>(null);
+  const [accPick, setAccPick] = useState<string | null>(null);
+  const [picking, setPicking] = useState<'cat' | 'acc' | null>(null);
+  useEffect(() => {
+    if (!text.trim()) {
+      setCatPick(null);
+      setAccPick(null);
+    }
+  }, [text]);
+
+  // The account picked here, else the card a pasted notification named, else
+  // the one last used for this kind of row.
   const account = useMemo(() => {
     if (!parsed) return undefined;
+    const picked = accPick ? allAccounts.find((a) => a.id === accPick) : undefined;
+    if (picked) return picked;
     const named = allAccounts.find((a) => a.id === parsed.acc);
     if (named) return named;
     const id = defaultAccountId(history, accounts, mode, parsed.type === 'income');
     return accounts.find((a) => a.id === id);
-  }, [parsed, allAccounts, accounts, history, mode]);
+  }, [parsed, accPick, allAccounts, accounts, history, mode]);
+
+  const scope = account?.scope ?? mode;
+  const catChoices = useMemo(
+    () =>
+      parsed?.type === 'income' ? incomeCategoriesByScope(scope) : expenseCategoriesByScope(scope),
+    [parsed?.type, scope],
+  );
+  // A pick made for spending does not carry over once the line reads as income.
+  const cat =
+    parsed && catPick && catChoices.some((c) => c.id === catPick) ? catPick : (parsed?.cat ?? '');
+  const accChoices = useMemo(
+    () => accounts.filter((a) => a.type !== 'receivable' && a.type !== 'investment'),
+    [accounts],
+  );
 
   const myFavorites = favorites.filter((f) => f.scope === mode);
 
@@ -117,7 +146,7 @@ function QuickAddPage() {
         id: 'tn-' + Date.now().toString(36),
         date: parsed.date.toISOString(),
         amount: parsed.type === 'expense' ? -parsed.amount : parsed.amount,
-        cat: parsed.cat,
+        cat,
         merchant: parsed.merchant,
         memo: '',
         acc: account.id,
@@ -222,7 +251,7 @@ function QuickAddPage() {
         {parsed && (
           <div className="mt-3 rounded-2xl p-4" style={{ background: 'var(--color-primary-soft)' }}>
             <div className="flex items-center gap-3">
-              <MerchantAvatar merchant={parsed.merchant} catId={parsed.cat} size={40} />
+              <MerchantAvatar merchant={parsed.merchant} catId={cat} size={40} />
               <div className="min-w-0 flex-1">
                 <p
                   className="truncate"
@@ -242,9 +271,7 @@ function QuickAddPage() {
                     month: 'long',
                     day: 'numeric',
                     weekday: 'short',
-                  })}{' '}
-                  · {CATEGORIES[parsed.cat]?.name ?? '기타'}
-                  {account ? ` · ${account.name}` : ''}
+                  })}
                 </p>
               </div>
               <Money
@@ -258,10 +285,46 @@ function QuickAddPage() {
                 }}
               />
             </div>
+            <div className="mt-3 flex gap-2">
+              {(
+                [
+                  ['cat', CATEGORIES[cat]?.name ?? '기타'],
+                  ['acc', account?.name ?? '계좌 없음'],
+                ] as const
+              ).map(([kind, label]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setPicking(kind)}
+                  className="tap flex h-10 min-w-0 flex-1 items-center justify-between gap-1 rounded-xl px-3"
+                  style={{ background: 'var(--color-card)' }}
+                >
+                  <span
+                    className="truncate"
+                    style={{
+                      color: 'var(--color-text-1)',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {label}
+                  </span>
+                  <svg viewBox="0 0 24 24" width={14} height={14} fill="none" aria-hidden="true">
+                    <path
+                      d="M6 9l6 6 6-6"
+                      stroke="var(--color-text-3)"
+                      strokeWidth={2.4}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={submitParsed}
-              className="tap mt-3 h-12 w-full rounded-xl"
+              className="tap mt-2 h-12 w-full rounded-xl"
               style={{
                 background: 'var(--color-primary)',
                 color: '#fff',
@@ -327,6 +390,27 @@ function QuickAddPage() {
 
       {/* No bottom nav on this page, so it clears the home indicator itself. */}
       <div style={{ height: 'calc(env(safe-area-inset-bottom) + 20px)' }} />
+
+      <CategorySheet
+        open={picking === 'cat'}
+        onClose={() => setPicking(null)}
+        choices={catChoices}
+        value={cat}
+        onPick={(id) => {
+          setCatPick(id);
+          setPicking(null);
+        }}
+      />
+      <AccountSheet
+        open={picking === 'acc'}
+        onClose={() => setPicking(null)}
+        choices={accChoices}
+        value={account?.id}
+        onPick={(id) => {
+          setAccPick(id);
+          setPicking(null);
+        }}
+      />
     </>
   );
 }

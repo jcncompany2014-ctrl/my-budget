@@ -115,3 +115,18 @@ export function useAccounts() {
   );
   return { ...all, accounts, allAccounts: all.accounts };
 }
+
+// ─── "Open this account's editor next" ───
+// Set by a screen that just created or pointed at an account (the "처음 보는
+// 카드" prompt), read once by the accounts screen when it opens.
+let accountToEdit: string | null = null;
+
+export function editAccountNext(id: string) {
+  accountToEdit = id;
+}
+
+export function takeAccountToEdit(): string | null {
+  const id = accountToEdit;
+  accountToEdit = null;
+  return id;
+}

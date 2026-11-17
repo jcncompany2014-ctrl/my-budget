@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { SkeletonHome } from '@/components/Skeleton';
@@ -319,9 +320,18 @@ export default function CalendarPage() {
                 return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
               })()}
             </h2>
-            <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>
-              {dayTx.length}건
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>
+                {dayTx.length}건
+              </span>
+              <Link
+                href={`/add?type=expense&date=${selectedDay}`}
+                className="tap -mr-1 rounded-full px-2.5 py-1.5 text-xs font-bold"
+                style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}
+              >
+                + 추가
+              </Link>
+            </div>
           </div>
           {dayTx.length === 0 ? (
             // One line, not the full illustration: most days of a month are empty.

@@ -204,7 +204,22 @@ export default function CreditLinePage() {
         <Editor
           item={editing}
           isNew={creating}
-          onSave={(l) => {
+          onSave={(draft) => {
+            const on = !!draft.autoInterest && !!draft.linkedAccountId && !!draft.interestDay;
+            const wasOn =
+              !creating &&
+              !!editing.autoInterest &&
+              !!editing.linkedAccountId &&
+              !!editing.interestDay;
+            // Stamped here, not the next time the app is opened — that could be after the first interest day.
+            const l = {
+              ...draft,
+              postedThrough: on
+                ? wasOn && draft.postedThrough
+                  ? draft.postedThrough
+                  : new Date().toISOString()
+                : undefined,
+            };
             if (creating) add(l);
             else update(l.id, l);
             toast.show(creating ? '추가 완료' : '수정 완료', 'success');
@@ -255,7 +270,7 @@ function Editor({
   const monthlyInterest = computeMonthlyInterest(draft.used, draft.rate);
 
   return (
-    <Sheet open onClose={onCancel}>
+    <Sheet open onClose={onCancel} keep={draft !== item}>
       <h2
         className="mb-4"
         style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}
@@ -422,7 +437,7 @@ function Editor({
               onChange={(e) =>
                 setDraft({
                   ...draft,
-                  interestDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
+                  interestDay: Math.min(31, Math.max(0, Number(e.target.value) || 0)) || undefined,
                 })
               }
               placeholder="예) 25"

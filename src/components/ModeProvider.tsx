@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Scope } from '@/lib/types';
 
 const STORAGE_KEY = 'asset/mode/v1';
@@ -47,7 +47,6 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
     setMode(mode === 'personal' ? 'business' : 'personal');
   }, [mode, setMode]);
 
-  return (
-    <ModeContext.Provider value={{ mode, setMode, toggle, ready }}>{children}</ModeContext.Provider>
-  );
+  const value = useMemo(() => ({ mode, setMode, toggle, ready }), [mode, setMode, toggle, ready]);
+  return <ModeContext.Provider value={value}>{children}</ModeContext.Provider>;
 }

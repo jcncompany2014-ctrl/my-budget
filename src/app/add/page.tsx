@@ -21,7 +21,7 @@ import { useFavorites } from '@/lib/favorites';
 import { fmt, fmtShort } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useLocations } from '@/lib/locations';
-import { useAllTransactions } from '@/lib/storage';
+import { addTransactions, useAllTransactions } from '@/lib/storage';
 import { deriveTemplates, type TxTemplate } from '@/lib/templates';
 import { buildTransferLegs } from '@/lib/transfers';
 import type { Transaction } from '@/lib/types';
@@ -71,7 +71,15 @@ function AddPage() {
   const [hasReceipt, setHasReceipt] = useState<boolean>(false);
   const [continueAfterSave, setContinueAfterSave] = useState(false);
   // Pickable date — defaults to today, can be any past/future date.
-  const [txDate, setTxDate] = useState<Date>(() => new Date());
+  // ?date=YYYY-MM-DD arrives from the calendar: that day, at the current time of day.
+  const [txDate, setTxDate] = useState<Date>(() => {
+    const now = new Date();
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(search.get('date') ?? '');
+    if (!m) return now;
+    const d = new Date(now);
+    d.setFullYear(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return Number.isNaN(d.getTime()) ? now : d;
+  });
 
   // Recent merchant suggestions for autocomplete
   const recentMerchants = useMemo(() => {
@@ -207,7 +215,7 @@ function AddPage() {
         legs[0].merchant = merchant.trim() || `저축 → ${savingsAcc.name}`;
         // The deposit leg stays a plain transfer — two 'saving' legs counted the amount twice.
         legs[1].merchant = merchant.trim() || `← ${fromAcc.name}`;
-        legs.forEach((l) => add(l));
+        addTransactions(legs);
         toast.show(`${savingsAcc.name}로 자동 이체 완료`, {
           variant: 'success',
           durationMs: 4500,

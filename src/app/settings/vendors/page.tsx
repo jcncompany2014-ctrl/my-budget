@@ -188,7 +188,7 @@ function Editor({
   const valid = draft.name.trim().length > 0;
 
   return (
-    <Sheet open onClose={onCancel}>
+    <Sheet open onClose={onCancel} keep={draft !== v}>
       <h2
         className="mb-4"
         style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}

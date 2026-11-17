@@ -4,19 +4,20 @@ import {
   ArrowLeft,
   BellRing,
   Check,
+  ChevronDown,
   ChevronRight,
+  ClipboardPaste,
   CloudOff,
   Copy,
   CreditCard,
   FlaskConical,
   History,
-  KeyRound,
   Send,
   Smartphone,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
@@ -24,6 +25,7 @@ import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useAllAccounts } from '@/lib/accounts';
+import { type BackupFile, exportAll } from '@/lib/backup';
 import { noticeSummary } from '@/lib/card-notification';
 import { CATEGORIES } from '@/lib/categories';
 import {
@@ -35,10 +37,19 @@ import {
   sendTestNotification,
   syncInbox,
   useInboxKey,
-  useInboxStatus,
+  useInboxLog,
 } from '@/lib/inbox';
-import type { InboxLogEntry } from '@/lib/inbox-import';
+import { cardLabel, type InboxLogEntry, skipLabel } from '@/lib/inbox-import';
 import { extractInboxKey, isInboxAddress } from '@/lib/inbox-key';
+import {
+  claimServerBackup,
+  describeBackup,
+  fetchServerBackup,
+  forgetServerBackups,
+  isBlankLedger,
+  restoreServerBackup,
+  syncServerBackup,
+} from '@/lib/server-backup';
 import { removeTransaction, useAllTransactions } from '@/lib/storage';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue } from '@/lib/store-factory';
@@ -68,11 +79,14 @@ export default function AutoRecordPage() {
   const router = useRouter();
   const toast = useToast();
   const { value: key, ready, set: setKey } = useInboxKey();
-  const { value: status } = useInboxStatus();
+  const { items: log } = useInboxLog();
   const { tx } = useAllTransactions();
   const [backend, setBackend] = useState<Backend>('checking');
   const [confirm, setConfirm] = useState<null | 'rotate' | 'off'>(null);
   const [adopting, setAdopting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  // A server backup found under a pasted address, waiting for a yes or no.
+  const [offer, setOffer] = useState<{ key: string; data: BackupFile } | null>(null);
 
   useEffect(() => {
     fetchInboxBackend().then((r) =>
@@ -92,17 +106,45 @@ export default function AutoRecordPage() {
   // The address lives only on this device, so re-adding the app to the Home
   // Screen loses it while the Shortcut goes on posting to the old one. Taking
   // that address back also brings in everything queued under it since.
+  const connect = async (next: string) => {
+    setKey(next);
+    // Whatever is saved under this address, this device's ledger is the one
+    // being kept (a backup worth restoring was offered before getting here).
+    void claimServerBackup();
+    toast.show('쓰던 주소로 연결했어요', 'success');
+    const s = await syncInbox({ force: true });
+    const msg = s && describeSync(s);
+    if (msg) toast.show(msg, 'success');
+  };
+
   const adopt = async (next: string) => {
     setAdopting(false);
     if (next === key) {
       toast.show('지금 쓰는 주소예요', 'info');
       return;
     }
-    setKey(next);
-    toast.show('쓰던 주소로 연결했어요', 'success');
-    const s = await syncInbox({ force: true });
-    const msg = s && describeSync(s);
-    if (msg) toast.show(msg, 'success');
+    // Looked up before the address goes into use: a restore replaces the
+    // ledger, so the queued notices must be imported after it, not before.
+    setChecking(true);
+    const got = await fetchServerBackup(next);
+    setChecking(false);
+    if (!got.ok) {
+      // Not knowing is not "no backup": connecting now could import the queue
+      // into an empty app and save that over the real one.
+      toast.show('서버에 연결하지 못했어요 — 잠시 후 다시 붙여넣어 주세요', 'error');
+      return;
+    }
+    const data = got.data;
+    const mine = exportAll();
+    if (
+      data &&
+      !isBlankLedger(data) &&
+      (isBlankLedger(mine) || data.transactions.length > mine.transactions.length)
+    ) {
+      setOffer({ key: next, data });
+      return;
+    }
+    await connect(next);
   };
 
   const url = key ? inboxUrl(key) : '';
@@ -169,7 +211,7 @@ export default function AutoRecordPage() {
                         : '서버 응답 없음'
                 }
               />
-              <HeroChip tone="muted" label={`마지막 동기화 ${ago(status.lastSyncAt)}`} />
+              <HeroChip tone="muted" label={`마지막 알림 ${ago(log[0]?.at)}`} />
               <HeroChip tone="muted" label={`이번 달 ${monthCount}건`} />
             </div>
           )}
@@ -189,7 +231,7 @@ export default function AutoRecordPage() {
           )}
           {ready && !key && (
             <div className="mt-2.5">
-              <AdoptAddress onAdopt={adopt} dark />
+              <AdoptAddress onAdopt={adopt} busy={checking} dark />
             </div>
           )}
         </div>
@@ -207,25 +249,46 @@ export default function AutoRecordPage() {
               color="var(--color-danger)"
               className="mt-0.5 shrink-0"
             />
-            <div>
-              <p style={{ color: 'var(--color-danger)', fontSize: 13, fontWeight: 800 }}>
-                서버 저장소가 아직 연결되지 않았어요
-              </p>
-              <p
-                className="mt-0.5 leading-snug"
-                style={{ color: 'var(--color-text-2)', fontSize: 12 }}
-              >
-                Vercel 프로젝트에 Blob 저장소(Private)를 연결하면 바로 동작해요. 연결 전에는
-                단축어가 보낸 알림을 받을 곳이 없어요.
-              </p>
-            </div>
+            <p style={{ color: 'var(--color-danger)', fontSize: 13, fontWeight: 800 }}>
+              서버 저장소(Vercel Blob)가 연결되지 않았어요
+            </p>
           </div>
         </section>
       )}
 
       {key && (
         <>
-          <StepCard n={1} icon={KeyRound} title="내 전용 주소">
+          <StepCard icon={CreditCard} title="카드 연결">
+            <CardLinks />
+          </StepCard>
+
+          <section className="px-5 pb-3">
+            <Link
+              href="/inbox"
+              className="tap flex items-center gap-3 rounded-2xl px-4 py-3.5"
+              style={{ background: 'var(--color-card)' }}
+            >
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-xl"
+                style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}
+              >
+                <History size={18} strokeWidth={2.4} />
+              </span>
+              <span
+                className="min-w-0 flex-1"
+                style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 700 }}
+              >
+                자동 기록 내역
+              </span>
+              <ChevronRight size={18} strokeWidth={2.4} color="var(--color-text-3)" />
+            </Link>
+          </section>
+
+          <Fold icon={FlaskConical} title="알림 테스트">
+            <TestPanel inboxKey={key} />
+          </Fold>
+
+          <Fold icon={Smartphone} title="단축어 설정">
             <button
               type="button"
               onClick={onCopy}
@@ -251,57 +314,14 @@ export default function AutoRecordPage() {
                 복사
               </span>
             </button>
-            <p
-              className="mt-2 leading-snug"
-              style={{ color: 'var(--color-text-3)', fontSize: 11.5 }}
-            >
-              이 주소를 아는 사람은 내 가계부에 거래를 넣을 수 있어요. 단축어에만 넣고 공유하지
-              마세요.
-            </p>
-          </StepCard>
-
-          <StepCard n={2} icon={Smartphone} title="아이폰 단축어 만들기">
-            <ShortcutGuide onCopy={onCopy} />
-          </StepCard>
-
-          <StepCard n={3} icon={CreditCard} title="카드 끝 4자리 연결">
-            <CardLinks />
-          </StepCard>
-
-          <StepCard icon={FlaskConical} title="알림 테스트">
-            <TestPanel inboxKey={key} />
-          </StepCard>
-
-          <section className="px-5 pb-3">
-            <Link
-              href="/inbox"
-              className="tap flex items-center gap-3 rounded-2xl px-4 py-3.5"
-              style={{ background: 'var(--color-card)' }}
-            >
-              <span
-                className="flex h-9 w-9 items-center justify-center rounded-xl"
-                style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}
-              >
-                <History size={18} strokeWidth={2.4} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span
-                  className="block"
-                  style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 700 }}
-                >
-                  자동 기록 내역
-                </span>
-                <span className="block" style={{ color: 'var(--color-text-3)', fontSize: 12 }}>
-                  중복·취소·못 읽은 알림 확인
-                </span>
-              </span>
-              <ChevronRight size={18} strokeWidth={2.4} color="var(--color-text-3)" />
-            </Link>
-          </section>
+            <div className="mt-3">
+              <ShortcutGuide onCopy={onCopy} />
+            </div>
+          </Fold>
 
           {adopting && (
             <section className="px-5 pb-1">
-              <AdoptAddress onAdopt={adopt} autoFocus />
+              <AdoptAddress onAdopt={adopt} busy={checking} autoFocus />
             </section>
           )}
 
@@ -342,8 +362,12 @@ export default function AutoRecordPage() {
         confirmLabel="재발급"
         onCancel={() => setConfirm(null)}
         onConfirm={() => {
+          // The backups kept under the old address go with it; the next one is
+          // written under the new address straight away.
+          if (key) forgetServerBackups(key);
           setKey(generateInboxKey());
           setConfirm(null);
+          void syncServerBackup({ force: true, fresh: true });
           toast.show('새 주소를 만들었어요 — 단축어의 URL을 바꿔 주세요', 'info');
         }}
       />
@@ -360,6 +384,39 @@ export default function AutoRecordPage() {
           toast.show('자동 기록을 껐어요', 'info');
         }}
       />
+      <ConfirmDialog
+        open={offer !== null}
+        title="서버 백업으로 되돌릴까요?"
+        description={
+          offer
+            ? `${new Date(offer.data.exportedAt).toLocaleString('ko-KR', {
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })} · ${describeBackup(offer.data)}`
+            : undefined
+        }
+        confirmLabel="되돌리기"
+        cancelLabel="지금 그대로"
+        onDismiss={() => {
+          // Closed without choosing: the address is not taken into use either.
+          setOffer(null);
+          toast.show('주소를 연결하지 않았어요', 'info');
+        }}
+        onCancel={() => {
+          const o = offer;
+          setOffer(null);
+          if (o) void connect(o.key);
+        }}
+        onConfirm={() => {
+          const o = offer;
+          setOffer(null);
+          if (!o) return;
+          restoreServerBackup(o.data, o.key);
+          window.location.reload();
+        }}
+      />
     </>
   );
 }
@@ -367,15 +424,28 @@ export default function AutoRecordPage() {
 /** Paste the address a Shortcut already posts to. */
 function AdoptAddress({
   onAdopt,
+  busy,
   dark,
   autoFocus,
 }: {
   onAdopt: (key: string) => void;
+  /** The pasted address is being looked up. */
+  busy?: boolean;
   dark?: boolean;
   autoFocus?: boolean;
 }) {
   const [text, setText] = useState('');
+  const input = useRef<HTMLInputElement>(null);
   const bad = text.trim() !== '' && extractInboxKey(text) === null;
+  const paste = async () => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      if (!take(clip)) setText(clip.trim().slice(0, 300));
+    } catch {
+      // No clipboard access (or the permission bubble was dismissed): type or paste by hand.
+      input.current?.focus();
+    }
+  };
   const take = (raw: string) => {
     const key = extractInboxKey(raw);
     if (!key) return false;
@@ -385,12 +455,15 @@ function AdoptAddress({
   };
   return (
     <form
+      className="relative"
       onSubmit={(e) => {
         e.preventDefault();
         take(text);
       }}
     >
       <input
+        ref={input}
+        disabled={busy}
         value={text}
         onChange={(e) => {
           const v = e.target.value;
@@ -401,7 +474,7 @@ function AdoptAddress({
         }}
         // biome-ignore lint/a11y/noAutofocus: opened by the tap just before
         autoFocus={autoFocus}
-        placeholder="단축어에 넣어둔 주소 붙여넣기"
+        placeholder={busy ? '확인하는 중…' : '단축어에 넣어둔 주소'}
         aria-label="단축어에 넣어둔 주소"
         aria-invalid={bad}
         inputMode="url"
@@ -409,7 +482,7 @@ function AdoptAddress({
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck={false}
-        className={`h-12 w-full min-w-0 rounded-2xl px-4 outline-none ${
+        className={`h-12 w-full min-w-0 rounded-2xl pl-4 pr-[104px] outline-none ${
           dark ? 'placeholder:text-white/55' : ''
         }`}
         style={{
@@ -420,6 +493,21 @@ function AdoptAddress({
           boxShadow: bad ? 'inset 0 0 0 1.5px var(--color-danger)' : undefined,
         }}
       />
+      <button
+        type="button"
+        onClick={paste}
+        disabled={busy}
+        className="tap absolute right-1.5 top-1.5 flex h-9 items-center gap-1 rounded-xl px-3"
+        style={{
+          background: dark ? '#FFD66B' : 'var(--color-text-1)',
+          color: dark ? '#1B1F3B' : 'var(--color-card)',
+          fontSize: 12.5,
+          fontWeight: 800,
+        }}
+      >
+        <ClipboardPaste size={14} strokeWidth={2.6} />
+        붙여넣기
+      </button>
     </form>
   );
 }
@@ -476,6 +564,49 @@ function StepCard({
           <h2 style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 800 }}>{title}</h2>
         </div>
         {children}
+      </div>
+    </section>
+  );
+}
+
+/** A section only needed now and then, closed until tapped. */
+function Fold({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof BellRing;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="px-5 pb-3">
+      <div className="rounded-2xl" style={{ background: 'var(--color-card)' }}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="tap flex w-full items-center gap-2 px-4 py-3.5 text-left"
+        >
+          <Icon size={17} strokeWidth={2.4} color="var(--color-text-2)" />
+          <span
+            className="flex-1"
+            style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 800 }}
+          >
+            {title}
+          </span>
+          <ChevronDown
+            size={18}
+            strokeWidth={2.4}
+            color="var(--color-text-3)"
+            style={{
+              transform: open ? 'rotate(180deg)' : undefined,
+              transition: 'transform 160ms',
+            }}
+          />
+        </button>
+        {open && <div className="px-4 pb-4">{children}</div>}
       </div>
     </section>
   );
@@ -643,10 +774,6 @@ function ShortcutGuide({ onCopy }: { onCopy: () => void }) {
           </li>
         ))}
       </ol>
-      <p className="mt-3" style={{ color: 'var(--color-text-3)', fontSize: 11, lineHeight: 1.45 }}>
-        메뉴 이름은 iOS 버전에 따라 조금 다를 수 있어요. 다 만들었으면 실제로 한 번 결제해 보고 앱을
-        열어 보세요.
-      </p>
     </div>
   );
 }
@@ -659,25 +786,20 @@ function CardLinks() {
     return <p style={{ color: 'var(--color-text-3)', fontSize: 12 }}>연결할 카드·계좌가 없어요</p>;
   }
   return (
-    <>
-      <p className="mb-2.5 leading-snug" style={{ color: 'var(--color-text-3)', fontSize: 11.5 }}>
-        알림에 찍히는 카드 번호 끝 4자리를 적어두면 그 카드로 기록돼요. 비워두면 카드사 이름으로,
-        그래도 모르면 주거래 계좌로 들어가요.
-      </p>
-      <div className="overflow-hidden rounded-xl" style={{ background: 'var(--color-gray-50)' }}>
-        {linkable.map((a, i) => (
-          <CardLinkRow
-            key={a.id}
-            account={a}
-            last={i === linkable.length - 1}
-            onSave={(last4) => {
-              update(a.id, { last4: last4 || undefined });
-              toast.show(last4 ? `${a.name} ****${last4} 연결` : `${a.name} 연결 해제`, 'info');
-            }}
-          />
-        ))}
-      </div>
-    </>
+    <div className="overflow-hidden rounded-xl" style={{ background: 'var(--color-gray-50)' }}>
+      {linkable.map((a, i) => (
+        <CardLinkRow
+          key={a.id}
+          account={a}
+          last={i === linkable.length - 1}
+          onSave={(last4) => {
+            // Clearing the digits also forgets what the notices taught about this account.
+            update(a.id, last4 ? { last4 } : { last4: undefined, cards: undefined });
+            toast.show(last4 ? `${a.name} ****${last4} 연결` : `${a.name} 연결 해제`, 'info');
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -710,7 +832,9 @@ function CardLinkRow({
           {account.name}
         </p>
         <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
-          {account.bank || (account.type === 'card' ? '카드' : '계좌')}
+          {account.cards?.length
+            ? account.cards.map(cardLabel).join(' · ')
+            : account.bank || (account.type === 'card' ? '카드' : '계좌')}
         </p>
       </div>
       <input
@@ -759,12 +883,6 @@ const SAMPLES: Array<{ label: string; make: () => string }> = [
       `[Web발신]\n신한카드(1234)승인취소 홍*동 4,500원(일시불)${sampleTime()} 스타벅스 역삼점`,
   },
 ];
-
-const REASON_LABEL = {
-  declined: '승인 거절 알림이라 기록하지 않아요',
-  'not-transaction': '결제 알림이 아니라 건너뛰어요',
-  'no-amount': '금액을 찾지 못했어요 — 수신함에 ‘확인 필요’로 남아요',
-} as const;
 
 function TestPanel({ inboxKey }: { inboxKey: string }) {
   const toast = useToast();
@@ -881,7 +999,7 @@ function TestPanel({ inboxKey }: { inboxKey: string }) {
             </>
           ) : (
             <p style={{ color: 'var(--color-text-2)', fontSize: 12, fontWeight: 600 }}>
-              {preview.result.ok ? '' : REASON_LABEL[preview.result.reason]}
+              {preview.result.ok ? '' : `${skipLabel(preview.result.reason)} — 기록하지 않아요`}
             </p>
           )}
         </div>

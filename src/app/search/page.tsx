@@ -3,7 +3,7 @@
 import { Search, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import Highlight from '@/components/Highlight';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import { useMode } from '@/components/ModeProvider';
@@ -14,25 +14,50 @@ import Section from '@/components/ui/Section';
 import { useAccounts } from '@/lib/accounts';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { fmt, fmtSigned, isExpense } from '@/lib/format';
+import {
+  holdSearchView,
+  releaseSearchView,
+  rememberSearchView,
+  type SearchView,
+  takeSearchView,
+} from '@/lib/search-view';
 import { useTransactions } from '@/lib/storage';
+
+/** Rows drawn at once — the count and total above the list cover every match. */
+const RESULT_LIMIT = 300;
 
 export default function SearchPage() {
   const router = useRouter();
-  const { tx, ready } = useTransactions();
+  const { tx, allTx, ready } = useTransactions();
   const { accounts } = useAccounts();
   const { mode } = useMode();
 
-  const [query, setQuery] = useState('');
-  const [minAmount, setMinAmount] = useState('');
-  const [maxAmount, setMaxAmount] = useState('');
-  const [catFilter, setCatFilter] = useState<string | null>(null);
-  const [accFilter, setAccFilter] = useState<string | null>(null);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [datePreset, setDatePreset] = useState<'all' | '7d' | '30d' | '3m' | 'custom'>('all');
-  const [showFilters, setShowFilters] = useState(false);
+  // One object, kept outside the component too: the page remounts when a result
+  // is opened and closed, and the stats and wallet screens open it pre-filtered.
+  const [view, setView] = useState<SearchView>(takeSearchView);
+  useEffect(() => releaseSearchView(), []);
+  useEffect(() => rememberSearchView(view), [view]);
+  const patch = (p: Partial<SearchView>) => setView((cur) => ({ ...cur, ...p }));
+  const { query, minAmount, maxAmount, dateFrom, dateTo, datePreset, showFilters } = view;
+  const catFilter = view.cat;
+  const accFilter = view.acc;
+  const setQuery = (v: string) => patch({ query: v });
+  const setMinAmount = (v: string) => patch({ minAmount: v });
+  const setMaxAmount = (v: string) => patch({ maxAmount: v });
+  const setCatFilter = (v: string | null) => patch({ cat: v });
+  const setAccFilter = (v: string | null) => patch({ acc: v });
+  const setDateFrom = (v: string) => patch({ dateFrom: v });
+  const setDateTo = (v: string) => patch({ dateTo: v });
+  const setDatePreset = (v: SearchView['datePreset']) => patch({ datePreset: v });
+  const setShowFilters = (v: boolean) => patch({ showFilters: v });
+  const deferredQuery = useDeferredValue(query);
 
-  const cats = useMemo(() => expenseCategoriesByScope(mode), [mode]);
+  // The scope's spending categories, plus whichever one a preset filtered by.
+  const cats = useMemo(() => {
+    const list = expenseCategoriesByScope(mode);
+    const preset = catFilter ? CATEGORIES[catFilter] : undefined;
+    return preset && !list.some((c) => c.id === preset.id) ? [preset, ...list] : list;
+  }, [mode, catFilter]);
 
   const recentMerchants = useMemo(() => {
     const s = new Set<string>();
@@ -75,14 +100,15 @@ export default function SearchPage() {
 
   const results = useMemo(() => {
     if (!ready) return [];
-    let r = tx;
-    if (query.trim()) {
-      const q = query.toLowerCase();
+    // An account's history is every row on it, whichever ledger the row counts in.
+    let r = accFilter ? allTx : tx;
+    if (deferredQuery.trim()) {
+      const q = deferredQuery.toLowerCase();
       r = r.filter(
         (t) =>
           t.merchant.toLowerCase().includes(q) ||
           (t.memo ?? '').toLowerCase().includes(q) ||
-          (CATEGORIES[t.cat]?.name ?? '').includes(query),
+          (CATEGORIES[t.cat]?.name ?? '').includes(deferredQuery),
       );
     }
     if (minAmount) {
@@ -93,7 +119,12 @@ export default function SearchPage() {
       const m = Number(maxAmount);
       r = r.filter((t) => Math.abs(t.amount) <= m);
     }
-    if (catFilter) r = r.filter((t) => t.cat === catFilter);
+    // A split row belongs to each of its parts' categories, as on the stats screen.
+    if (catFilter) {
+      r = r.filter((t) =>
+        t.splits?.length ? t.splits.some((s) => s.cat === catFilter) : t.cat === catFilter,
+      );
+    }
     if (accFilter) r = r.filter((t) => t.acc === accFilter);
     if (effectiveDateRange.from || effectiveDateRange.to) {
       // Convert each tx's stored ISO (UTC) to a local-day key so KST early-morning
@@ -109,8 +140,19 @@ export default function SearchPage() {
         return true;
       });
     }
-    return r.sort((a, b) => b.date.localeCompare(a.date));
-  }, [tx, query, minAmount, maxAmount, catFilter, accFilter, effectiveDateRange, ready]);
+    // A copy: with no filter `r` is the store's own array.
+    return [...r].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  }, [
+    tx,
+    allTx,
+    deferredQuery,
+    minAmount,
+    maxAmount,
+    catFilter,
+    accFilter,
+    effectiveDateRange,
+    ready,
+  ]);
 
   const totalFound = results.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
 
@@ -326,7 +368,7 @@ export default function SearchPage() {
               <Pill tone="dark" active={!catFilter} onClick={() => setCatFilter(null)}>
                 전체
               </Pill>
-              {cats.slice(0, 12).map((c) => (
+              {cats.map((c) => (
                 <Pill
                   key={c.id}
                   tone="dark"
@@ -403,13 +445,14 @@ export default function SearchPage() {
               className="overflow-hidden rounded-2xl"
               style={{ background: 'var(--color-card)' }}
             >
-              {results.slice(0, 100).map((t, i, arr) => {
+              {results.slice(0, RESULT_LIMIT).map((t, i, arr) => {
                 const _c = CATEGORIES[t.cat];
                 const acc = accounts.find((a) => a.id === t.acc);
                 return (
                   <Link
                     key={t.id}
                     href={`/tx?id=${t.id}`}
+                    onClick={holdSearchView}
                     className="tap flex items-center gap-3 px-4 py-3"
                     style={{
                       borderBottom: i < arr.length - 1 ? '1px solid var(--color-divider)' : 'none',

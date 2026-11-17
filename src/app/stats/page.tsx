@@ -23,7 +23,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import YearHeatmap from '@/components/YearHeatmap';
 import { CATEGORIES } from '@/lib/categories';
 import { localDayKey } from '@/lib/dates';
-import { expandByCategory, fmt, fmtShort, isExpense } from '@/lib/format';
+import { expandByCategory, fmt, fmtShort, isExpense, isIncome } from '@/lib/format';
 import {
   detectAnomalies,
   detectPatterns,
@@ -32,6 +32,7 @@ import {
   WEEKDAY_LABEL,
 } from '@/lib/insights';
 import { useRecurring } from '@/lib/recurring';
+import { monthRange, presetSearch } from '@/lib/search-view';
 import { useTransactions } from '@/lib/storage';
 
 type Period = 'month' | 'week';
@@ -97,9 +98,7 @@ export default function StatsPage() {
         return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
       });
       const expense = monthTx.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
-      const income = monthTx
-        .filter((t) => t.amount > 0 && !t.transferPairId)
-        .reduce((s, t) => s + t.amount, 0);
+      const income = monthTx.filter(isIncome).reduce((s, t) => s + t.amount, 0);
       months.push({
         label: `${m.getMonth() + 1}월`,
         expense,
@@ -585,9 +584,16 @@ export default function StatsPage() {
               {byCat.map((s, i) => {
                 const pct = Math.round((s.value / total) * 100);
                 return (
-                  <div
+                  <Link
                     key={s.cat}
-                    className="flex items-center gap-3 px-4 py-3"
+                    href="/search"
+                    onClick={() =>
+                      presetSearch({
+                        cat: s.catId,
+                        ...(period === 'month' ? monthRange() : { datePreset: '7d' as const }),
+                      })
+                    }
+                    className="tap flex items-center gap-3 px-4 py-3"
                     style={{
                       borderBottom:
                         i < byCat.length - 1 ? '1px solid var(--color-divider)' : 'none',
@@ -637,7 +643,7 @@ export default function StatsPage() {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

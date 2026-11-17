@@ -23,6 +23,7 @@ import { useInvestments } from '@/lib/investments';
 import { useLoans } from '@/lib/loans';
 import { computeNetWorth } from '@/lib/net-worth';
 import { FX_IDS, type QuoteId, useQuotes } from '@/lib/quotes';
+import { presetSearch } from '@/lib/search-view';
 import { useAllTransactions } from '@/lib/storage';
 import type { Account, Transaction } from '@/lib/types';
 import { useReimburseDue } from '@/lib/use-reimburse';
@@ -521,9 +522,31 @@ function BalanceCorrectionSheet({
   const diff = signedActual - account.balance;
 
   return (
-    <Sheet open={true} onClose={onClose} title="잔액 보정">
-      <p className="mb-3" style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xs)' }}>
-        {account.name}의 실제 잔액을 입력하면, 차액만큼 보정 거래를 자동 생성해서 잔액을 맞춰요.
+    <Sheet open={true} onClose={onClose} title={account.name}>
+      <Link
+        href="/search"
+        onClick={() => presetSearch({ acc: account.id })}
+        className="tap mb-3 flex items-center justify-between rounded-xl px-4 py-3.5"
+        style={{ background: 'var(--color-gray-100)' }}
+      >
+        <span style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-sm)', fontWeight: 700 }}>
+          이 계좌 내역
+        </span>
+        <svg viewBox="0 0 24 24" width={18} height={18} fill="none" aria-hidden="true">
+          <path
+            d="M9 6l6 6-6 6"
+            stroke="var(--color-text-3)"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </Link>
+      <p
+        className="mb-2"
+        style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
+      >
+        잔액 보정
       </p>
       <div className="rounded-xl px-4 py-3" style={{ background: 'var(--color-gray-100)' }}>
         <p style={{ color: 'var(--color-text-3)', fontSize: 'var(--text-xxs)', fontWeight: 600 }}>
@@ -655,11 +678,15 @@ function SummaryRow({
         style={{
           fontSize: 'var(--text-base)',
           fontWeight: 800,
-          color: tone === 'danger' ? 'var(--color-danger)' : 'var(--color-text-1)',
+          // Nothing owed is not a red "−0원".
+          color:
+            tone === 'danger' && Math.round(value) !== 0
+              ? 'var(--color-danger)'
+              : 'var(--color-text-1)',
           letterSpacing: '-0.01em',
         }}
       >
-        {prefix ?? ''}
+        {Math.round(value) !== 0 ? (prefix ?? '') : ''}
         {Math.round(value).toLocaleString('ko-KR')}원
       </p>
     </div>

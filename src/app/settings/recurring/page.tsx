@@ -13,7 +13,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { IconPicker } from '@/components/ui/IconPicker';
 import Sheet from '@/components/ui/Sheet';
 import { useAccounts } from '@/lib/accounts';
-import { CATEGORIES } from '@/lib/categories';
+import { expenseCategoriesByScope } from '@/lib/categories';
 import { fmt } from '@/lib/format';
 import { daysUntilDay, useRecurring } from '@/lib/recurring';
 import type { Account, RecurringItem } from '@/lib/types';
@@ -217,10 +217,10 @@ function RecurringEditor({
   const valid =
     draft.name.trim().length > 0 && draft.amount > 0 && draft.day >= 1 && draft.day <= 31;
 
-  const expCats = Object.values(CATEGORIES).filter((c) => c.kind !== 'income');
+  const expCats = expenseCategoriesByScope(draft.scope);
 
   return (
-    <Sheet open onClose={onCancel}>
+    <Sheet open onClose={onCancel} keep={draft !== item}>
       <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
         {isNew ? '정기결제 추가' : '정기결제 편집'}
       </h2>
@@ -270,7 +270,8 @@ function RecurringEditor({
             max={31}
             value={draft.day || ''}
             onChange={(e) =>
-              setDraft({ ...draft, day: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })
+              // Empty stays empty while retyping; `valid` asks for 1–31 before saving.
+              setDraft({ ...draft, day: Math.min(31, Math.max(0, Number(e.target.value) || 0)) })
             }
             className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
             style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
@@ -303,7 +304,7 @@ function RecurringEditor({
           카테고리
         </label>
         <div className="grid grid-cols-4 gap-2">
-          {expCats.slice(0, 8).map((c) => {
+          {expCats.map((c) => {
             const sel = draft.cat === c.id;
             return (
               <button

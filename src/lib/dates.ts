@@ -7,8 +7,32 @@
  * a transaction back a day every time it was saved.
  */
 export function localDayKey(input: Date | string = new Date()): string {
-  const d = typeof input === 'string' ? new Date(input) : input;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (typeof input !== 'string') return keyOf(input);
+  const hit = dayKeys.get(input);
+  if (hit !== undefined) return hit;
+  const key = keyOf(new Date(input));
+  if (dayKeys.size >= MAX_DAY_KEYS) dayKeys.clear();
+  dayKeys.set(input, key);
+  return key;
+}
+
+const keyOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Every screen asks for the day of every row on every render, and parsing a
+// timestamp is the slow part. A row's timestamp string never changes, so the
+// answer is kept — until the device's time zone does.
+const dayKeys = new Map<string, string>();
+const MAX_DAY_KEYS = 30_000;
+if (typeof document !== 'undefined') {
+  let offset = new Date().getTimezoneOffset();
+  document.addEventListener('visibilitychange', () => {
+    const now = new Date().getTimezoneOffset();
+    if (now !== offset) {
+      offset = now;
+      dayKeys.clear();
+    }
+  });
 }
 
 /** Today's local day key. */

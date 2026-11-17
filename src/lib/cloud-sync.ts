@@ -321,6 +321,20 @@ const isTx = (v: unknown): v is Transaction =>
  * `key` is a collection name (accounts, loans, recurring, investments, goals, …)
  * or, for `set`, also budgets / profile / businessProfile / yearlyGoals / taxpayerType.
  */
+/**
+ * A loan or 정기결제 that arrives without a cursor would be back-filled for the
+ * past three months by its generator; one added here starts counting from now.
+ */
+function stampNew<T extends { id: string }>(key: string, items: T[], known: Set<string>): T[] {
+  if (key !== 'loans' && key !== 'recurring') return items;
+  const now = new Date().toISOString();
+  return items.map((i) =>
+    known.has(i.id) || (i as { postedThrough?: unknown }).postedThrough
+      ? i
+      : { ...i, postedThrough: now },
+  );
+}
+
 export function applyRemoteOp(op: unknown): string {
   try {
     if (!isObject(op) || typeof op.type !== 'string') return 'error: not an op';
@@ -371,7 +385,13 @@ export function applyRemoteOp(op: unknown): string {
         return 'error: bad list';
       }
       if (op.value === undefined || op.value === null) return 'error: no value';
-      writeStorageValue(storageKey, op.value);
+      const known = LISTS[op.key]
+        ? new Set(readStorageValue<Item[]>(storageKey, []).map((i) => i.id))
+        : new Set<string>();
+      writeStorageValue(
+        storageKey,
+        LISTS[op.key] ? stampNew(op.key, op.value as Item[], known) : op.value,
+      );
       return 'ok';
     }
 
@@ -383,7 +403,9 @@ export function applyRemoteOp(op: unknown): string {
       const incoming = new Map((op.items as Item[]).map((i) => [i.id, i]));
       const next = list.map((i) => incoming.get(i.id) ?? i);
       const known = new Set(list.map((i) => i.id));
-      for (const i of incoming.values()) if (!known.has(i.id)) next.push(i);
+      for (const i of stampNew(op.key, [...incoming.values()], known)) {
+        if (!known.has(i.id)) next.push(i);
+      }
       writeStorageValue(storageKey, next);
       return 'ok';
     }

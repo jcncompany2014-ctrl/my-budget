@@ -13,12 +13,7 @@ import TopBar from '@/components/TopBar';
 import { useAllAccounts } from '@/lib/accounts';
 import { fmt } from '@/lib/format';
 import { buildSettlement, dueTotal, isDue } from '@/lib/reimburse';
-import {
-  addTransactions,
-  patchTransactions,
-  removeTransaction,
-  useAllTransactions,
-} from '@/lib/storage';
+import { addTransactions, removeTransaction, useAllTransactions } from '@/lib/storage';
 import type { Account } from '@/lib/types';
 
 const shortDate = (iso: string) => {
@@ -82,7 +77,6 @@ export default function ReimbursePage() {
 
   const settle = () => {
     if (!valid || !from || !to) return;
-    const ids = chosen.map((t) => t.id);
     const legs = buildSettlement({
       rows: chosen,
       from,
@@ -91,8 +85,8 @@ export default function ReimbursePage() {
       seq: Date.now().toString(36),
     });
     if (legs.length === 0) return;
+    // The outgoing leg lists the rows it pays back; adding it marks them done.
     addTransactions(legs);
-    patchTransactions(ids, { reimburse: 'done' });
     setSkipped(new Set());
     toast.show(`${fmt(total)}원 정산 완료`, {
       variant: 'success',
@@ -100,9 +94,8 @@ export default function ReimbursePage() {
       action: {
         label: '되돌리기',
         onClick: () => {
-          // Removing one leg takes its pair with it.
+          // Removing one leg takes its pair with it, and the rows are owed again.
           removeTransaction(legs[0].id);
-          patchTransactions(ids, { reimburse: 'due' });
           toast.show('취소됨', 'info');
         },
       },

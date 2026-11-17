@@ -3,12 +3,13 @@
 import { BellRing } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import Money from '@/components/Money';
 import { findAccount } from '@/lib/accounts';
 import { CATEGORIES, isTransferCategory } from '@/lib/categories';
+import { localTimeHHMM } from '@/lib/dates';
 import { haptics } from '@/lib/haptics';
 import type { Transaction } from '@/lib/types';
 
@@ -22,12 +23,7 @@ type Props = {
   compact?: boolean;
 };
 
-const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+const fmtTime = localTimeHHMM;
 
 const fmtDate = (iso: string) => {
   const d = new Date(iso);
@@ -40,14 +36,9 @@ const fmtDate = (iso: string) => {
 // Long-press threshold — iOS-ish feel
 const LONG_PRESS_MS = 420;
 
-export default function TxRow({
-  tx,
-  showTime,
-  showDate,
-  showAccount,
-  borderBottom = true,
-  compact,
-}: Props) {
+export default memo(TxRow);
+
+function TxRow({ tx, showTime, showDate, showAccount, borderBottom = true, compact }: Props) {
   const cat = CATEGORIES[tx.cat];
   const router = useRouter();
   // A plain lookup across both ledgers: a store subscription per row made every

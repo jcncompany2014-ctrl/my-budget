@@ -28,6 +28,11 @@ type Props = {
   danger?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /**
+   * Tapping outside or pressing Esc. Defaults to `onCancel`; set it when the
+   * cancel button is itself a choice ("지금 그대로") that closing must not make.
+   */
+  onDismiss?: () => void;
 };
 
 export default function ConfirmDialog({
@@ -39,16 +44,18 @@ export default function ConfirmDialog({
   danger = false,
   onConfirm,
   onCancel,
+  onDismiss,
 }: Props) {
+  const dismiss = onDismiss ?? onCancel;
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') dismiss();
       if (e.key === 'Enter') onConfirm();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel, onConfirm]);
+  }, [open, dismiss, onConfirm]);
 
   if (!open) return null;
 
@@ -65,7 +72,7 @@ export default function ConfirmDialog({
         background: 'rgba(0, 0, 0, 0.45)',
         animation: 'fade-in 180ms var(--ease-out)',
       }}
-      onClick={onCancel}
+      onClick={dismiss}
       role="dialog"
       aria-modal="true"
       aria-label={title}

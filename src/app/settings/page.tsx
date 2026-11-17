@@ -10,16 +10,16 @@ import {
   CalendarDays,
   CalendarRange,
   CircleDollarSign,
+  CloudDownload,
+  CloudUpload,
   Coins,
   CreditCard,
   DoorOpen,
   FileBarChart,
   FileSpreadsheet,
   FileText,
-  Globe,
   HardDrive,
   Info,
-  Languages,
   LayoutGrid,
   type LucideIcon,
   Receipt,
@@ -45,14 +45,24 @@ import { useMode } from '@/components/ModeProvider';
 import { useToast } from '@/components/Toast';
 import TopBar from '@/components/TopBar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Sheet from '@/components/ui/Sheet';
 import { ensureAutoBackup, lastAutoBackupAt, restoreLastAutoBackup } from '@/lib/auto-backup';
 import { clearAll, downloadBackup, importBackup } from '@/lib/backup';
 import { previousMonthKey } from '@/lib/closing';
 import { cloudSyncConfigured } from '@/lib/cloud-sync';
 import { parseTransactionsCSV } from '@/lib/csv-import';
 import { useInboxKey } from '@/lib/inbox';
-import { useCurrency, useLanguage } from '@/lib/locale';
 import { useProfile } from '@/lib/profile';
+import {
+  claimServerBackup,
+  describeBackup,
+  fetchServerBackup,
+  listServerBackups,
+  restoreServerBackup,
+  type ServerBackupMeta,
+  setServerBackupOff,
+  useServerBackup,
+} from '@/lib/server-backup';
 import { KEYS, localStorageBytes, STORAGE_LIMIT_BYTES } from '@/lib/storage-keys';
 import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import { useTaxpayerType } from '@/lib/taxpayer';
@@ -63,8 +73,6 @@ export default function SettingsPage() {
   const toast = useToast();
   const { mode } = useMode();
   const { profile, setName } = useProfile();
-  const { value: currency, set: setCurrency } = useCurrency();
-  const { value: language, set: setLanguage } = useLanguage();
   const { value: taxType, set: setTaxType } = useTaxpayerType();
   const { value: inboxKey } = useInboxKey();
   const inboxOn = !!inboxKey;
@@ -77,6 +85,38 @@ export default function SettingsPage() {
   // Read after mount — the prerendered HTML can't know it ("아직 없음" vs a date
   // was a hydration mismatch on every visit once a backup existed).
   const [lastBackup, setLastBackup] = useState<Date | null>(null);
+  const { value: serverBackup } = useServerBackup();
+  // null while the list is loading.
+  const [serverDays, setServerDays] = useState<ServerBackupMeta[] | null>(null);
+  const [serverOpen, setServerOpen] = useState(false);
+  const [serverPick, setServerPick] = useState<ServerBackupMeta | null>(null);
+  const [heldOpen, setHeldOpen] = useState(false);
+
+  const openServerBackups = async () => {
+    if (!inboxKey) return;
+    setServerOpen(true);
+    setServerDays(null);
+    const list = await listServerBackups(inboxKey);
+    if (!list) {
+      setServerOpen(false);
+      toast.show('서버에 연결하지 못했어요', 'error');
+      return;
+    }
+    setServerDays(list);
+  };
+
+  const onServerRestore = async (id: string) => {
+    if (!inboxKey) return;
+    const got = await fetchServerBackup(inboxKey, id);
+    const data = got.ok ? got.data : null;
+    if (!data) {
+      toast.show('백업을 가져오지 못했어요', 'error');
+      return;
+    }
+    restoreServerBackup(data, inboxKey);
+    toast.show(`${describeBackup(data)} 복원 완료`, 'success');
+    setTimeout(() => window.location.reload(), 400);
+  };
 
   useEffect(() => {
     setStorageBytes(localStorageBytes());
@@ -185,53 +225,9 @@ export default function SettingsPage() {
             icon={Sparkles}
             iconBg="#D97757"
             label="Claude 연결"
-            subtitle="대화로 원격 수정"
             onClick={() => router.push('/settings/claude')}
           />
         )}
-      </Section>
-
-      <Section title="언어 · 통화">
-        <Row
-          icon={Languages}
-          iconBg="#3182F6"
-          label="언어"
-          subtitle={language === 'ko' ? '한국어' : 'English'}
-          onClick={() => setLanguage(language === 'ko' ? 'en' : 'ko')}
-          right={
-            <span
-              style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-            >
-              {language === 'ko' ? '한국어' : 'EN'}
-            </span>
-          }
-        />
-        <Row
-          icon={Globe}
-          iconBg="#0EA5E9"
-          label="기본 통화"
-          subtitle={
-            currency === 'KRW'
-              ? '대한민국 원 (KRW)'
-              : currency === 'USD'
-                ? '미국 달러 (USD)'
-                : currency === 'JPY'
-                  ? '일본 엔 (JPY)'
-                  : '유로 (EUR)'
-          }
-          onClick={() => {
-            const order: Array<typeof currency> = ['KRW', 'USD', 'JPY', 'EUR'];
-            const next = order[(order.indexOf(currency) + 1) % order.length];
-            setCurrency(next);
-          }}
-          right={
-            <span
-              style={{ color: 'var(--color-text-2)', fontSize: 'var(--text-xs)', fontWeight: 700 }}
-            >
-              {currency}
-            </span>
-          }
-        />
       </Section>
 
       <Section title="세무">
@@ -260,42 +256,36 @@ export default function SettingsPage() {
             icon={Wallet}
             iconBg="#3182F6"
             label="계좌 관리"
-            subtitle="은행, 카드, 현금, 투자 계좌"
             onClick={() => router.push('/settings/accounts')}
           />
           <Row
             icon={BarChart3}
             iconBg="#FF8A1F"
             label="예산 설정"
-            subtitle="카테고리별 한 달 한도"
             onClick={() => router.push('/settings/budgets')}
           />
           <Row
             icon={Target}
             iconBg="#1FBA6E"
             label="저축 목표"
-            subtitle="목표 만들고 추적"
             onClick={() => router.push('/settings/goals')}
           />
           <Row
             icon={Repeat}
             iconBg="#0EA5E9"
             label="정기결제"
-            subtitle="구독·통신비·멤버십"
             onClick={() => router.push('/settings/recurring')}
           />
           <Row
             icon={Banknote}
             iconBg="#EF4444"
             label="대출 관리"
-            subtitle="개인 대출만 표시"
             onClick={() => router.push('/settings/loans')}
           />
           <Row
             icon={CreditCard}
             iconBg="#BE185D"
             label="마이너스 통장"
-            subtitle="개인 한도·사용액·자동 이자"
             onClick={() => router.push('/settings/credit-line')}
           />
         </Section>
@@ -304,92 +294,79 @@ export default function SettingsPage() {
           <Row
             icon={BadgeCheck}
             iconBg="#3182F6"
-            label="사업자 정보"
-            subtitle="상호·등록번호·수수료율·자동 인건비"
+            label="수수료 · 인건비"
             onClick={() => router.push('/business/profile')}
           />
           <Row
             icon={Wallet}
             iconBg="#3182F6"
             label="사업 계좌 관리"
-            subtitle="사업용 은행·카드·현금·투자"
             onClick={() => router.push('/settings/accounts')}
           />
           <Row
             icon={Banknote}
             iconBg="#EF4444"
             label="사업 대출 관리"
-            subtitle="사업 대출만 표시"
             onClick={() => router.push('/settings/loans')}
           />
           <Row
             icon={CreditCard}
             iconBg="#BE185D"
             label="사업 마이너스 통장"
-            subtitle="사업 한도·사용액·자동 이자"
             onClick={() => router.push('/settings/credit-line')}
           />
           <Row
             icon={Users}
             iconBg="#0EA5E9"
             label="거래처"
-            subtitle="매출처·매입처 등록"
             onClick={() => router.push('/settings/vendors')}
           />
           <Row
             icon={UserIcon}
             iconBg="#3182F6"
             label="직원·인건비"
-            subtitle="월 기본급 자동 집계"
             onClick={() => router.push('/settings/employees')}
           />
           <Row
             icon={Store}
             iconBg="#FF8A1F"
             label="사업장"
-            subtitle="매장 A/B 분리 관리"
             onClick={() => router.push('/settings/locations')}
           />
           <Row
             icon={DoorOpen}
             iconBg="#6B7684"
             label="일일 마감"
-            subtitle="매장별 일별 매출 정리"
             onClick={() => router.push('/business/daily-close')}
           />
           <Row
             icon={CalendarDays}
             iconBg="#EF4444"
             label="세무 일정"
-            subtitle="부가세·종합소득세 D-day"
             onClick={() => router.push('/business/tax-calendar')}
           />
           <Row
             icon={Receipt}
             iconBg="#EF4444"
             label="부가세 도우미"
-            subtitle="분기별 매출/매입 정리"
             onClick={() => router.push('/business/vat')}
           />
           <Row
             icon={CircleDollarSign}
             iconBg="#00B956"
             label="종합소득세 / 원천세"
-            subtitle="누적 영업이익 기반 + 3.3% 계산기"
             onClick={() => router.push('/business/income-tax')}
           />
           <Row
             icon={FileBarChart}
             iconBg="#8B5CF6"
             label="손익계산서"
-            subtitle="매출·비용·영업이익 + 매장별"
             onClick={() => router.push('/business/pnl')}
           />
           <Row
             icon={Coins}
             iconBg="#10B981"
             label="현금흐름표"
-            subtitle="기간별 유입/유출"
             onClick={() => router.push('/business/cashflow')}
           />
         </Section>
@@ -401,35 +378,30 @@ export default function SettingsPage() {
           icon={TrendingUp}
           iconBg="#00B956"
           label="투자 관리"
-          subtitle="주식·펀드·암호화폐"
           onClick={() => router.push('/settings/investments')}
         />
         <Row
           icon={LayoutGrid}
           iconBg="#8B5CF6"
           label="카테고리"
-          subtitle="커스텀 카테고리 추가/편집"
           onClick={() => router.push('/settings/categories')}
         />
         <Row
           icon={Sparkles}
           iconBg="#EC4899"
           label="자동 분류 규칙"
-          subtitle="소비처 → 카테고리 자동 적용"
           onClick={() => router.push('/settings/category-rules')}
         />
         <Row
           icon={Star}
           iconBg="#F59E0B"
           label="즐겨찾기 거래"
-          subtitle="자주 쓰는 거래"
           onClick={() => router.push('/settings/favorites')}
         />
         <Row
           icon={Trophy}
           iconBg="#A47148"
           label="챌린지"
-          subtitle="지출 한도 챌린지"
           onClick={() => router.push('/settings/challenges')}
         />
       </Section>
@@ -439,37 +411,27 @@ export default function SettingsPage() {
           icon={Sparkles}
           iconBg="#2E3561"
           label="월말 결산"
-          subtitle="지난 달 저축률·단골·무지출 데이"
           onClick={() => router.push(`/reports/closing?ym=${previousMonthKey()}`)}
         />
         <Row
           icon={CalendarRange}
           iconBg="#3182F6"
           label="이번 달 리포트"
-          subtitle="카테고리별 분석 + CSV/PDF"
           onClick={() => router.push('/reports/monthly')}
         />
         <Row
           icon={FileSpreadsheet}
           iconBg="#8B5CF6"
           label="연간 리포트"
-          subtitle="올해의 소비처 TOP 5"
           onClick={() => router.push('/reports/yearly')}
         />
         <Row
           icon={Shield}
           iconBg="#14B8A6"
           label="연말정산 도우미"
-          subtitle="공제 가능 사용액 추정"
           onClick={() => router.push('/reports/year-end-tax')}
         />
-        <Row
-          icon={Search}
-          iconBg="#94A3B8"
-          label="검색"
-          subtitle="전체 기간 검색 + 고급 필터"
-          onClick={() => router.push('/search')}
-        />
+        <Row icon={Search} iconBg="#94A3B8" label="검색" onClick={() => router.push('/search')} />
       </Section>
 
       <Section title="데이터">
@@ -477,7 +439,6 @@ export default function SettingsPage() {
           icon={Upload}
           iconBg="#3182F6"
           label="백업 내보내기"
-          subtitle="JSON 파일로 저장"
           onClick={async () => {
             if (await downloadBackup()) toast.show('백업 파일을 저장했어요', 'success');
           }}
@@ -486,7 +447,6 @@ export default function SettingsPage() {
           icon={ArrowDownLeft}
           iconBg="#0EA5E9"
           label="백업 복원하기"
-          subtitle="JSON 파일에서 가져오기"
           onClick={() => fileInput.current?.click()}
         />
         <input
@@ -504,7 +464,6 @@ export default function SettingsPage() {
           icon={FileText}
           iconBg="#94A3B8"
           label="CSV 가져오기"
-          subtitle="다른 가계부에서 내보낸 CSV"
           onClick={() => csvInput.current?.click()}
         />
         <input
@@ -518,6 +477,38 @@ export default function SettingsPage() {
             e.target.value = '';
           }}
         />
+        {inboxOn && (
+          <Row
+            icon={CloudUpload}
+            iconBg="#2E3561"
+            label="서버 백업"
+            subtitle={
+              serverBackup.off
+                ? '꺼짐'
+                : serverBackup.held
+                  ? '다른 기기의 백업이 더 새로워요 · 눌러서 선택'
+                  : serverBackup.lastError
+                    ? '올리지 못했어요'
+                    : serverBackup.lastAt
+                      ? `최근 ${shortDateTime(serverBackup.lastAt)}`
+                      : '아직 없음'
+            }
+            right={<MiniSwitch on={!serverBackup.off} />}
+            onClick={() =>
+              serverBackup.held && !serverBackup.off
+                ? setHeldOpen(true)
+                : setServerBackupOff(!serverBackup.off)
+            }
+          />
+        )}
+        {inboxOn && (
+          <Row
+            icon={CloudDownload}
+            iconBg="#0EA5E9"
+            label="서버 백업에서 복원"
+            onClick={openServerBackups}
+          />
+        )}
         <Row
           icon={RefreshCw}
           iconBg="#00B956"
@@ -540,7 +531,6 @@ export default function SettingsPage() {
           icon={ShieldCheck}
           iconBg="#14B8A6"
           label="데이터 무결성 검사"
-          subtitle="누락된 계좌·카테고리, 이체 짝 점검"
           onClick={() => router.push('/settings/data-check')}
         />
         <Row
@@ -610,6 +600,75 @@ export default function SettingsPage() {
           }
         }}
       />
+      <Sheet open={serverOpen} onClose={() => setServerOpen(false)} title="서버 백업">
+        {serverDays === null ? (
+          <p className="py-8 text-center text-sm" style={{ color: 'var(--color-text-3)' }}>
+            불러오는 중…
+          </p>
+        ) : serverDays.length === 0 ? (
+          <p className="py-8 text-center text-sm" style={{ color: 'var(--color-text-3)' }}>
+            저장된 백업이 없어요
+          </p>
+        ) : (
+          <div
+            className="mb-2 overflow-hidden rounded-2xl"
+            style={{ background: 'var(--color-gray-50)' }}
+          >
+            {serverDays.map((b, i) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => setServerPick(b)}
+                className="tap flex w-full items-center justify-between px-4 py-3.5 text-left"
+                style={{
+                  borderBottom:
+                    i === serverDays.length - 1 ? 'none' : '1px solid var(--color-divider)',
+                }}
+              >
+                <span style={{ color: 'var(--color-text-1)', fontSize: 15, fontWeight: 700 }}>
+                  {shortDateTime(b.at)}
+                </span>
+                <span className="tnum" style={{ color: 'var(--color-text-3)', fontSize: 12 }}>
+                  {Math.max(1, Math.round(b.size / 1024)).toLocaleString('ko-KR')}KB
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </Sheet>
+      <ConfirmDialog
+        open={serverPick !== null}
+        title={`${serverPick ? shortDateTime(serverPick.at) : ''} 백업으로 되돌릴까요?`}
+        description="그 뒤에 기록한 내용은 사라져요."
+        confirmLabel="되돌리기"
+        danger
+        onCancel={() => setServerPick(null)}
+        onConfirm={() => {
+          const b = serverPick;
+          setServerPick(null);
+          setServerOpen(false);
+          if (b) void onServerRestore(b.id);
+        }}
+      />
+      <ConfirmDialog
+        open={heldOpen}
+        title="서버에 더 새 백업이 있어요"
+        description="다른 기기나 예전에 쓰던 앱에서 올린 백업이에요. 이 기기 내용으로 계속 백업하거나, '서버 백업에서 복원'으로 그 백업을 가져올 수 있어요."
+        confirmLabel="이 기기로 계속"
+        cancelLabel="닫기"
+        onCancel={() => setHeldOpen(false)}
+        onConfirm={() => {
+          setHeldOpen(false);
+          void claimServerBackup().then((r) =>
+            toast.show(
+              r === 'saved' || r === 'current'
+                ? '이 기기 내용으로 백업했어요'
+                : '백업하지 못했어요',
+              r === 'saved' || r === 'current' ? 'success' : 'error',
+            ),
+          );
+        }}
+      />
       <ConfirmDialog
         open={pendingFile !== null}
         title="백업 파일로 복원할까요?"
@@ -624,6 +683,30 @@ export default function SettingsPage() {
         }}
       />
     </>
+  );
+}
+
+/** "11월 17일 오후 7:02" */
+function shortDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function MiniSwitch({ on }: { on: boolean }) {
+  return (
+    <span
+      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+      style={{ background: on ? 'var(--color-primary)' : 'var(--color-gray-300)' }}
+    >
+      <span
+        className="absolute h-5 w-5 rounded-full bg-white shadow transition-transform"
+        style={{ transform: on ? 'translateX(22px)' : 'translateX(2px)' }}
+      />
+    </span>
   );
 }
 

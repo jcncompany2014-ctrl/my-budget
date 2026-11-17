@@ -15,7 +15,12 @@ import Sheet from '@/components/ui/Sheet';
 import { CATEGORIES, expenseCategoriesByScope } from '@/lib/categories';
 import { localDayKey } from '@/lib/dates';
 import { fmt, isExpense, isIncome } from '@/lib/format';
-import { useAllTransactions, useTransactions } from '@/lib/storage';
+import {
+  patchTransactions,
+  removeTransactions,
+  useAllTransactions,
+  useTransactions,
+} from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
 const fmtMonth = (d: Date) => `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
@@ -39,7 +44,7 @@ const fmtDay = (iso: string) => {
 
 export default function ListPage() {
   const { tx, ready } = useTransactions();
-  const { update, remove, restore } = useAllTransactions();
+  const { restore } = useAllTransactions();
   const { mode } = useMode();
   const toast = useToast();
   const [offset, setOffsetState] = useState(view.offset);
@@ -85,7 +90,7 @@ export default function ListPage() {
           .filter(
             (t) => t.merchant.toLowerCase().includes(q) || (t.memo ?? '').toLowerCase().includes(q),
           )
-          .sort((a, b) => b.date.localeCompare(a.date))
+          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
           .slice(0, SEARCH_LIMIT)
       : inMonth;
     return base.filter((t) => {
@@ -145,17 +150,13 @@ export default function ListPage() {
   };
 
   const bulkChangeCategory = (catId: string) => {
-    selected.forEach((id) => update(id, { cat: catId }));
+    patchTransactions([...selected], { cat: catId });
     toast.show(`${selected.size}건 카테고리 변경 완료`, 'success');
     exitBulk();
   };
 
   const bulkDelete = () => {
-    const allRemoved: typeof tx = [];
-    selected.forEach((id) => {
-      const r = remove(id);
-      allRemoved.push(...r);
-    });
+    const allRemoved = removeTransactions([...selected]);
     const count = selected.size;
     toast.show(`${count}건 삭제 완료`, {
       variant: 'info',

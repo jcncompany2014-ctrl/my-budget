@@ -309,7 +309,7 @@ function LoanEditor({
     });
 
   return (
-    <Sheet open onClose={onCancel}>
+    <Sheet open onClose={onCancel} keep={draft !== loan}>
       <h2
         className="mb-4"
         style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}
@@ -490,7 +490,24 @@ function LoanEditor({
       <Field label="자동 상환">
         <button
           type="button"
-          onClick={() => setDraft({ ...draft, autoPayment: !draft.autoPayment })}
+          onClick={() =>
+            setDraft(
+              draft.autoPayment
+                ? { ...draft, autoPayment: false }
+                : {
+                    ...draft,
+                    autoPayment: true,
+                    paymentDay:
+                      draft.paymentDay ?? (Number(draft.startDate.slice(8, 10)) || undefined),
+                    linkedAccountId:
+                      draft.linkedAccountId ??
+                      (
+                        accounts.find((a) => a.main && a.type === 'bank') ??
+                        accounts.find((a) => a.type === 'bank')
+                      )?.id,
+                  },
+            )
+          }
           className="tap flex w-full items-center justify-between rounded-xl px-4 py-3"
           style={{ background: 'var(--color-gray-100)' }}
         >

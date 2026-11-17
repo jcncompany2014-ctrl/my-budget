@@ -9,7 +9,7 @@ import Card from '@/components/ui/Card';
 import { IconDisplay } from '@/components/ui/IconPicker';
 import Section from '@/components/ui/Section';
 import { CATEGORIES } from '@/lib/categories';
-import { fmt } from '@/lib/format';
+import { fmt, isExpense } from '@/lib/format';
 import { useLocations } from '@/lib/locations';
 import { useTransactions } from '@/lib/storage';
 
@@ -38,7 +38,7 @@ export default function DailyClosePage() {
     const revenue = dayTx
       .filter((t) => t.amount > 0 && REVENUE_CATS.includes(t.cat))
       .reduce((s, t) => s + t.amount, 0);
-    const expense = dayTx.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const expense = dayTx.filter(isExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
     const byChannel = new Map<string, number>();
     dayTx
       .filter((t) => REVENUE_CATS.includes(t.cat))

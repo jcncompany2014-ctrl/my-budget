@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Ban,
   BellRing,
   CopyX,
   Inbox,
@@ -14,6 +15,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import CardAsk from '@/components/CardAsk';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
 import Money from '@/components/Money';
 import { useToast } from '@/components/Toast';
@@ -25,12 +27,13 @@ import { localDayKey } from '@/lib/dates';
 import {
   describeSync,
   forceAddLogEntry,
+  pendingCards,
   restoreCancelled,
   syncInbox,
   useInboxKey,
   useInboxLog,
 } from '@/lib/inbox';
-import type { InboxLogEntry } from '@/lib/inbox-import';
+import { type InboxLogEntry, skipLabel } from '@/lib/inbox-import';
 import { useAllTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
@@ -43,6 +46,7 @@ const STATUS_META: Record<
   cancelled: { label: '승인취소 → 기존 거래 삭제', color: '#F59E0B', Icon: Undo2 },
   refund: { label: '취소할 거래가 없어 환불로 기록', color: '#3182F6', Icon: RotateCcw },
   unparsed: { label: '못 읽은 알림', color: 'var(--color-danger)', Icon: AlertCircle },
+  skipped: { label: '기록 안 함', color: '#8B95A1', Icon: Ban },
 };
 
 function dayLabel(key: string): string {
@@ -88,6 +92,8 @@ export default function InboxPage() {
     });
     return { count: rows.length, spent: rows.reduce((s, t) => s + Math.min(0, t.amount), 0) };
   }, [tx]);
+
+  const pending = useMemo(() => pendingCards(log), [log]);
 
   const groups = useMemo(() => {
     const out: Array<{ key: string; entries: InboxLogEntry[] }> = [];
@@ -187,13 +193,20 @@ export default function InboxPage() {
             </div>
           </section>
 
+          {pending.length > 0 && (
+            <section className="space-y-2 px-5 pb-3">
+              {pending.map((p) => (
+                <CardAsk key={`${p.card.issuer ?? ''}|${p.card.last4 ?? ''}`} pending={p} />
+              ))}
+            </section>
+          )}
+
           {ready && log.length === 0 ? (
             <section className="px-5">
               <EmptyState
                 icon={Inbox}
                 iconColor="var(--color-primary)"
                 title="들어온 알림이 없어요"
-                cta={{ href: '/settings/auto-record', label: '단축어 설정 보기' }}
               />
             </section>
           ) : (
@@ -262,14 +275,15 @@ function LogRow({
   const [showRaw, setShowRaw] = useState(false);
   const meta = STATUS_META[entry.status];
   const live = (entry.status === 'added' || entry.status === 'refund') && tx;
+  const unrecorded = entry.status === 'unparsed' || entry.status === 'skipped';
 
-  const title = live ? tx.merchant : entry.status === 'unparsed' ? '못 읽은 알림' : entry.summary;
+  const title = live ? tx.merchant : unrecorded ? skipLabel(entry.reason) : entry.summary;
   const sub = live
     ? [CATEGORIES[tx.cat]?.name, accountName, timeLabel(entry.at)].filter(Boolean).join(' · ')
     : entry.status === 'added'
       ? `${cancelledLater ? '승인취소로 삭제됨' : '삭제한 거래'} · ${timeLabel(entry.at)}`
-      : entry.status === 'unparsed'
-        ? entry.summary
+      : unrecorded
+        ? `${entry.summary} · ${timeLabel(entry.at)}`
         : entry.undone
           ? `승인취소 되돌림 · ${timeLabel(entry.at)}`
           : `${meta.label} · ${timeLabel(entry.at)}`;
@@ -294,13 +308,13 @@ function LogRow({
       },
     });
   }
-  if (entry.status === 'unparsed') {
+  if (unrecorded) {
     actions.push({
-      label: '직접 입력',
-      primary: true,
+      label: '기록',
+      primary: entry.status === 'unparsed',
       run: () => router.push(`/quick-add?text=${encodeURIComponent(entry.raw)}`),
     });
-    actions.push({ label: '지우기', run: onRemove });
+    if (entry.status === 'unparsed') actions.push({ label: '지우기', run: onRemove });
   }
 
   return (

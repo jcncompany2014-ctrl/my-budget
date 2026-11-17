@@ -25,6 +25,7 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import ClosingBanner from '@/components/ClosingBanner';
 import CountUp from '@/components/CountUp';
+import InboxPrompt from '@/components/InboxPrompt';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import { useMode } from '@/components/ModeProvider';
 import ModeToggle from '@/components/ModeToggle';
@@ -48,6 +49,7 @@ import {
   weeklyDigest,
 } from '@/lib/insights';
 import { useProfile } from '@/lib/profile';
+import { monthRange, presetSearch } from '@/lib/search-view';
 import { useTransactions } from '@/lib/storage';
 import type { Transaction } from '@/lib/types';
 
@@ -149,6 +151,7 @@ export default function HomePage() {
       </section>
 
       <ClosingBanner />
+      <InboxPrompt />
       <SmartPrompts />
 
       {mode === 'personal' ? (
@@ -399,7 +402,12 @@ function PersonalHome({
                 const TrendIcon =
                   trendKind === 'up' ? TrendingUp : trendKind === 'down' ? TrendingDown : Minus;
                 return (
-                  <div key={catId} className="flex items-center gap-3">
+                  <Link
+                    key={catId}
+                    href="/search"
+                    onClick={() => presetSearch({ cat: catId, ...monthRange() })}
+                    className="tap flex items-center gap-3"
+                  >
                     <CategoryIcon catId={catId} size={36} />
                     <div className="min-w-0 flex-1">
                       <div className="mb-1.5 flex items-baseline justify-between">
@@ -461,7 +469,7 @@ function PersonalHome({
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

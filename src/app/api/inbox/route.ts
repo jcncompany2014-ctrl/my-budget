@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { noticeSummary, parseCardNotification } from '@/lib/card-notification';
+import { mentionsMoney, noticeSummary, parseCardNotification } from '@/lib/card-notification';
 import {
   boxIdForKey,
   type InboxItem,
@@ -102,9 +102,10 @@ export async function POST(req: NextRequest) {
       note('POST', box, 'declined');
       return reply('승인 거절 알림이라 기록하지 않았어요.');
     }
-    // Unreadable but payment-ish → keep it for review in the app; anything
-    // else (logins, promos) is dropped so it never costs a write.
-    if (parsed.reason !== 'no-amount' || !PAYMENT_WORDS.test(text)) {
+    // Anything about money is kept for the app to show, recorded or not — a
+    // payment the parser misjudged must not vanish without a trace. Only what
+    // is plainly not one (an advertisement, a login code) is dropped here.
+    if (parsed.reason === 'ad' || !(mentionsMoney(text) || PAYMENT_WORDS.test(text))) {
       note('POST', box, `skipped ${parsed.reason} len=${text.length}`);
       return reply('결제 알림이 아니라 건너뛰었어요.');
     }
@@ -117,11 +118,11 @@ export async function POST(req: NextRequest) {
     note('POST', box, 'store-failed');
     return reply('가계부 서버에 저장하지 못했어요. 잠시 후 다시 시도돼요.', 502);
   }
-  note('POST', box, parsed.ok ? 'queued' : 'queued-for-review');
+  note('POST', box, parsed.ok ? 'queued' : `queued-for-review ${parsed.reason}`);
   return reply(
     parsed.ok
       ? `가계부 ✓ ${noticeSummary(parsed.notice)}`
-      : '가계부에 받아뒀어요 — 앱에서 내용 확인이 필요해요.',
+      : '가계부에 받아뒀어요 — 기록하지 않고 앱에 남겨둘게요.',
   );
 }
 
@@ -130,7 +131,7 @@ export async function GET(req: NextRequest) {
   const store = inboxStore();
   if (sp.has('status')) return json({ configured: store !== null, backend: store?.kind ?? null });
 
-  const key = sp.get('k') ?? '';
+  const key = req.headers.get('x-inbox-key') ?? sp.get('k') ?? '';
   if (!isValidInboxKey(key)) return json({ error: 'bad-key' }, 401);
   if (!store) return json({ error: 'not-configured' }, 503);
   const box = await boxIdForKey(key);
@@ -147,7 +148,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const key = req.nextUrl.searchParams.get('k') ?? '';
+  const key = req.headers.get('x-inbox-key') ?? req.nextUrl.searchParams.get('k') ?? '';
   if (!isValidInboxKey(key)) return json({ error: 'bad-key' }, 401);
   const store = inboxStore();
   if (!store) return json({ error: 'not-configured' }, 503);

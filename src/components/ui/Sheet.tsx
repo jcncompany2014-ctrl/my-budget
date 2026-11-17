@@ -8,9 +8,14 @@ type Props = {
   children: React.ReactNode;
   title?: string;
   full?: boolean;
+  /**
+   * Holds unsaved input: tapping the dim area or dragging down no longer
+   * closes it — only the sheet's own buttons do.
+   */
+  keep?: boolean;
 };
 
-export default function Sheet({ open, onClose, children, title, full }: Props) {
+export default function Sheet({ open, onClose, children, title, full, keep }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const startY = useRef<number | null>(null);
   const [dragY, setDragY] = useState(0);
@@ -27,6 +32,32 @@ export default function Sheet({ open, onClose, children, title, full }: Props) {
 
   useEffect(() => {
     if (open) setClosing(false);
+  }, [open]);
+
+  // The on-screen keyboard covers the bottom of the layout viewport, which is
+  // where a sheet's save row sits. Lift the sheet by however much is covered.
+  const [covered, setCovered] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const measure = () => {
+      const gap = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+      // Small gaps are browser chrome sliding, not a keyboard.
+      setCovered(gap > 120 ? gap : 0);
+      const el = document.activeElement;
+      if (gap > 120 && el instanceof HTMLElement && sheetRef.current?.contains(el)) {
+        requestAnimationFrame(() => el.scrollIntoView({ block: 'nearest' }));
+      }
+    };
+    measure();
+    vv.addEventListener('resize', measure);
+    vv.addEventListener('scroll', measure);
+    return () => {
+      vv.removeEventListener('resize', measure);
+      vv.removeEventListener('scroll', measure);
+      setCovered(0);
+    };
   }, [open]);
 
   if (!open && !closing) return null;
@@ -48,7 +79,7 @@ export default function Sheet({ open, onClose, children, title, full }: Props) {
   const onTouchEnd = () => {
     if (startY.current === null) return;
     startY.current = null;
-    if (dragY > 100) {
+    if (dragY > 100 && !keep) {
       setClosing(true);
       setTimeout(() => {
         onClose();
@@ -66,8 +97,9 @@ export default function Sheet({ open, onClose, children, title, full }: Props) {
       style={{
         background: closing ? 'transparent' : 'rgba(0,0,0,0.4)',
         transition: 'background 240ms var(--ease-out)',
+        paddingBottom: covered,
       }}
-      onClick={onClose}
+      onClick={keep ? undefined : onClose}
     >
       <div
         ref={sheetRef}
@@ -75,7 +107,9 @@ export default function Sheet({ open, onClose, children, title, full }: Props) {
         style={{
           background: 'var(--color-card)',
           padding: 24,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+          // Above the keyboard there is no home indicator to clear.
+          paddingBottom: covered > 0 ? 16 : 'calc(env(safe-area-inset-bottom) + 24px)',
+          maxHeight: covered > 0 ? `calc(100dvh - ${covered}px - 12px)` : undefined,
           transform: closing ? 'translateY(100%)' : `translateY(${dragY}px)`,
           transition: closing
             ? 'transform 160ms var(--ease-out)'

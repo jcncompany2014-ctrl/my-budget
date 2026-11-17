@@ -1,8 +1,10 @@
 'use client';
 
-import { type ParseResult, parseCardNotification } from '@/lib/card-notification';
+import { issuerKind, type ParseResult, parseCardNotification } from '@/lib/card-notification';
 import { CATEGORY_RULES_KEY, type CategoryRule } from '@/lib/category-rules';
 import {
+  cardLabel,
+  cardPatch,
   currenciesNeeded,
   type ImportContext,
   type ImportPlan,
@@ -11,9 +13,18 @@ import {
   planImport,
   resolveAccount,
   resolveCategory,
+  sameCard,
 } from '@/lib/inbox-import';
+import { colorFor } from '@/lib/institutions';
+import { adjustAccountBalance, isHistoryOnly } from '@/lib/integrity';
 import { fxRateToKRW } from '@/lib/quotes';
-import { addTransactions, allTransactions, removeTransaction } from '@/lib/storage';
+import { syncServerBackup } from '@/lib/server-backup';
+import {
+  addTransactions,
+  allTransactions,
+  removeTransaction,
+  updateTransactions,
+} from '@/lib/storage';
 import { KEYS } from '@/lib/storage-keys';
 import {
   createListStore,
@@ -21,7 +32,7 @@ import {
   readStorageValue,
   writeStorageValue,
 } from '@/lib/store-factory';
-import type { Account, CustomCategory } from '@/lib/types';
+import type { Account, CardRef, CustomCategory, Transaction } from '@/lib/types';
 
 /**
  * Client half of card-notification auto-record: owns the secret inbox key,
@@ -41,6 +52,23 @@ export type SyncSummary = {
   refunds: number;
   duplicates: number;
   unparsed: number;
+  /** Texts that were not payments (bill notices, transfers). */
+  skipped: number;
+  /** Cards an account took as its own in this batch, e.g. "신용카드 ← 현대카드 5678". */
+  linked: string[];
+  /** Cards still waiting to be told which account they are. */
+  asks: number;
+};
+
+const NOTHING: SyncSummary = {
+  added: 0,
+  cancelled: 0,
+  refunds: 0,
+  duplicates: 0,
+  unparsed: 0,
+  skipped: 0,
+  linked: [],
+  asks: 0,
 };
 
 export const useInboxKey = createValueStore<string | null>(KEYS.inboxKey, null);
@@ -100,17 +128,26 @@ async function prefetchFx(currencies: string[]) {
   }
 }
 
+function readAccounts(): Account[] {
+  // An account written by a remote edit can lack fields the app itself always sets.
+  return readStorageValue<Account[]>(KEYS.accounts, []).map((a) =>
+    a.scope && typeof a.bank === 'string' && typeof a.name === 'string'
+      ? a
+      : { ...a, scope: a.scope ?? ('personal' as const), bank: a.bank ?? '', name: a.name ?? '' },
+  );
+}
+
 function buildContext(): ImportContext {
+  const log = readStorageValue<InboxLogEntry[]>(KEYS.inboxLog, []);
   return {
-    accounts: readStorageValue<Account[]>(KEYS.accounts, []).map((a) =>
-      a.scope ? a : { ...a, scope: 'personal' as const },
-    ),
+    accounts: readAccounts(),
     history: allTransactions(),
     rules: readStorageValue<CategoryRule[]>(CATEGORY_RULES_KEY, []),
     customCategories: readStorageValue<CustomCategory[]>(KEYS.customCategories, []),
     fxRate: (c) => fxRateToKRW(c) ?? fetchedFx[c] ?? null,
     // Recent entries only: a repeat cancellation notice arrives within minutes.
-    log: readStorageValue<InboxLogEntry[]>(KEYS.inboxLog, []).slice(0, 30),
+    log: log.slice(0, 30),
+    claimed: log.flatMap((e) => (e.status === 'duplicate' && e.txId ? [e.txId] : [])),
   };
 }
 
@@ -120,17 +157,47 @@ function prependLog(entries: InboxLogEntry[]) {
   const fresh = new Set(entries.map((e) => e.id));
   writeStorageValue(
     KEYS.inboxLog,
-    [...entries, ...log.filter((e) => !fresh.has(e.id))].slice(0, LOG_MAX),
+    // A card still waiting for its answer keeps its entries however old: they
+    // are the only record of which rows move once it is answered.
+    [...entries, ...log.filter((e) => !fresh.has(e.id))].filter((e, i) => i < LOG_MAX || e.card),
   );
 }
 
-function applyPlan(plan: ImportPlan) {
-  for (const id of plan.remove) removeTransaction(id);
-  addTransactions(plan.add);
-  prependLog([...plan.log].reverse()); // newest first
+/** Save what the notices taught before their rows move any balance. */
+function applyLearned(learn: ImportPlan['learn']): string[] {
+  if (learn.length === 0) return [];
+  const linked: string[] = [];
+  let accounts = readStorageValue<Account[]>(KEYS.accounts, []);
+  for (const { id, patch } of learn) {
+    const before = accounts.find((a) => a.id === id);
+    if (!before) continue;
+    accounts = accounts.map((a) => (a.id === id ? { ...a, ...patch } : a));
+    const card: CardRef = {
+      issuer: patch.cards?.at(-1)?.issuer ?? patch.bank,
+      last4: patch.last4 ?? patch.cards?.at(-1)?.last4,
+    };
+    linked.push(`${before.name} ← ${cardLabel(card)}`);
+  }
+  writeStorageValue(KEYS.accounts, accounts);
+  return linked;
 }
 
-function summarize(plan: ImportPlan): SyncSummary {
+function applyPlan(plan: ImportPlan): string[] {
+  const linked = applyLearned(plan.learn);
+  for (const id of plan.remove) {
+    for (const t of removeTransaction(id)) {
+      // A row from a statement import never moved the balance (the balance
+      // typed in already included it), so deleting it does not either — but
+      // when it goes because the charge was cancelled, the refund is real.
+      if (isHistoryOnly(t)) adjustAccountBalance(t.acc, -t.amount);
+    }
+  }
+  addTransactions(plan.add);
+  prependLog([...plan.log].reverse()); // newest first
+  return linked;
+}
+
+function summarize(plan: ImportPlan, linked: string[]): SyncSummary {
   const count = (s: InboxLogEntry['status']) => plan.log.filter((l) => l.status === s).length;
   const kept = new Set(plan.add.map((t) => t.id));
   return {
@@ -140,6 +207,9 @@ function summarize(plan: ImportPlan): SyncSummary {
     refunds: count('refund'),
     duplicates: count('duplicate'),
     unparsed: count('unparsed'),
+    skipped: count('skipped'),
+    linked,
+    asks: pendingCards(plan.log).length,
   };
 }
 
@@ -149,8 +219,104 @@ export function describeSync(s: SyncSummary): string | null {
   if (s.cancelled) parts.push(`${s.cancelled}건 취소 반영`);
   if (s.refunds) parts.push(`${s.refunds}건 환불`);
   if (s.unparsed) parts.push(`${s.unparsed}건 확인 필요`);
+  if (s.asks) parts.push(`새 카드 ${s.asks}장`);
+  if (parts.length === 0 && s.skipped) parts.push(`${s.skipped}건 기록 안 함`);
   if (parts.length === 0 && s.duplicates) parts.push(`중복 ${s.duplicates}건 건너뜀`);
-  return parts.length > 0 ? `카드 알림 ${parts.join(' · ')}` : null;
+  if (parts.length === 0) return s.linked.length > 0 ? `${s.linked[0]} 연결` : null;
+  return `카드 알림 ${parts.join(' · ')}${s.linked.length > 0 ? ` · ${s.linked[0]} 연결` : ''}`;
+}
+
+// ── Cards no account is known to own ─────────────────────────────
+
+export type PendingCard = {
+  card: CardRef;
+  /** Log entries (newest first) whose rows wait on the answer. */
+  entries: InboxLogEntry[];
+};
+
+/** Cards the notices named that still need to be told which account they are. */
+export function pendingCards(log: InboxLogEntry[]): PendingCard[] {
+  const out: PendingCard[] = [];
+  for (const e of log) {
+    if (!e.card) continue;
+    const hit = out.find((p) => sameCard(p.card, e.card as CardRef));
+    if (hit) hit.entries.push(e);
+    else out.push({ card: e.card, entries: [e] });
+  }
+  return out;
+}
+
+/** Where a pending card's rows sit for now. */
+export function pendingAccountId(p: PendingCard): string | undefined {
+  const byId = new Map(allTransactions().map((t) => [t.id, t]));
+  for (const e of p.entries) {
+    const t = e.txId ? byId.get(e.txId) : undefined;
+    if (t) return t.acc;
+  }
+  return undefined;
+}
+
+/**
+ * Settle which account a card is: the account remembers the card, and the rows
+ * recorded while it was unknown move there. `'new'` adds the card as an account.
+ */
+export function linkCard(
+  card: CardRef,
+  target: string | 'new',
+): { id: string; name: string; moved: number; created: boolean } {
+  let accounts = readAccounts();
+  let account = target === 'new' ? undefined : accounts.find((a) => a.id === target);
+  const created = !account;
+  if (!account) {
+    const bank = !!card.issuer && issuerKind(card.issuer) === 'bank';
+    account = {
+      id: `acc-${Date.now().toString(36)}`,
+      name: cardLabel(card),
+      bank: card.issuer ?? '',
+      type: bank ? 'bank' : 'card',
+      balance: 0,
+      color: colorFor(card.issuer ?? ''),
+      scope: 'personal',
+      last4: card.last4,
+      cards: [card],
+    };
+    accounts = [...accounts, account];
+  } else {
+    const patched = { ...account, ...cardPatch(account, card) };
+    accounts = accounts.map((a) => (a.id === patched.id ? patched : a));
+    account = patched;
+  }
+  writeStorageValue(KEYS.accounts, accounts);
+
+  const ctx = buildContext();
+  const byId = new Map(ctx.history.map((t) => [t.id, t]));
+  const log = readStorageValue<InboxLogEntry[]>(KEYS.inboxLog, []);
+  const moves: Array<[string, Partial<Transaction>]> = [];
+  for (const e of log) {
+    if (!e.card || !sameCard(e.card, card)) continue;
+    const t = e.txId ? byId.get(e.txId) : undefined;
+    if (!t || t.acc === account.id) continue;
+    // A row filed as 사업 대납 stays a business cost when it moves between my own cards.
+    const paidByMe = t.reimburse !== undefined && account.scope === 'personal';
+    const sameLedger = (t.scope ?? 'personal') === account.scope;
+    const patch: Partial<Transaction> = {
+      acc: account.id,
+      scope: paidByMe ? t.scope : account.scope,
+      cat:
+        paidByMe || sameLedger || t.amount > 0
+          ? t.cat
+          : resolveCategory(t.merchant, account.scope, ctx),
+      reimburse: paidByMe ? t.reimburse : undefined,
+    };
+    moves.push([t.id, patch]);
+  }
+  updateTransactions(moves);
+  const moved = moves.length;
+  writeStorageValue(
+    KEYS.inboxLog,
+    log.map((e) => (e.card && sameCard(e.card, card) ? { ...e, card: undefined } : e)),
+  );
+  return { id: account.id, name: account.name, moved, created };
 }
 
 let inFlight: Promise<SyncSummary | null> | null = null;
@@ -180,7 +346,9 @@ async function runSync(key: string, force: boolean): Promise<SyncSummary | null>
     force || !status.lastDeepAt || Date.now() - Date.parse(status.lastDeepAt) > DEEP_EVERY_MS;
   let items: InboxItem[];
   try {
-    const r = await fetch(`/api/inbox?k=${encodeURIComponent(key)}${deep ? '&deep=1' : ''}`, {
+    // The address goes in a header: it also names the ledger's backup, and URLs end up in request logs.
+    const r = await fetch(`/api/inbox${deep ? '?deep=1' : ''}`, {
+      headers: { 'x-inbox-key': key },
       cache: 'no-store',
     });
     if (!r.ok) {
@@ -199,29 +367,46 @@ async function runSync(key: string, force: boolean): Promise<SyncSummary | null>
   const seen = readStorageValue<string[]>(KEYS.inboxSeen, []);
   const seenSet = new Set(seen);
   const fresh = items.filter((i) => !seenSet.has(i.id));
-  let summary: SyncSummary = { added: 0, cancelled: 0, refunds: 0, duplicates: 0, unparsed: 0 };
+  let summary: SyncSummary = NOTHING;
   if (fresh.length > 0) {
     await prefetchFx(currenciesNeeded(fresh));
-    const plan = planImport(fresh, buildContext());
-    applyPlan(plan);
-    summary = summarize(plan);
+    let plan: ImportPlan;
+    try {
+      plan = planImport(fresh, buildContext());
+    } catch {
+      // Nothing was written: the notices stay queued and are tried again.
+      writeStorageValue<InboxStatus>(KEYS.inboxStatus, { ...status, lastError: 'import-failed' });
+      return null;
+    }
+    summary = summarize(plan, applyPlan(plan));
     writeStorageValue(KEYS.inboxSeen, [...fresh.map((i) => i.id), ...seen].slice(0, SEEN_MAX));
   }
-  if (items.length > 0) {
-    // Ack re-deliveries too, so the queue always drains.
-    fetch(`/api/inbox?k=${encodeURIComponent(key)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: items.map((i) => i.id) }),
-      keepalive: true,
-    }).catch(() => {});
-  }
+  if (items.length > 0) void settle(key, items);
   const now = new Date().toISOString();
   writeStorageValue<InboxStatus>(KEYS.inboxStatus, {
     lastSyncAt: now,
     lastDeepAt: deep ? now : status.lastDeepAt,
   });
   return summary;
+}
+
+/**
+ * Take imported notices off the server queue — once the server backup holds
+ * their rows. Until then they stay queued (this device skips them as seen), so
+ * a device restored from an older backup still finds them waiting.
+ */
+async function settle(key: string, items: InboxItem[]) {
+  const backup = await syncServerBackup({ force: true });
+  // `failed`: not saved yet — try again next time. `held`: another copy of the
+  // app owns the newest backup, and it is the one that should take these.
+  if (backup === 'failed' || backup === 'held') return;
+  // Re-deliveries are acked too, so the queue always drains.
+  fetch('/api/inbox', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', 'x-inbox-key': key },
+    body: JSON.stringify({ ids: items.map((i) => i.id) }),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 /** "그래도 추가" for an entry that was skipped as a duplicate. */
@@ -240,7 +425,10 @@ export function forceAddLogEntry(entry: InboxLogEntry): string | null {
 export function restoreCancelled(entry: InboxLogEntry): boolean {
   if (!entry.removed?.length) return false;
   const existing = new Set(allTransactions().map((t) => t.id));
-  addTransactions(entry.removed.filter((t) => !existing.has(t.id)));
+  const back = entry.removed.filter((t) => !existing.has(t.id));
+  addTransactions(back);
+  // The refund applied for a statement-import row when it was cancelled (see applyPlan).
+  for (const t of back) if (isHistoryOnly(t)) adjustAccountBalance(t.acc, t.amount);
   // Stays a cancellation entry (now reversed) — the restored row already has its own entry.
   updateLogEntry(entry.id, { undone: true, removed: undefined });
   return true;

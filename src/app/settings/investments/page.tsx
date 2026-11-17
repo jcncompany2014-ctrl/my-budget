@@ -588,7 +588,7 @@ function Editor({
   };
 
   return (
-    <Sheet open onClose={onCancel}>
+    <Sheet open onClose={onCancel} keep={draft !== i}>
       <h2
         className="mb-4"
         style={{ color: 'var(--color-text-1)', fontSize: 'var(--text-lg)', fontWeight: 700 }}

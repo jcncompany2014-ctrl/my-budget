@@ -9,12 +9,6 @@ import Section from '@/components/ui/Section';
 import type { BusinessProfile } from '@/lib/business-profile';
 import { useBusinessProfile } from '@/lib/business-profile';
 
-const TAX_LABELS: Record<BusinessProfile['taxClass'], string> = {
-  general: '일반과세자',
-  simplified: '간이과세자',
-  taxFree: '면세사업자',
-};
-
 export default function BusinessProfilePage() {
   const router = useRouter();
   const toast = useToast();
@@ -26,15 +20,22 @@ export default function BusinessProfilePage() {
   }, [value]);
 
   const save = () => {
-    set(draft);
-    toast.show('사업자 정보 저장 완료', 'success');
+    const next = { ...draft };
+    // Paydays count from the moment auto payroll is switched on — not from the
+    // next time the app happens to be opened, which could be after the first one.
+    if (!next.autoPayroll) delete next.payrollPostedThrough;
+    else if (!value.autoPayroll || !next.payrollPostedThrough) {
+      next.payrollPostedThrough = new Date().toISOString();
+    }
+    set(next);
+    toast.show('저장 완료', 'success');
     router.back();
   };
 
   return (
     <>
       <TopBar
-        title="사업자 정보"
+        title="수수료 · 인건비"
         right={
           <button
             type="button"
@@ -47,94 +48,7 @@ export default function BusinessProfilePage() {
         }
       />
 
-      <Section title="기본 정보" topGap={4}>
-        <div className="space-y-2 rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-          <Field label="상호명">
-            <input
-              value={draft.companyName}
-              onChange={(e) => setDraft({ ...draft, companyName: e.target.value })}
-              placeholder="(주)스튜디오ABC"
-              className="h-12 w-full rounded-xl px-4 outline-none"
-              style={{
-                background: 'var(--color-gray-100)',
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 500,
-              }}
-            />
-          </Field>
-          <Field label="대표자">
-            <input
-              value={draft.ownerName}
-              onChange={(e) => setDraft({ ...draft, ownerName: e.target.value })}
-              placeholder="홍길동"
-              className="h-12 w-full rounded-xl px-4 outline-none"
-              style={{
-                background: 'var(--color-gray-100)',
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 500,
-              }}
-            />
-          </Field>
-          <Field label="사업자등록번호">
-            <input
-              value={draft.registrationNumber}
-              onChange={(e) => setDraft({ ...draft, registrationNumber: e.target.value })}
-              placeholder="123-45-67890"
-              className="tnum h-12 w-full rounded-xl px-4 outline-none"
-              style={{
-                background: 'var(--color-gray-100)',
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 500,
-              }}
-            />
-          </Field>
-          <Field label="업종">
-            <input
-              value={draft.industry}
-              onChange={(e) => setDraft({ ...draft, industry: e.target.value })}
-              placeholder="소매업, 음식점, 서비스업..."
-              className="h-12 w-full rounded-xl px-4 outline-none"
-              style={{
-                background: 'var(--color-gray-100)',
-                color: 'var(--color-text-1)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 500,
-              }}
-            />
-          </Field>
-        </div>
-      </Section>
-
-      <Section title="과세 구분">
-        <div className="rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
-          <div className="flex gap-2">
-            {(['general', 'simplified', 'taxFree'] as const).map((k) => {
-              const sel = draft.taxClass === k;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setDraft({ ...draft, taxClass: k })}
-                  className="tap flex-1 rounded-xl py-3"
-                  style={{
-                    background: sel ? 'var(--color-primary)' : 'var(--color-gray-100)',
-                    color: sel ? '#fff' : 'var(--color-text-2)',
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 700,
-                  }}
-                >
-                  {TAX_LABELS[k]}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </Section>
-
-      <Section title="수수료율">
+      <Section title="수수료율" topGap={4}>
         <div className="space-y-2 rounded-2xl p-4" style={{ background: 'var(--color-card)' }}>
           <Field label="카드 수수료 (%)">
             <DecimalInput
@@ -204,7 +118,8 @@ export default function BusinessProfilePage() {
                 onChange={(e) =>
                   setDraft({
                     ...draft,
-                    payrollDay: Math.min(31, Math.max(1, Number(e.target.value) || 1)),
+                    // Empty while retyping; an empty day falls back to the 25th when posting.
+                    payrollDay: Math.min(31, Math.max(0, Number(e.target.value) || 0)),
                   })
                 }
                 placeholder="25"

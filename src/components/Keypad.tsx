@@ -3,7 +3,7 @@
 import { Delete } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'] as const;
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'del'] as const;
 
 type Props = {
   value: string;
@@ -17,23 +17,12 @@ export default function Keypad({ value, onChange }: Props) {
       onChange(value.slice(0, -1));
       return;
     }
-    if (k === '.') {
-      // Only one decimal point allowed per amount
-      if (value.includes('.')) return;
-      // Empty input becomes "0." so it's clearly a fraction-in-progress
-      if (value === '' || value === '0') {
-        onChange('0.');
-        return;
-      }
-      onChange(`${value}.`);
-      return;
-    }
-    // Empty or single-zero state: first digit replaces
+    // Empty or single-zero state: the first digit replaces it, and zeros add nothing.
     if (value === '' || value === '0') {
-      onChange(k);
+      if (k !== '00') onChange(k);
       return;
     }
-    if (value.length < 12) {
+    if (value.length + k.length <= 12) {
       onChange(value + k);
     }
   };

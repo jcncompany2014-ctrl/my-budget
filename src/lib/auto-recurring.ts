@@ -1,6 +1,8 @@
 'use client';
 
+import { isTransferCategory } from '@/lib/categories';
 import { applyTxToAccounts } from '@/lib/integrity';
+import { sameCharge } from '@/lib/same-charge';
 import { KEYS } from '@/lib/storage-keys';
 import { readStorageValue, writeStorageValue } from '@/lib/store-factory';
 import type { Account, RecurringItem, Transaction } from '@/lib/types';
@@ -16,6 +18,9 @@ const LAST_RUN_KEY = 'asset/auto-recurring-last/v1';
  * Idempotent: each (recurring id, year, month) combo creates at most one tx
  * (two legs when the item moves money into another account).
  */
+/** A subscription is charged within a few days of its date, not always on it. */
+const SAME_CHARGE_MS = 3 * 86_400_000;
+
 export function ensureAutoRecurring() {
   if (typeof window === 'undefined') return;
 
@@ -53,6 +58,25 @@ export function ensureAutoRecurring() {
       if (!from) continue;
       const id = `recur-${m.getFullYear()}-${m.getMonth()}-${r.id}`;
       if (existingIds.has(id)) continue;
+      // Already in the ledger — recorded from the card notice or typed in — so
+      // this occurrence is settled without being posted a second time.
+      const recorded =
+        !r.toAcc &&
+        txs.some(
+          (t) =>
+            !t.recurring &&
+            !t.transferPairId &&
+            !isTransferCategory(t.cat) &&
+            t.acc === from.id &&
+            t.amount === -r.amount &&
+            Math.abs(new Date(t.date).getTime() - targetDate.getTime()) <= SAME_CHARGE_MS &&
+            // …and the row has to be this charge, not something else of the same size.
+            sameCharge(t, { merchant: r.name, cat: r.cat }),
+        );
+      if (recorded) {
+        posted.add(r.id);
+        continue;
+      }
       const out: Transaction = {
         id,
         date: targetDate.toISOString(),
@@ -90,10 +114,12 @@ export function ensureAutoRecurring() {
     }
   }
 
-  if (newTxs.length === 0) return;
+  if (newTxs.length === 0 && posted.size === 0) return;
 
-  newTxs.forEach(applyTxToAccounts);
-  writeStorageValue(KEYS.transactions, [...newTxs, ...txs]);
+  if (newTxs.length > 0) {
+    newTxs.forEach(applyTxToAccounts);
+    writeStorageValue(KEYS.transactions, [...newTxs, ...txs]);
+  }
   const stamp = now.toISOString();
   writeStorageValue(
     KEYS.recurring,

@@ -20,6 +20,9 @@ import type {
   Vendor,
 } from '@/lib/types';
 
+/** State of the server backup (lib/server-backup.ts) — device-local, never part of a backup. */
+export const SERVER_BACKUP_KEY = 'asset/server-backup/v1';
+
 export type BackupFile = {
   version: 6;
   exportedAt: string;
@@ -52,6 +55,8 @@ export type BackupFile = {
   inboxKey?: string | null;
   /** Daily net worth per ledger — cannot be rebuilt from transactions. */
   netWorthHistory?: unknown;
+  /** Auto-record history — holds the cards still waiting to be matched to an account. */
+  inboxLog?: unknown[];
 };
 
 function read<T>(key: string, fallback: T): T {
@@ -101,6 +106,7 @@ export function exportAll(): BackupFile {
     taxpayerType: read<unknown>(KEYS.taxpayerType, null),
     inboxKey: read<string | null>(KEYS.inboxKey, null),
     netWorthHistory: read<unknown>(KEYS.netWorthHistory, null),
+    inboxLog: read<unknown[]>(KEYS.inboxLog, []),
   };
 }
 
@@ -146,105 +152,115 @@ const ARRAY_ENTITIES: Array<{
   { bodyKey: 'customCategories', storageKey: KEYS.customCategories, resultKey: 'customCategories' },
 ];
 
+/** Replace the stored data with a parsed backup. Throws when it is not one. */
+export function applyBackup(parsed: unknown): ImportResult {
+  let transactions: Transaction[] | null = null;
+  let body: Record<string, unknown> = {};
+  if (Array.isArray(parsed)) {
+    transactions = parsed as Transaction[];
+  } else if (parsed && typeof parsed === 'object') {
+    body = parsed as Record<string, unknown>;
+    transactions = Array.isArray(body.transactions) ? (body.transactions as Transaction[]) : null;
+  } else {
+    throw new Error('잘못된 백업 파일이에요');
+  }
+
+  // Only overwrite transactions when the backup actually contains them.
+  // Earlier versions wrote an empty array on missing-or-malformed input,
+  // which silently wiped every transaction the user had.
+  if (transactions !== null) {
+    writeIf(KEYS.transactions, transactions);
+  }
+
+  const result: ImportResult = {
+    transactions: transactions?.length ?? 0,
+    accounts: 0,
+    budgets: 0,
+    goals: 0,
+    recurring: 0,
+    loans: 0,
+    creditLines: 0,
+    vendors: 0,
+    employees: 0,
+    locations: 0,
+    investments: 0,
+    favorites: 0,
+    challenges: 0,
+    customCategories: 0,
+  };
+
+  for (const e of ARRAY_ENTITIES) {
+    const v = body[e.bodyKey as string];
+    if (Array.isArray(v)) {
+      writeIf(e.storageKey, v);
+      (result[e.resultKey] as number) = v.length;
+    }
+  }
+
+  if (body.budgets && typeof body.budgets === 'object') {
+    writeIf(KEYS.budgets, body.budgets);
+    result.budgets = Object.keys(body.budgets as Record<string, unknown>).length;
+  }
+
+  if (body.profile && typeof body.profile === 'object') {
+    writeIf(KEYS.profile, body.profile);
+  }
+  if (body.businessProfile && typeof body.businessProfile === 'object') {
+    writeIf(KEYS.businessProfile, body.businessProfile);
+  }
+  if (Array.isArray(body.categoryRules)) {
+    writeIf('asset/category-rules/v1', body.categoryRules);
+  }
+  // v6 settings restore
+  if (body.activeLocation !== undefined && body.activeLocation !== null) {
+    writeIf(KEYS.activeLocation, body.activeLocation);
+  }
+  if (body.yearlyGoals !== undefined && body.yearlyGoals !== null) {
+    writeIf(KEYS.yearlyGoals, body.yearlyGoals);
+  }
+  if (Array.isArray(body.events)) {
+    writeIf(KEYS.events, body.events);
+  }
+  if (body.mode !== undefined && body.mode !== null) {
+    writeIf(KEYS.mode, body.mode);
+  }
+  if (body.language !== undefined && body.language !== null) {
+    writeIf(KEYS.language, body.language);
+  }
+  if (body.currency !== undefined && body.currency !== null) {
+    writeIf(KEYS.currency, body.currency);
+  }
+  if (body.taxpayerType !== undefined && body.taxpayerType !== null) {
+    writeIf(KEYS.taxpayerType, body.taxpayerType);
+  }
+  if (typeof body.inboxKey === 'string') {
+    writeIf(KEYS.inboxKey, body.inboxKey);
+  }
+  if (body.netWorthHistory && typeof body.netWorthHistory === 'object') {
+    writeIf(KEYS.netWorthHistory, body.netWorthHistory);
+  }
+  if (Array.isArray(body.inboxLog)) {
+    writeIf(KEYS.inboxLog, body.inboxLog);
+  }
+  return result;
+}
+
 export function importBackup(file: File): Promise<ImportResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('파일을 읽지 못했어요'));
     reader.onload = () => {
+      let parsed: unknown;
       try {
-        const text = reader.result as string;
-        const parsed = JSON.parse(text);
-
-        let transactions: Transaction[] | null = null;
-        let body: Record<string, unknown> = {};
-        if (Array.isArray(parsed)) {
-          transactions = parsed as Transaction[];
-        } else if (parsed && typeof parsed === 'object') {
-          body = parsed;
-          transactions = Array.isArray(parsed.transactions) ? parsed.transactions : null;
-        } else {
-          reject(new Error('잘못된 백업 파일이에요'));
-          return;
-        }
-
-        // Only overwrite transactions when the backup actually contains them.
-        // Earlier versions wrote an empty array on missing-or-malformed input,
-        // which silently wiped every transaction the user had.
-        if (transactions !== null) {
-          writeIf(KEYS.transactions, transactions);
-        }
-
-        const result: ImportResult = {
-          transactions: transactions?.length ?? 0,
-          accounts: 0,
-          budgets: 0,
-          goals: 0,
-          recurring: 0,
-          loans: 0,
-          creditLines: 0,
-          vendors: 0,
-          employees: 0,
-          locations: 0,
-          investments: 0,
-          favorites: 0,
-          challenges: 0,
-          customCategories: 0,
-        };
-
-        for (const e of ARRAY_ENTITIES) {
-          const v = body[e.bodyKey as string];
-          if (Array.isArray(v)) {
-            writeIf(e.storageKey, v);
-            (result[e.resultKey] as number) = v.length;
-          }
-        }
-
-        if (body.budgets && typeof body.budgets === 'object') {
-          writeIf(KEYS.budgets, body.budgets);
-          result.budgets = Object.keys(body.budgets as Record<string, unknown>).length;
-        }
-
-        if (body.profile && typeof body.profile === 'object') {
-          writeIf(KEYS.profile, body.profile);
-        }
-        if (body.businessProfile && typeof body.businessProfile === 'object') {
-          writeIf(KEYS.businessProfile, body.businessProfile);
-        }
-        if (Array.isArray(body.categoryRules)) {
-          writeIf('asset/category-rules/v1', body.categoryRules);
-        }
-        // v6 settings restore
-        if (body.activeLocation !== undefined && body.activeLocation !== null) {
-          writeIf(KEYS.activeLocation, body.activeLocation);
-        }
-        if (body.yearlyGoals !== undefined && body.yearlyGoals !== null) {
-          writeIf(KEYS.yearlyGoals, body.yearlyGoals);
-        }
-        if (Array.isArray(body.events)) {
-          writeIf(KEYS.events, body.events);
-        }
-        if (body.mode !== undefined && body.mode !== null) {
-          writeIf(KEYS.mode, body.mode);
-        }
-        if (body.language !== undefined && body.language !== null) {
-          writeIf(KEYS.language, body.language);
-        }
-        if (body.currency !== undefined && body.currency !== null) {
-          writeIf(KEYS.currency, body.currency);
-        }
-        if (body.taxpayerType !== undefined && body.taxpayerType !== null) {
-          writeIf(KEYS.taxpayerType, body.taxpayerType);
-        }
-        if (typeof body.inboxKey === 'string') {
-          writeIf(KEYS.inboxKey, body.inboxKey);
-        }
-        if (body.netWorthHistory && typeof body.netWorthHistory === 'object') {
-          writeIf(KEYS.netWorthHistory, body.netWorthHistory);
-        }
-
-        resolve(result);
+        parsed = JSON.parse(reader.result as string);
       } catch {
         reject(new Error('JSON 파싱 실패'));
+        return;
+      }
+      try {
+        resolve(applyBackup(parsed));
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error('복원 실패'));
       }
     };
     reader.readAsText(file);
@@ -266,6 +282,7 @@ export function clearAll() {
   window.localStorage.removeItem('asset/auto-loan-last/v1');
   window.localStorage.removeItem('asset/auto-credit-line-last/v1');
   window.localStorage.removeItem('asset/smart-dismissed/v1');
+  window.localStorage.removeItem(SERVER_BACKUP_KEY);
   window.localStorage.removeItem('asset/install-hint-dismissed');
   window.localStorage.removeItem('asset/audit-log/v1'); // legacy
 }

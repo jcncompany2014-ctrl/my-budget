@@ -116,6 +116,8 @@ export function buildSettlement(args: {
     transferPairId: pairId,
     transferTo: out ? to.id : from.id,
     transferCrossMode: from.scope !== to.scope,
+    // Adding this leg marks the rows paid back; deleting it makes them owed again.
+    ...(out ? { settles: rows.filter(isDue).map((t) => t.id) } : {}),
   });
   return [leg(true), leg(false)];
 }

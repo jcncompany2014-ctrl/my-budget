@@ -6,11 +6,13 @@ import {
   HandCoins,
   Landmark,
   type LucideIcon,
+  Plus,
   TrendingUp,
   Wallet,
+  X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import BankIcon from '@/components/icons/BankIcon';
 import CardIcon from '@/components/icons/CardIcon';
 import { useMode } from '@/components/ModeProvider';
@@ -20,9 +22,12 @@ import TopBar from '@/components/TopBar';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import Sheet from '@/components/ui/Sheet';
-import { useAccounts } from '@/lib/accounts';
+import { takeAccountToEdit, useAccounts } from '@/lib/accounts';
 import { defaultCycleStart } from '@/lib/card-billing';
+import { namesIssuer } from '@/lib/card-notification';
 import { fmt } from '@/lib/format';
+import { cardLabel } from '@/lib/inbox-import';
+import { INSTITUTIONS, type Institution } from '@/lib/institutions';
 import { useAllTransactions } from '@/lib/storage';
 import type { Account, AccountType } from '@/lib/types';
 
@@ -61,6 +66,17 @@ export default function AccountsSettingsPage() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Arriving from "처음 보는 카드 → 새 카드": that card's editor is already open.
+  useEffect(() => {
+    if (!ready) return;
+    const id = takeAccountToEdit();
+    const target = id ? accounts.find((a) => a.id === id) : undefined;
+    if (target) {
+      setEditing(target);
+      setCreating(false);
+    }
+  }, [ready, accounts]);
+
   if (!ready) {
     return (
       <>
@@ -83,11 +99,24 @@ export default function AccountsSettingsPage() {
             autoBilling: undefined,
             billingPostedThrough: undefined,
           };
-    if (creating) {
+    // Auto payment counts from the moment it is switched on.
+    if (a.autoBilling && !(editing?.autoBilling && !creating)) {
+      a.billingPostedThrough = new Date().toISOString();
+    }
+    if (creating || !editing) {
       add(a);
       toast.show('계좌 추가 완료', 'success');
     } else {
-      update(a.id, a);
+      // Only the fields changed in the sheet: while it was open a notice may
+      // have moved the balance or taught the account a card, and writing the
+      // whole draft back would undo that.
+      const before = editing as unknown as Record<string, unknown>;
+      const after = a as unknown as Record<string, unknown>;
+      const patch: Record<string, unknown> = {};
+      for (const k of new Set([...Object.keys(before), ...Object.keys(after)])) {
+        if (after[k] !== before[k]) patch[k] = after[k];
+      }
+      update(a.id, patch as Partial<Account>);
       toast.show('계좌 수정 완료', 'success');
     }
     setEditing(null);
@@ -102,12 +131,12 @@ export default function AccountsSettingsPage() {
   };
   const usedBy = editing ? allTx.filter((t) => t.acc === editing.id).length : 0;
 
-  const startNew = () => {
+  const startNew = (type: AccountType) => {
     setEditing({
       id: 'acc-' + Date.now().toString(36),
       name: '',
       bank: '',
-      type: 'bank',
+      type,
       balance: 0,
       color: mode === 'business' ? '#3182F6' : '#00B956',
       scope: mode,
@@ -159,9 +188,19 @@ export default function AccountsSettingsPage() {
                   >
                     {a.name}
                   </p>
-                  <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
+                  <p className="tnum truncate text-xs" style={{ color: 'var(--color-text-3)' }}>
                     {TYPE_LABELS[a.type]} · {a.bank || '—'}
+                    {a.last4 ? ` · ${a.last4}` : ''}
+                    {a.type === 'card' && a.billingDay ? ` · 매월 ${a.billingDay}일 결제` : ''}
                   </p>
+                  {a.type === 'card' && !a.billingDay && (
+                    <p
+                      className="mt-0.5 text-xs font-bold"
+                      style={{ color: 'var(--color-primary)' }}
+                    >
+                      결제일 정하기
+                    </p>
+                  )}
                 </div>
                 <p
                   className="tnum text-[14px] font-bold"
@@ -178,15 +217,24 @@ export default function AccountsSettingsPage() {
         )}
       </section>
 
-      <section className="px-5 pb-10 pt-2">
-        <button
-          type="button"
-          onClick={startNew}
-          className="tap w-full rounded-2xl border-2 border-dashed py-4 text-sm font-bold"
-          style={{ borderColor: 'var(--color-gray-300)', color: 'var(--color-text-2)' }}
-        >
-          + 계좌 추가
-        </button>
+      <section className="grid grid-cols-2 gap-2 px-5 pb-10 pt-2">
+        {(
+          [
+            ['bank', '계좌'],
+            ['card', '카드'],
+          ] as const
+        ).map(([type, label]) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => startNew(type)}
+            className="tap flex items-center justify-center gap-1 rounded-2xl border-2 border-dashed py-4 text-sm font-bold"
+            style={{ borderColor: 'var(--color-gray-300)', color: 'var(--color-text-2)' }}
+          >
+            <Plus size={16} strokeWidth={2.6} />
+            {label}
+          </button>
+        ))}
       </section>
 
       {editing && (
@@ -239,11 +287,25 @@ function AccountEditor({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(account);
+  // The name the last pick filled in — replaced by the next pick unless edited since.
+  const [picked, setPicked] = useState('');
 
   const valid = draft.name.trim().length > 0;
 
+  const pick = (inst: Institution) => {
+    setDraft((d) => ({
+      ...d,
+      name: !d.name.trim() || d.name === picked ? inst.name : d.name,
+      bank: inst.name,
+      type: inst.type,
+      color: inst.color,
+      balance: inst.type === 'card' ? -Math.abs(d.balance) : Math.abs(d.balance),
+    }));
+    setPicked(inst.name);
+  };
+
   return (
-    <Sheet open onClose={onCancel}>
+    <Sheet open onClose={onCancel} keep={draft !== account}>
       {/* Live preview header */}
       <div
         className="mb-5 flex items-center gap-3 rounded-2xl px-4 py-3"
@@ -263,7 +325,7 @@ function AccountEditor({
               fontWeight: 700,
             }}
           >
-            {draft.name || (isNew ? '새 계좌' : '계좌')}
+            {draft.name || (isNew ? (draft.type === 'card' ? '새 카드' : '새 계좌') : '계좌')}
           </p>
           <p
             className="truncate"
@@ -277,6 +339,8 @@ function AccountEditor({
           </p>
         </div>
       </div>
+
+      {isNew && <QuickPick type={draft.type} selected={draft.bank} onPick={pick} />}
 
       <Field label="이름" required>
         <input
@@ -368,27 +432,79 @@ function AccountEditor({
         </div>
       </Field>
 
+      {(draft.type === 'card' || draft.type === 'bank') && (
+        <Field label={draft.type === 'card' ? '카드 끝 4자리' : '체크카드 끝 4자리'}>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={draft.last4 ?? ''}
+            onChange={(e) =>
+              setDraft({ ...draft, last4: e.target.value.replace(/[^0-9*]/g, '') || undefined })
+            }
+            placeholder="1234"
+            className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
+            style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
+          />
+          {draft.cards && draft.cards.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {draft.cards.map((c) => (
+                <button
+                  key={`${c.issuer ?? ''}|${c.last4 ?? ''}`}
+                  type="button"
+                  onClick={() => {
+                    const cards = (draft.cards ?? []).filter((x) => x !== c);
+                    setDraft({
+                      ...draft,
+                      cards: cards.length > 0 ? cards : undefined,
+                      // The digits and issuer the notice filled in would go on
+                      // matching it; a name that says the issuer is the user's own.
+                      last4: c.last4 && draft.last4 === c.last4 ? undefined : draft.last4,
+                      bank:
+                        c.issuer && draft.bank === c.issuer && !namesIssuer(draft.name)
+                          ? ''
+                          : draft.bank,
+                    });
+                  }}
+                  aria-label={`${cardLabel(c)} 알림 연결 해제`}
+                  className="tap tnum flex h-8 items-center gap-1 rounded-full pl-3 pr-2"
+                  style={{
+                    background: 'var(--color-primary-soft)',
+                    color: 'var(--color-primary)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {cardLabel(c)} 알림
+                  <X size={13} strokeWidth={2.8} />
+                </button>
+              ))}
+            </div>
+          )}
+        </Field>
+      )}
+
       {draft.type === 'card' && (
         <>
-          <Field label="카드 끝 4자리">
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={4}
-              value={draft.last4 ?? ''}
-              onChange={(e) =>
-                setDraft({ ...draft, last4: e.target.value.replace(/[^0-9*]/g, '') || undefined })
-              }
-              placeholder="1234"
-              className="tnum h-12 w-full rounded-xl px-4 text-[15px] font-medium outline-none"
-              style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
-            />
-          </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="결제일">
               <DayInput
                 value={draft.billingDay}
-                onChange={(d) => setDraft({ ...draft, billingDay: d })}
+                onChange={(d) =>
+                  setDraft({
+                    ...draft,
+                    billingDay: d,
+                    // The bill almost always leaves the main account — one tap fewer.
+                    billingAccountId:
+                      draft.billingAccountId ??
+                      (d
+                        ? (
+                            payFrom.find((a) => a.main) ??
+                            (payFrom.length === 1 ? payFrom[0] : null)
+                          )?.id
+                        : undefined),
+                  })
+                }
               />
             </Field>
             <Field label="이용기간 시작일">
@@ -527,6 +643,92 @@ function AccountEditor({
         </button>
       </div>
     </Sheet>
+  );
+}
+
+const PICK_TABS = [
+  ['card', '카드'],
+  ['bank', '은행'],
+  ['investment', '증권'],
+] as const;
+
+type PickTab = (typeof PICK_TABS)[number][0];
+
+/** One tap fills in the name, issuer, kind and colour of a new account. */
+function QuickPick({
+  type,
+  selected,
+  onPick,
+}: {
+  type: AccountType;
+  selected: string;
+  onPick: (inst: Institution) => void;
+}) {
+  const [tab, setTab] = useState<PickTab>(
+    type === 'card' ? 'card' : type === 'investment' ? 'investment' : 'bank',
+  );
+  return (
+    <div className="mb-4">
+      <div
+        className="mb-2 grid grid-cols-3 gap-1 rounded-xl p-1"
+        style={{ background: 'var(--color-gray-100)' }}
+      >
+        {PICK_TABS.map(([key, label]) => {
+          const on = key === tab;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className="tap h-9 rounded-lg"
+              style={{
+                background: on ? 'var(--color-card)' : 'transparent',
+                boxShadow: on ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                color: on ? 'var(--color-text-1)' : 'var(--color-text-3)',
+                fontSize: 13,
+                fontWeight: 800,
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {INSTITUTIONS[tab].map((inst) => {
+          const on = selected === inst.name;
+          return (
+            <button
+              key={inst.name}
+              type="button"
+              onClick={() => onPick(inst)}
+              aria-pressed={on}
+              className="tap flex h-[68px] flex-col items-center justify-center gap-1.5 rounded-xl px-1"
+              style={{
+                background: on ? 'var(--color-primary-soft)' : 'var(--color-gray-50)',
+                boxShadow: on ? 'inset 0 0 0 1.5px var(--color-primary)' : undefined,
+              }}
+            >
+              {inst.type === 'card' ? (
+                <CardIcon name={inst.name} size={24} />
+              ) : (
+                <BankIcon name={inst.name} size={28} />
+              )}
+              <span
+                className="w-full truncate text-center"
+                style={{
+                  color: on ? 'var(--color-primary)' : 'var(--color-text-2)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {inst.name.replace(/\s?카드$|은행$|증권$/, '')}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

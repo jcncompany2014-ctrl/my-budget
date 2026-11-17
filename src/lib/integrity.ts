@@ -29,10 +29,18 @@ export function adjustAccountBalance(accId: string, delta: number) {
 }
 
 /**
+ * Rows imported from a statement (CSV) are history only: the balance was
+ * entered by hand and already includes them, so they were added without moving
+ * it — and deleting or re-pricing one must not move it either.
+ */
+export const isHistoryOnly = (tx: Pick<Transaction, 'id'>) => tx.id.startsWith('imp-');
+
+/**
  * Apply transaction delta to source/destination accounts.
  * Use when adding a tx.
  */
 export function applyTxToAccounts(tx: Transaction) {
+  if (isHistoryOnly(tx)) return;
   // Single tx (income/expense): balance += amount (negative for expense)
   // Transfer leg already has sign baked in
   adjustAccountBalance(tx.acc, tx.amount);
@@ -40,6 +48,7 @@ export function applyTxToAccounts(tx: Transaction) {
 
 /** Reverse the effect of a transaction (use when deleting / undoing) */
 export function reverseTxFromAccounts(tx: Transaction) {
+  if (isHistoryOnly(tx)) return;
   adjustAccountBalance(tx.acc, -tx.amount);
 }
 

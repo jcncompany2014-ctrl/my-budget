@@ -7,6 +7,7 @@ import { setStoredItem } from '@/lib/safe-storage';
 import { SEED_TRANSACTIONS } from '@/lib/seed';
 import { KEYS } from '@/lib/storage-keys';
 import { subscribeToKey, useHydrated } from '@/lib/store-factory';
+import { movePrincipal, settle, unsettle } from '@/lib/tx-effects';
 import type { Transaction } from '@/lib/types';
 
 const KEY = KEYS.transactions;
@@ -78,8 +79,9 @@ export function allTransactions(): Transaction[] {
 export function addTransactions(list: Transaction[]) {
   if (list.length === 0) return;
   // Rows before balances — a failed save must not leave a balance moved by a row that is gone.
-  commitTx([...list, ...getCachedTx()]);
+  commitTx(settle([...list, ...getCachedTx()], list));
   list.forEach((t) => applyTxToAccounts(t));
+  movePrincipal(list, -1);
 }
 
 /**
@@ -92,8 +94,37 @@ export function removeTransaction(id: string): Transaction[] {
   if (!target) return [];
   const idsToRemove = target.transferPairId ? transferPairIds(target, cur) : [id];
   const removed = cur.filter((t) => idsToRemove.includes(t.id));
-  commitTx(cur.filter((t) => !idsToRemove.includes(t.id)));
+  commitTx(
+    unsettle(
+      cur.filter((t) => !idsToRemove.includes(t.id)),
+      removed,
+    ),
+  );
   removed.forEach((t) => reverseTxFromAccounts(t));
+  movePrincipal(removed, 1);
+  return removed;
+}
+
+/** Remove several transactions (and the other leg of any transfer among them) in one write. */
+export function removeTransactions(ids: string[]): Transaction[] {
+  const cur = getCachedTx();
+  const byId = new Map(cur.map((t) => [t.id, t]));
+  const drop = new Set<string>();
+  for (const id of ids) {
+    const t = byId.get(id);
+    if (!t) continue;
+    for (const leg of t.transferPairId ? transferPairIds(t, cur) : [id]) drop.add(leg);
+  }
+  if (drop.size === 0) return [];
+  const removed = cur.filter((t) => drop.has(t.id));
+  commitTx(
+    unsettle(
+      cur.filter((t) => !drop.has(t.id)),
+      removed,
+    ),
+  );
+  removed.forEach((t) => reverseTxFromAccounts(t));
+  movePrincipal(removed, 1);
   return removed;
 }
 
@@ -103,27 +134,49 @@ export function removeTransaction(id: string): Transaction[] {
  * cannot leave money unaccounted for.
  */
 export function updateTransaction(id: string, patch: Partial<Transaction>) {
+  updateTransactions([[id, patch]]);
+}
+
+/**
+ * Edit several rows in one write — moving a card's rows to another account
+ * used to rewrite the whole ledger (and both accounts) once per row.
+ */
+export function updateTransactions(edits: Array<[id: string, patch: Partial<Transaction>]>) {
   const cur = getCachedTx();
-  const target = cur.find((t) => t.id === id);
-  if (!target) return;
-  const changes: [Transaction, Transaction][] = [[target, { ...target, ...patch }]];
-  const pair = target.transferPairId
-    ? cur.find((t) => t.id !== id && t.transferPairId === target.transferPairId)
-    : undefined;
-  if (pair) {
+  const byId = new Map(cur.map((t) => [t.id, t]));
+  const edited = new Map<string, Transaction>();
+  const changes: [Transaction, Transaction][] = [];
+  const apply = (row: Transaction, patch: Partial<Transaction>) => {
+    const old = edited.get(row.id) ?? row;
+    const now = { ...old, ...patch };
+    edited.set(row.id, now);
+    changes.push([old, now]);
+  };
+  for (const [id, patch] of edits) {
+    const target = byId.get(id);
+    if (!target) continue;
+    apply(target, patch);
+    const pair = target.transferPairId
+      ? cur.find((t) => t.id !== id && t.transferPairId === target.transferPairId)
+      : undefined;
+    if (!pair) continue;
     const mirrored: Partial<Transaction> = {};
     if (patch.amount !== undefined) mirrored.amount = -patch.amount;
     if (patch.date !== undefined) mirrored.date = patch.date;
     if (patch.memo !== undefined) mirrored.memo = patch.memo;
     if (patch.acc !== undefined) mirrored.transferTo = patch.acc;
-    if (Object.keys(mirrored).length > 0) changes.push([pair, { ...pair, ...mirrored }]);
+    if (Object.keys(mirrored).length > 0) apply(pair, mirrored);
   }
-  const edited = new Map(changes.map(([old, now]) => [old.id, now]));
+  if (changes.length === 0) return;
   commitTx(cur.map((t) => edited.get(t.id) ?? t));
   for (const [old, now] of changes) {
     if (now.amount !== old.amount || now.acc !== old.acc) {
       reverseTxFromAccounts(old);
       applyTxToAccounts(now);
+    }
+    if (now.amount !== old.amount) {
+      movePrincipal([old], 1);
+      movePrincipal([now], -1);
     }
   }
 }

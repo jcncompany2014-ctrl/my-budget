@@ -1,15 +1,22 @@
 'use client';
 
-import { BellRing } from 'lucide-react';
+import { BellRing, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import CategoryIcon from '@/components/icons/CategoryIcon';
 import MerchantAvatar from '@/components/icons/MerchantAvatar';
+import { AccountSheet, CategorySheet } from '@/components/PickerSheets';
 import { SkeletonHome } from '@/components/Skeleton';
 import { useToast } from '@/components/Toast';
 import { useAccounts } from '@/lib/accounts';
-import { CATEGORIES, isTransferCategory } from '@/lib/categories';
+import {
+  CATEGORIES,
+  expenseCategoriesByScope,
+  incomeCategoriesByScope,
+  isTransferCategory,
+} from '@/lib/categories';
+import { useCategoryRules } from '@/lib/category-rules';
 import { fmt } from '@/lib/format';
 import {
   canReimburse,
@@ -18,7 +25,7 @@ import {
   toBusinessPatch,
   toPersonalPatch,
 } from '@/lib/reimburse';
-import { useAllTransactions } from '@/lib/storage';
+import { patchTransactions, useAllTransactions } from '@/lib/storage';
 
 const fmtDate = (iso: string) => {
   const d = new Date(iso);
@@ -50,6 +57,8 @@ function TxDetailPage() {
   const toast = useToast();
   const { tx, ready, remove, update, restore, add } = useAllTransactions();
   const { allAccounts } = useAccounts();
+  const { items: rules, set: setRules } = useCategoryRules();
+  const [picking, setPicking] = useState<null | 'cat' | 'acc'>(null);
 
   const onCopy = () => {
     if (!item) return;
@@ -61,6 +70,11 @@ function TxDetailPage() {
       transferTo: undefined,
       transferCrossMode: undefined,
       source: undefined,
+      // A copy is a new purchase: not yet settled, collected, or auto-posted.
+      reimburse: item.reimburse ? ('due' as const) : undefined,
+      outstanding: undefined,
+      recurring: undefined,
+      settles: undefined,
     };
     add(copy);
     toast.show('거래 복사됨 (오늘 날짜로)', 'success');
@@ -120,6 +134,72 @@ function TxDetailPage() {
     toast.show('수정 완료', 'success');
   };
 
+  // Category and account are the two things a recorded row most often gets
+  // wrong; both change right here. A transfer leg keeps its category and its
+  // accounts (they are what make it a transfer).
+  const scope = item.scope ?? 'personal';
+  const transfer = isTransferCategory(item.cat) || !!item.transferPairId;
+  const catChoices = isIncome ? incomeCategoriesByScope(scope) : expenseCategoriesByScope(scope);
+  // 잔액 보정 and 대출 원금 are posted by the app and stay what they are.
+  const fixedCat = transfer || !catChoices.some((c) => c.id === item.cat);
+  const accChoices = allAccounts.filter(
+    (a) => a.scope === (account?.scope ?? scope) && a.type !== 'receivable',
+  );
+
+  const changeCategory = (catId: string) => {
+    setPicking(null);
+    if (catId === item.cat) return;
+    const from = item.cat;
+    update(item.id, { cat: catId });
+    const name = item.merchant.trim();
+    const catName = CATEGORIES[catId]?.name ?? '카테고리';
+    // The other rows from this place still filed the old way.
+    const same = name
+      ? tx.filter(
+          (t) =>
+            t.id !== item.id &&
+            !t.transferPairId &&
+            (t.scope ?? 'personal') === scope &&
+            t.merchant.trim() === name &&
+            t.cat === from &&
+            t.amount > 0 === isIncome,
+        )
+      : [];
+    toast.show(`${catName}(으)로 바꿨어요`, {
+      variant: 'success',
+      durationMs: 6000,
+      action: name
+        ? {
+            label: '이 소비처 전부',
+            onClick: () => {
+              patchTransactions(
+                same.map((t) => t.id),
+                { cat: catId },
+              );
+              // First in the list: rules are tried in order and this one is exact.
+              setRules([
+                { id: `rule-${Date.now().toString(36)}`, match: name, cat: catId },
+                ...rules.filter((r) => r.match.toLowerCase() !== name.toLowerCase()),
+              ]);
+              toast.show(
+                same.length > 0
+                  ? `${same.length + 1}건 변경 · 앞으로도 ${catName}`
+                  : `앞으로도 ${catName}`,
+                'success',
+              );
+            },
+          }
+        : undefined,
+    });
+  };
+
+  const changeAccount = (accId: string) => {
+    setPicking(null);
+    if (accId === item.acc) return;
+    update(item.id, { acc: accId });
+    toast.show('계좌를 바꿨어요', 'success');
+  };
+
   // 사업 대납: a business cost paid with my own card. The row moves to the
   // business ledger and waits on the 정산 list until the business pays it back.
   const due = item.reimburse === 'due';
@@ -159,7 +239,7 @@ function TxDetailPage() {
             <button
               type="button"
               onClick={onCopy}
-              className="tap rounded-full px-3 py-2 text-sm font-semibold"
+              className="tap h-10 rounded-full px-3 text-sm font-semibold"
               style={{ color: 'var(--color-text-2)' }}
             >
               복사
@@ -168,7 +248,7 @@ function TxDetailPage() {
           <button
             type="button"
             onClick={() => router.push(`/tx/edit?id=${item.id}`)}
-            className="tap rounded-full px-3 py-2 text-sm font-semibold"
+            className="tap h-10 rounded-full px-3 text-sm font-semibold"
             style={{ color: 'var(--color-primary)' }}
           >
             편집
@@ -176,7 +256,7 @@ function TxDetailPage() {
           <button
             type="button"
             onClick={onDelete}
-            className="tap rounded-full px-3 py-2 text-sm font-semibold"
+            className="tap ml-2 h-10 rounded-full px-3 text-sm font-semibold"
             style={{ color: 'var(--color-danger)' }}
           >
             삭제
@@ -192,23 +272,36 @@ function TxDetailPage() {
             <MerchantAvatar merchant={item.merchant} catId={item.cat} size={72} />
           </div>
         )}
-        <p
-          style={{
-            color: 'var(--color-text-3)',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-          }}
-        >
-          {item.reimburse && !costed ? (
-            '사업 대납 · 채무'
-          ) : (
-            <>
-              {(cat?.name ?? '기타').toUpperCase()}
-              {(isTransferCategory(item.cat) || item.transferPairId) && ' · 이체'}
-            </>
-          )}
-        </p>
+        {fixedCat || (item.reimburse && !costed) ? (
+          <p
+            style={{
+              color: 'var(--color-text-3)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {item.reimburse && !costed
+              ? '사업 대납 · 채무'
+              : `${cat?.name ?? '기타'}${transfer ? ' · 이체' : ''}`}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPicking('cat')}
+            aria-label={`카테고리 ${cat?.name ?? '기타'} 바꾸기`}
+            className="tap mx-auto flex h-10 items-center gap-0.5 rounded-full pl-3.5 pr-2"
+            style={{
+              background: 'var(--color-card)',
+              color: 'var(--color-text-2)',
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {cat?.name ?? '기타'}
+            <ChevronRight size={15} strokeWidth={2.6} color="var(--color-text-3)" />
+          </button>
+        )}
         <p
           className="tnum mt-1.5 tracking-tight"
           style={{
@@ -274,7 +367,27 @@ function TxDetailPage() {
       >
         <Row label="날짜" value={fmtDate(item.date)} />
         <Row label="시간" value={fmtTime(item.date)} />
-        <Row label="계좌" value={account?.name ?? '삭제된 계좌'} />
+        {transfer ? (
+          <Row label="계좌" value={account?.name ?? '삭제된 계좌'} />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPicking('acc')}
+            className="tap flex w-full items-center justify-between px-5 py-4 text-left"
+            style={{ borderBottom: '1px solid var(--color-divider)' }}
+          >
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-3)' }}>
+              계좌
+            </span>
+            <span
+              className="flex items-center gap-0.5 text-sm font-semibold"
+              style={{ color: 'var(--color-text-1)' }}
+            >
+              {account?.name ?? '삭제된 계좌'}
+              <ChevronRight size={15} strokeWidth={2.6} color="var(--color-text-3)" />
+            </span>
+          </button>
+        )}
         {canFlag && (
           <button
             type="button"
@@ -337,7 +450,48 @@ function TxDetailPage() {
             </span>
           </button>
         )}
-        {item.reimburse === 'done' && <Row label="사업 대납" value="정산 완료" />}
+        {item.reimburse === 'done' && (
+          <button
+            type="button"
+            onClick={() => {
+              update(item.id, { reimburse: 'due' });
+              toast.show('정산 대기로 되돌렸어요', {
+                variant: 'info',
+                action: { label: '취소', onClick: () => update(item.id, { reimburse: 'done' }) },
+              });
+            }}
+            className="tap flex w-full items-center justify-between px-5 py-4 text-left"
+            style={{ borderBottom: '1px solid var(--color-divider)' }}
+          >
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-3)' }}>
+              사업 대납
+            </span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--color-text-1)' }}>
+              정산 완료 · 되돌리기
+            </span>
+          </button>
+        )}
+        {item.outstanding && (
+          <button
+            type="button"
+            onClick={() => {
+              update(item.id, { outstanding: undefined });
+              toast.show(isIncome ? '수금 완료' : '지급 완료', {
+                variant: 'success',
+                action: { label: '취소', onClick: () => update(item.id, { outstanding: true }) },
+              });
+            }}
+            className="tap flex w-full items-center justify-between px-5 py-4 text-left"
+            style={{ borderBottom: '1px solid var(--color-divider)' }}
+          >
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-3)' }}>
+              외상
+            </span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+              {isIncome ? '수금 완료로' : '지급 완료로'}
+            </span>
+          </button>
+        )}
         <RowEditable
           label="메모"
           placeholder="메모 추가"
@@ -349,6 +503,21 @@ function TxDetailPage() {
       <div className="flex-1" />
       {/* No bottom nav here, so the page clears the home indicator itself. */}
       <div style={{ height: 'calc(env(safe-area-inset-bottom) + 16px)' }} />
+
+      <CategorySheet
+        open={picking === 'cat'}
+        onClose={() => setPicking(null)}
+        choices={catChoices}
+        value={item.cat}
+        onPick={changeCategory}
+      />
+      <AccountSheet
+        open={picking === 'acc'}
+        onClose={() => setPicking(null)}
+        choices={accChoices}
+        value={item.acc}
+        onPick={changeAccount}
+      />
     </div>
   );
 }

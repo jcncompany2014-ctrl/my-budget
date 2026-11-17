@@ -278,7 +278,7 @@ function GoalEditor({
   const valid = draft.name.trim().length > 0 && draft.target > 0;
 
   return (
-    <Sheet open onClose={onCancel}>
+    <Sheet open onClose={onCancel} keep={draft !== goal}>
       <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--color-text-1)' }}>
         {isNew ? '새 목표' : '목표 편집'}
       </h2>

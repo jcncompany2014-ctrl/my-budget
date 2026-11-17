@@ -9,7 +9,7 @@ import TopBar from '@/components/TopBar';
 import Sheet from '@/components/ui/Sheet';
 import { useBudgets } from '@/lib/budgets';
 import { expenseCategoriesByScope } from '@/lib/categories';
-import { fmt } from '@/lib/format';
+import { fmt, isSpendingCategory } from '@/lib/format';
 import type { Category } from '@/lib/types';
 
 export default function BudgetsSettingsPage() {
@@ -19,7 +19,10 @@ export default function BudgetsSettingsPage() {
   const { budgets, ready, set, remove } = useBudgets();
   const [editing, setEditing] = useState<Category | null>(null);
 
-  const cats = useMemo(() => expenseCategoriesByScope(mode), [mode]);
+  const cats = useMemo(
+    () => expenseCategoriesByScope(mode).filter((c) => isSpendingCategory(c.id)),
+    [mode],
+  );
 
   if (!ready) {
     return (
@@ -136,13 +139,12 @@ function BudgetEditor({
         inputMode="numeric"
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        // biome-ignore lint/a11y/noAutofocus: the sheet opens for this one field
+        autoFocus
         placeholder="0"
         className="tnum h-14 w-full rounded-xl px-4 text-[20px] font-bold outline-none"
         style={{ background: 'var(--color-gray-100)', color: 'var(--color-text-1)' }}
       />
-      <p className="mt-1 text-[11px]" style={{ color: 'var(--color-text-3)' }}>
-        0 입력 시 해제
-      </p>
 
       <div className="mt-4 flex gap-2">
         <button

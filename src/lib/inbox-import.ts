@@ -1,9 +1,17 @@
 import { autoCategorize } from '@/lib/auto-categorize';
-import { type CardNotice, noticeSummary, parseCardNotification } from '@/lib/card-notification';
+import {
+  type CardNotice,
+  issuerKind,
+  namesIssuer,
+  noticeSummary,
+  parseCardNotification,
+  type SkipReason,
+} from '@/lib/card-notification';
 import { CATEGORIES, isIncomeCategory, isTransferCategory } from '@/lib/categories';
 import { applyRules, type CategoryRule } from '@/lib/category-rules';
 import { canReimburse, toBusinessPatch, usuallyReimbursed } from '@/lib/reimburse';
-import type { Account, CustomCategory, Scope, Transaction } from '@/lib/types';
+import { sameCharge, sameMerchant } from '@/lib/same-charge';
+import type { Account, CardRef, CustomCategory, Scope, Transaction } from '@/lib/types';
 
 /**
  * Turns queued card notifications into ledger changes. Pure — the caller
@@ -19,8 +27,19 @@ export type InboxLogEntry = {
   /** When the notification reached the server. */
   at: string;
   raw: string;
-  status: 'added' | 'duplicate' | 'cancelled' | 'refund' | 'unparsed';
+  /**
+   * `unparsed`: a payment it could not turn into a row (no amount, no account, no rate).
+   * `skipped`: not a payment — a bill notice, a transfer, an advertisement.
+   */
+  status: 'added' | 'duplicate' | 'cancelled' | 'refund' | 'unparsed' | 'skipped';
   summary: string;
+  /** Why nothing was recorded. */
+  reason?: SkipReason | 'no-account' | 'no-rate';
+  /**
+   * The card this notice named, while no account is known to be its own: the
+   * row sits on the best guess until the user says where the card belongs.
+   */
+  card?: CardRef;
   /** Added/refund row, or the existing row it duplicated / cancelled. */
   txId?: string;
   /** Rows a cancellation deleted — kept so it can be undone. */
@@ -28,6 +47,22 @@ export type InboxLogEntry = {
   /** The user reversed this cancellation (its row was restored). */
   undone?: boolean;
 };
+
+const SKIP_LABEL: Record<NonNullable<InboxLogEntry['reason']>, string> = {
+  declined: '승인 거절',
+  ad: '광고',
+  notice: '청구·안내 알림',
+  transfer: '이체·입금 알림',
+  'not-transaction': '결제 알림 아님',
+  'no-amount': '금액을 못 읽음',
+  'no-account': '기록할 계좌 없음',
+  'no-rate': '환율을 모름',
+};
+
+/** Why a text was left unrecorded, in a few words. */
+export function skipLabel(reason: InboxLogEntry['reason']): string {
+  return reason ? SKIP_LABEL[reason] : '못 읽은 알림';
+}
 
 export type ImportContext = {
   accounts: Account[];
@@ -38,9 +73,20 @@ export type ImportContext = {
   fxRate: (currency: string) => number | null;
   /** Earlier import log — lets a second 승인취소 notice for one cancellation be recognised. */
   log?: InboxLogEntry[];
+  /**
+   * Auto-posted 정기결제 rows a notice was already matched to (from the whole
+   * log, not just the recent part) — each row answers for one notice only.
+   */
+  claimed?: string[];
 };
 
-export type ImportPlan = { add: Transaction[]; remove: string[]; log: InboxLogEntry[] };
+export type ImportPlan = {
+  add: Transaction[];
+  remove: string[];
+  log: InboxLogEntry[];
+  /** What the notices taught about my accounts (card digits, issuer). */
+  learn: Array<{ id: string; patch: Partial<Account> }>;
+};
 
 /** Rough rates for when live FX is unreachable — the row is marked 환율 추정. */
 const FALLBACK_FX: Record<string, number> = {
@@ -74,6 +120,8 @@ const NOTICE_DUP_MS = 3 * 60_000;
  */
 const NOTICE_ANY_MS = 2 * 60_000;
 const CANCEL_LOOKBACK_MS = 60 * 86_400_000;
+/** Notification ↔ a 정기결제 the app posted itself: charged within a few days of its date. */
+const RECURRING_DUP_MS = 3 * 86_400_000;
 
 const ISSUER_KEYWORDS: Record<string, string[]> = {
   KB국민카드: ['KB', '국민'],
@@ -107,6 +155,36 @@ function soleCard(accounts: Account[]): Account | undefined {
   return cards.length === 1 ? cards[0] : undefined;
 }
 
+/** A payment notice is about a card or the bank account behind one — never a brokerage or cash. */
+const payable = (a: Account) => a.type === 'card' || a.type === 'bank';
+
+export function sameCard(a: CardRef, b: CardRef): boolean {
+  if ((a.issuer ?? '') !== (b.issuer ?? '')) return false;
+  if (a.last4 && b.last4) return digitsMatch(a.last4, b.last4);
+  return !a.last4 && !b.last4;
+}
+
+export function cardLabel(c: CardRef): string {
+  return [c.issuer, c.last4].filter(Boolean).join(' ') || '카드';
+}
+
+/** What an account gains by being told a card is its own. */
+export function cardPatch(a: Account, card: CardRef): Partial<Account> {
+  const patch: Partial<Account> = {
+    cards: a.cards?.some((c) => sameCard(c, card)) ? a.cards : [...(a.cards ?? []), card],
+  };
+  if (!a.last4 && card.last4) patch.last4 = card.last4;
+  if (
+    a.type === 'card' &&
+    !(a.bank ?? '').trim() &&
+    card.issuer &&
+    issuerKind(card.issuer) === 'card'
+  ) {
+    patch.bank = card.issuer;
+  }
+  return patch;
+}
+
 /**
  * Where a notice that names no account of mine lands. A wallet or pay-app
  * notice ("Apple Pay", "…에서 3,000원 결제했어요") is a card payment: with a
@@ -114,7 +192,8 @@ function soleCard(accounts: Account[]): Account | undefined {
  * ledger with several cards, falls to the main account.
  */
 function fallbackAccount(accounts: Account[], n?: CardNotice): Account | undefined {
-  const usable = accounts.filter((a) => a.type !== 'receivable');
+  const spendable = accounts.filter((a) => a.type !== 'receivable' && a.type !== 'investment');
+  const usable = spendable.length > 0 ? spendable : accounts.filter((a) => a.type !== 'receivable');
   const personal = usable.filter((a) => a.scope === 'personal');
   const fromBank = !!n?.issuer && /은행|뱅크$/.test(n.issuer);
   return (
@@ -126,24 +205,84 @@ function fallbackAccount(accounts: Account[], n?: CardNotice): Account | undefin
   );
 }
 
-/** `named`: the notice itself identified the account (card digits or issuer). */
-function matchAccount(
-  n: CardNotice,
-  accounts: Account[],
-): { account: Account | undefined; named: boolean } {
+type Match = {
+  account: Account | undefined;
+  /** The notice itself identified the account (card digits or issuer). */
+  named: boolean;
+  /** Facts worth saving on the account, so the next notice finds it at once. */
+  learn?: Partial<Account>;
+  /** The card is not known to be this account's — ask once where it belongs. */
+  ask?: CardRef;
+};
+
+/**
+ * Which account a notice is about. Certain when the card was learned before,
+ * its digits are on an account, or its issuer names one of my cards. A card
+ * nothing answers to takes the one card account that is still blank; failing
+ * that the row goes to the best guess and the card is put to the user once.
+ */
+function matchAccount(n: CardNotice, accounts: Account[]): Match {
+  const card: CardRef = { issuer: n.issuer, last4: n.last4 };
+  const mine = accounts.filter(payable);
+  const identifies = !!n.last4 || (!!n.issuer && issuerKind(n.issuer) !== 'pay');
+
+  if (identifies) {
+    const learned = mine.find((a) => a.cards?.some((c) => sameCard(c, card)));
+    if (learned) return { account: learned, named: true };
+  }
   if (n.last4) {
-    const hit = accounts.find((a) => a.last4 && digitsMatch(a.last4.trim(), n.last4 as string));
+    const hit = mine.find((a) => a.last4 && digitsMatch(a.last4.trim(), n.last4 as string));
     if (hit) return { account: hit, named: true };
   }
   if (n.issuer) {
     const words = issuerKeywords(n.issuer);
-    const named = accounts.filter((a) =>
-      words.some((w) => a.bank?.includes(w) || a.name.includes(w)),
+    const named = mine.filter((a) =>
+      words.some((w) => (a.bank ?? '').includes(w) || (a.name ?? '').includes(w)),
     );
-    const pick = named.find((a) => a.type === 'card') ?? named[0];
-    if (pick) return { account: pick, named: true };
+    // A 체크 card draws on the bank account; anything else is the credit card.
+    const first = n.debit ? 'bank' : 'card';
+    const pick = named.find((a) => a.type === first) ?? named[0];
+    if (pick) {
+      const alike = named.filter((a) => a.type === pick.type);
+      // Sure only when the notice's kind of card has exactly one home here: a
+      // credit card of a bank I only keep an account at, a 체크 card with only
+      // the credit card on file, or two accounts it could equally be, are guesses.
+      const sure = pick.type === first && (alike.length === 1 || !n.last4);
+      if (!sure && identifies) return { account: pick, named: true, ask: card };
+      return {
+        account: pick,
+        named: true,
+        learn:
+          sure && alike.length === 1 && n.last4 && !pick.last4 ? { last4: n.last4 } : undefined,
+      };
+    }
+    // Learned under this issuer; this notice just prints the digits differently (or not at all).
+    const sameIssuer = mine.filter((a) =>
+      a.cards?.some((c) => c.issuer === n.issuer && (!c.last4 || !n.last4)),
+    );
+    if (sameIssuer.length === 1) return { account: sameIssuer[0], named: true };
   }
-  return { account: fallbackAccount(accounts, n), named: false };
+  if (identifies && !n.debit && (!n.issuer || issuerKind(n.issuer) === 'card')) {
+    // A ledger that has just the one personal card, still unnamed (the "신용카드"
+    // it starts with): the first card to show up is that card. Once other cards
+    // exist, or the account's name already says whose it is, it is asked instead.
+    const cards = accounts.filter((a) => a.type === 'card' && a.scope === 'personal');
+    const only = cards.length === 1 ? cards[0] : undefined;
+    if (
+      only &&
+      !only.last4 &&
+      !only.cards?.length &&
+      !(only.bank ?? '').trim() &&
+      !namesIssuer(only.name ?? '')
+    ) {
+      return { account: only, named: true, learn: cardPatch(only, card) };
+    }
+  }
+  return {
+    account: fallbackAccount(accounts, n),
+    named: false,
+    ask: identifies ? card : undefined,
+  };
 }
 
 export function resolveAccount(n: CardNotice, accounts: Account[]): Account | undefined {
@@ -166,16 +305,6 @@ export function resolveCategory(merchant: string, scope: Scope, ctx: ImportConte
   const auto = autoCategorize(merchant, scope, ctx.history);
   if (usable(auto)) return auto;
   return scope === 'business' ? 'biz_etc' : 'living';
-}
-
-function merchantKey(s: string): string {
-  return s.toLowerCase().replace(/[\s()[\]·.,_*-]/g, '');
-}
-
-function sameMerchant(a: string, b: string): boolean {
-  const x = merchantKey(a);
-  const y = merchantKey(b);
-  return x.length > 0 && y.length > 0 && (x.includes(y) || y.includes(x));
 }
 
 /** null when the currency has no rate at all — recording it as 0원 would be worse than not recording. */
@@ -230,10 +359,17 @@ export function planImport(
   ctx: ImportContext,
   opts: { allowDuplicate?: boolean } = {},
 ): ImportPlan {
-  const plan: ImportPlan = { add: [], remove: [], log: [] };
+  const plan: ImportPlan = { add: [], remove: [], log: [], learn: [] };
+  // What one notice teaches, the next one in the batch already knows.
+  let accounts = ctx.accounts;
   const removed = new Set<string>();
   const existingIds = new Set(ctx.history.map((t) => t.id));
   const cancels = pastCancels(ctx.log);
+  // Auto-posted 정기결제 rows a notice has already been matched to — one each.
+  const claimed = new Set<string | undefined>(
+    ctx.claimed ??
+      (ctx.log ?? []).filter((e) => e.status === 'duplicate' && e.txId).map((e) => e.txId),
+  );
   // Accounts a row can have landed on without its notice naming one.
   const fallbackIds = new Set(
     [fallbackAccount(ctx.accounts)?.id, soleCard(ctx.accounts)?.id].filter(Boolean),
@@ -249,22 +385,29 @@ export function planImport(
         id: item.id,
         at: item.at,
         raw,
-        status: 'unparsed',
+        // No amount in a payment text is a misread; the rest are simply not payments.
+        status: parsed.reason === 'no-amount' ? 'unparsed' : 'skipped',
+        reason: parsed.reason,
         summary: item.text.replace(/\s+/g, ' ').slice(0, 60),
       });
       continue;
     }
     const n = parsed.notice;
-    const { account, named } = matchAccount(n, ctx.accounts);
+    const { account, named, learn, ask } = matchAccount(n, accounts);
     if (!account) {
       plan.log.push({
         id: item.id,
         at: item.at,
         raw,
         status: 'unparsed',
-        summary: '계좌가 없어 기록하지 못했어요',
+        reason: 'no-account',
+        summary: noticeSummary(n),
       });
       continue;
+    }
+    if (learn) {
+      plan.learn.push({ id: account.id, patch: learn });
+      accounts = accounts.map((a) => (a.id === account.id ? { ...a, ...learn } : a));
     }
     const scope = account.scope;
     const when = noticeTime(n, received);
@@ -276,7 +419,8 @@ export function planImport(
         at: item.at,
         raw,
         status: 'unparsed',
-        summary: `${summary} · 환율을 몰라요`,
+        reason: 'no-rate',
+        summary,
       });
       continue;
     }
@@ -333,7 +477,15 @@ export function planImport(
         source: 'notification',
       };
       plan.add.push(refund);
-      plan.log.push({ id: item.id, at: item.at, raw, status: 'refund', summary, txId: refund.id });
+      plan.log.push({
+        id: item.id,
+        at: item.at,
+        raw,
+        status: 'refund',
+        summary,
+        txId: refund.id,
+        card: ask,
+      });
       continue;
     }
 
@@ -342,6 +494,19 @@ export function planImport(
       : pool.find((t) => {
           if (t.amount !== -krw.amount || isTransferCategory(t.cat)) return false;
           const dt = Math.abs(new Date(t.date).getTime() - when.getTime());
+          // The app posted this subscription on its date; this is the card saying so.
+          // Only its own 정기결제 rows (not a loan, payroll or transfer leg), and only
+          // when the notice agrees on what it was — an equal amount is a coincidence.
+          if (t.recurring) {
+            return (
+              t.id.startsWith('recur-') &&
+              !t.transferPairId &&
+              t.acc === account.id &&
+              dt <= RECURRING_DUP_MS &&
+              !claimed.has(t.id) &&
+              sameCharge(t, { merchant: n.merchant, cat: resolveCategory(n.merchant, scope, ctx) })
+            );
+          }
           // Two notices can land in different ledgers (the pay app names no card).
           if (t.source === 'notification') return sameEvent(dt, t.merchant, n.merchant);
           return (t.scope ?? 'personal') === scope && dt <= MANUAL_DUP_MS;
@@ -376,6 +541,7 @@ export function planImport(
           plan.add.push(moved);
         }
       }
+      claimed.add(dup.id);
       plan.log.push({ id: item.id, at: item.at, raw, status: 'duplicate', summary, txId: dup.id });
       continue;
     }
@@ -400,11 +566,19 @@ export function planImport(
       source: 'notification',
     };
     // Bought for the business with my own card, like the last times at this shop.
-    if (canReimburse(tx, ctx.accounts) && usuallyReimbursed(tx.merchant, pool)) {
+    if (canReimburse(tx, accounts) && usuallyReimbursed(tx.merchant, pool)) {
       Object.assign(tx, toBusinessPatch(tx, ctx.history));
     }
     plan.add.push(tx);
-    plan.log.push({ id: item.id, at: item.at, raw, status: 'added', summary, txId: tx.id });
+    plan.log.push({
+      id: item.id,
+      at: item.at,
+      raw,
+      status: 'added',
+      summary,
+      txId: tx.id,
+      card: ask,
+    });
   }
   return plan;
 }

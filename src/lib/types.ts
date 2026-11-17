@@ -13,6 +13,9 @@ export type Category = {
 /** `receivable` — money owed to me (a personal loan to someone, an unsettled advance). */
 export type AccountType = 'bank' | 'card' | 'cash' | 'investment' | 'receivable';
 
+/** A card as a payment notification names it: the issuer and/or the digits it prints. */
+export type CardRef = { issuer?: string; last4?: string };
+
 export type Account = {
   id: string;
   name: string;
@@ -21,6 +24,8 @@ export type Account = {
   balance: number;
   color: string;
   last4?: string;
+  /** Cards whose notifications belong to this account — learned from the notices themselves. */
+  cards?: CardRef[];
   main?: boolean;
   scope: Scope;
   /** When true, "저축" category transactions auto-create a transfer pair into this account. */
@@ -84,6 +89,11 @@ export type Transaction = {
    * 'due' until the business pays me back, then 'done'.
    */
   reimburse?: 'due' | 'done';
+  /**
+   * On the outgoing leg of a 대납 settlement transfer: the rows it paid back.
+   * Deleting the transfer makes them owed again.
+   */
+  settles?: string[];
 };
 
 export type Budget = {

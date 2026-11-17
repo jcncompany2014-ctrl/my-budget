@@ -35,7 +35,7 @@ export default function UpcomingRecurring() {
   const { accounts } = useAllAccounts();
   const { tx } = useAllTransactions();
 
-  const { upcoming, warnings } = useMemo(() => {
+  const { upcoming, warnings, total } = useMemo(() => {
     const mainId = accounts.find((a) => a.scope === mode && a.main)?.id;
     const list: Item[] = [];
     for (const r of items) {
@@ -88,7 +88,14 @@ export default function UpcomingRecurring() {
     const warn = [...short.entries()]
       .map(([id, s]) => ({ account: accounts.find((a) => a.id === id), ...s }))
       .filter((w) => w.account && (w.account.type === 'bank' || w.account.type === 'cash'));
-    return { upcoming: list.slice(0, 8), warnings: warn };
+    // What leaves within a month — the figure the strip's title carries.
+    const total = list.reduce((s, i) => (i.daysUntil <= 31 ? s + i.amount : s), 0);
+    const names = new Map(accounts.map((a) => [a.id, a.name]));
+    return {
+      upcoming: list.slice(0, 8).map((i) => ({ ...i, fromName: i.from && names.get(i.from) })),
+      warnings: warn,
+      total,
+    };
   }, [items, loans, accounts, tx, mode]);
 
   if (!ready || upcoming.length === 0) return null;
@@ -100,6 +107,12 @@ export default function UpcomingRecurring() {
           <p className="text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
             곧 빠져나갈 돈
           </p>
+          <span
+            className="tnum ml-auto mr-1 text-sm font-bold"
+            style={{ color: 'var(--color-text-2)' }}
+          >
+            {fmt(total)}원
+          </span>
           <svg viewBox="0 0 24 24" width={18} height={18} fill="none" aria-hidden="true">
             <path
               d="M9 6l6 6-6 6"
@@ -164,9 +177,19 @@ export default function UpcomingRecurring() {
                 <p className="truncate text-sm font-bold" style={{ color: 'var(--color-text-1)' }}>
                   {r.name}
                 </p>
-                <p className="tnum text-sm font-semibold" style={{ color: 'var(--color-text-2)' }}>
-                  {fmt(r.amount)}원
-                </p>
+                <div>
+                  <p
+                    className="tnum text-sm font-semibold"
+                    style={{ color: 'var(--color-text-2)' }}
+                  >
+                    {fmt(r.amount)}원
+                  </p>
+                  {r.fromName && (
+                    <p className="truncate" style={{ color: 'var(--color-text-3)', fontSize: 11 }}>
+                      {r.fromName}
+                    </p>
+                  )}
+                </div>
               </Link>
             );
           })}

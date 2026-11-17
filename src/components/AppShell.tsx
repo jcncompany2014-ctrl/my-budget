@@ -16,6 +16,7 @@ import { STORAGE_FULL_EVENT } from '@/lib/safe-storage';
 import BottomNav from './BottomNav';
 import CloudSync from './CloudSync';
 import InboxSync from './InboxSync';
+import ServerBackupSync from './ServerBackupSync';
 import ServiceWorker from './ServiceWorker';
 
 // Idempotent maintenance: today's backup snapshot and anything due today
@@ -94,6 +95,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       {!hideNav && <BottomNav />}
       <InboxSync />
+      <ServerBackupSync />
       <CloudSync />
       <ServiceWorker />
     </div>

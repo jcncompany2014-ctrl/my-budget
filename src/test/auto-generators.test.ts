@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ensureAutoCreditLine } from '@/lib/auto-credit-line';
 import { ensureAutoPayroll } from '@/lib/auto-payroll';
+import { ensureAutoRecurring } from '@/lib/auto-recurring';
 import type { BusinessProfile } from '@/lib/business-profile';
 import { applyRepair, checkDataIntegrity } from '@/lib/data-check';
 import { KEYS } from '@/lib/storage-keys';
-import type { Account, Employee, LineOfCredit, Transaction } from '@/lib/types';
+import type { Account, Employee, LineOfCredit, RecurringItem, Transaction } from '@/lib/types';
 
 const put = <T>(key: string, value: T) => window.localStorage.setItem(key, JSON.stringify(value));
 const read = <T>(key: string, fallback: T): T => {
@@ -251,5 +252,92 @@ describe('data-check repairs', () => {
     expect(applyRepair(issue!)).toBe(true);
     expect(txs()[0]).not.toHaveProperty('transferPairId');
     expect(txs()[0]).not.toHaveProperty('transferTo');
+  });
+});
+
+describe('ensureAutoRecurring', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  const netflix: RecurringItem = {
+    id: 'r1',
+    name: '넷플릭스',
+    emoji: '',
+    amount: 17_000,
+    day: 8,
+    cat: 'subscription',
+    scope: 'personal',
+    acc: 'card',
+    postedThrough: new Date(2026, 9, 20).toISOString(),
+  };
+
+  it('posts the charge on its day', () => {
+    vi.setSystemTime(new Date(2026, 10, 8, 12, 0, 0));
+    put(KEYS.recurring, [netflix]);
+    put(KEYS.accounts, [account('card', -100_000, { type: 'card' })]);
+    put(KEYS.transactions, []);
+
+    ensureAutoRecurring();
+    expect(txs().map((t) => t.amount)).toEqual([-17_000]);
+    expect(balance('card')).toBe(-117_000);
+  });
+
+  it('settles it without posting when the card notice already recorded the charge', () => {
+    vi.setSystemTime(new Date(2026, 10, 8, 12, 0, 0));
+    put(KEYS.recurring, [netflix]);
+    put(KEYS.accounts, [account('card', -117_000, { type: 'card' })]);
+    put(KEYS.transactions, [
+      {
+        id: 'ntf-1',
+        date: new Date(2026, 10, 7, 23, 50).toISOString(),
+        amount: -17_000,
+        cat: 'subscription',
+        merchant: 'NETFLIX.COM',
+        acc: 'card',
+        scope: 'personal',
+        source: 'notification',
+      },
+    ] satisfies Transaction[]);
+
+    ensureAutoRecurring();
+    expect(txs()).toHaveLength(1);
+    expect(balance('card')).toBe(-117_000);
+    // Settled: opening the app again later does not post it either.
+    vi.setSystemTime(new Date(2026, 10, 20, 12, 0, 0));
+    ensureAutoRecurring();
+    expect(txs()).toHaveLength(1);
+  });
+
+  it('a transfer or an unrelated purchase of the same amount does not settle the charge', () => {
+    vi.setSystemTime(new Date(2026, 10, 8, 12, 0, 0));
+    put(KEYS.recurring, [netflix]);
+    put(KEYS.accounts, [account('card', 0, { type: 'card' })]);
+    put(KEYS.transactions, [
+      {
+        id: 'out',
+        date: new Date(2026, 10, 7, 10).toISOString(),
+        amount: -17_000,
+        cat: 'transfer',
+        merchant: '이체',
+        acc: 'card',
+        scope: 'personal',
+        transferPairId: 'p1',
+      },
+      {
+        id: 'lunch',
+        date: new Date(2026, 10, 7, 12).toISOString(),
+        amount: -17_000,
+        cat: 'food',
+        merchant: '한우마을',
+        acc: 'card',
+        scope: 'personal',
+        source: 'notification',
+      },
+    ] satisfies Transaction[]);
+
+    ensureAutoRecurring();
+    expect(txs().filter((t) => t.recurring)).toHaveLength(1);
+    expect(balance('card')).toBe(-17_000);
   });
 });

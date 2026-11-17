@@ -19,6 +19,8 @@ export type CardNotice = {
   issuer?: string;
   /** Card digits as printed — may contain '*' for masked positions (NH: 1*2*). */
   last4?: string;
+  /** The text calls it a 체크 card: the money leaves a bank account. */
+  debit?: boolean;
   /** Months; undefined = 일시불. */
   installment?: number;
   /** Transaction time printed in the text (local time). */
@@ -28,9 +30,20 @@ export type CardNotice = {
   fx?: { amount: number; currency: string };
 };
 
-export type ParseResult =
-  | { ok: true; notice: CardNotice }
-  | { ok: false; reason: 'declined' | 'not-transaction' | 'no-amount' };
+/**
+ * Why a text is not a payment: a refused approval, an advertisement, a bill or
+ * statement notice, a bank transfer or deposit, an amount with nothing saying
+ * it was paid, or no amount at all.
+ */
+export type SkipReason =
+  | 'declined'
+  | 'ad'
+  | 'notice'
+  | 'transfer'
+  | 'not-transaction'
+  | 'no-amount';
+
+export type ParseResult = { ok: true; notice: CardNotice } | { ok: false; reason: SkipReason };
 
 const DECLINED =
   /승인\s?거절|거절|승인\s?실패|결제\s?실패|한도\s?초과|잔액\s?부족|비밀번호\s?(?:오류|불일치)/;
@@ -50,6 +63,9 @@ const COMMA_NUM_RE = /\d{1,3}(?:,\d{3})+(?![\d.])/g;
 const FX_CODE = 'USD|JPY|EUR|GBP|CNY|RMB|HKD|SGD|AUD|CAD|CHF|THB|VND|PHP|TWD|MYR|IDR|NZD';
 const FX_PRE_RE = new RegExp(String.raw`(${FX_CODE}|US\$|\$|€|£|¥)\s?(${DEC})`, 'g');
 const FX_POST_RE = new RegExp(String.raw`(${DEC})\s?(${FX_CODE}|달러|엔|유로|위안|파운드)`, 'g');
+const MONEY_RE = new RegExp(
+  String.raw`(?:₩|KRW)\s?\d|\d\s?(?:원|KRW)|\d{1,3}(?:,\d{3})+|(?:${FX_CODE}|US\$|\$|€|£|¥)\s?\d|\d\s?(?:${FX_CODE})`,
+);
 const FX_ALIAS: Record<string, string> = {
   US$: 'USD',
   $: 'USD',
@@ -129,6 +145,29 @@ const BRANDS: Array<[RegExp, string]> = [
   [/(?:NH\s?pay|올원\s?페이)(?![가-힣A-Za-z])/i, 'NH농협카드'],
 ];
 
+/** Pay apps and wallets: they announce a payment but are not the card it was charged to. */
+const PAY_BRANDS = new Set([
+  '카카오페이',
+  '네이버페이',
+  '토스페이',
+  '페이코',
+  'Apple Pay',
+  '삼성페이',
+]);
+
+const ISSUER_NAME_RE = new RegExp(ISSUER_WORDS.map(([w]) => w).join('|'), 'i');
+
+/** Whether a name someone gave an account already says whose card it is ("현대카드", "국민 체크"). */
+export function namesIssuer(text: string): boolean {
+  return ISSUER_NAME_RE.test(text) || BRANDS.some(([re]) => re.test(text));
+}
+
+/** What kind of sender an issuer name is — a card company, a bank, or a pay app. */
+export function issuerKind(issuer: string): 'card' | 'bank' | 'pay' {
+  if (PAY_BRANDS.has(issuer)) return 'pay';
+  return issuer.endsWith('카드') ? 'card' : 'bank';
+}
+
 const HOLDER_RE = /(^|[\s(])([가-힣][*＊][가-힣*]?|[가-힣]{2}[*＊])(\s?님)?(?=$|[\s()])/gm;
 const PAREN_DIGITS_RE = /\(\s?([\d*]{4})\s?\)/;
 const INSTALLMENT_RE = /\(?\s?(일시불|(\d{1,2})\s?개월(?:\s?할부)?|할부\s?(\d{1,2})\s?개월)\s?\)?/;
@@ -167,6 +206,11 @@ function normalize(raw: string): string {
     .replace(/\[(?:Web발신|웹발신|국외발신|국제발신|해외발신)\]/gi, '\n')
     .replace(/[ \t ]+/g, ' ')
     .trim();
+}
+
+/** Whether a text talks about an amount of money at all (an OTP or a login notice does not). */
+export function mentionsMoney(raw: string): boolean {
+  return MONEY_RE.test(normalize(raw));
 }
 
 function toNumber(s: string): number {
@@ -289,11 +333,9 @@ export function parseCardNotification(raw: string, now: Date = new Date()): Pars
   const s = normalize(raw);
   if (!s) return { ok: false, reason: 'no-amount' };
   if (DECLINED.test(s)) return { ok: false, reason: 'declined' };
-  if (AD.test(s) || (NOT_TX.test(s) && !STRONG_TX.test(s))) {
-    return { ok: false, reason: 'not-transaction' };
-  }
-  if (TRANSFER.test(s) && !/승인|결제|사용/.test(s))
-    return { ok: false, reason: 'not-transaction' };
+  if (AD.test(s)) return { ok: false, reason: 'ad' };
+  if (NOT_TX.test(s) && !STRONG_TX.test(s)) return { ok: false, reason: 'notice' };
+  if (TRANSFER.test(s) && !/승인|결제|사용/.test(s)) return { ok: false, reason: 'transfer' };
 
   const spans: Span[] = [];
 
@@ -351,6 +393,8 @@ export function parseCardNotification(raw: string, now: Date = new Date()): Pars
   // ── Issuer + card digits ──
   let issuer: string | undefined;
   let last4: string | undefined;
+  // "신한체크(1234)" says so itself; a shop called "체크인제주호텔" does not.
+  let debit = /체크\s?(?:카드|승인|결제|출금)/.test(s);
   for (const m of s.matchAll(ISSUER_RE)) {
     const [, word, cardWord, pDigits, bareDigits] = m;
     const digits = pDigits ?? bareDigits;
@@ -359,6 +403,7 @@ export function parseCardNotification(raw: string, now: Date = new Date()): Pars
     const prev = s[idx - 1];
     if (prev && /[A-Za-z가-힣]/.test(prev)) continue; // must start a word
     issuer = ISSUER_WORDS.find(([w]) => new RegExp(`^${w}$`).test(word))?.[1];
+    if (cardWord && /체크/.test(cardWord)) debit = true;
     if (digits) last4 = digits;
     spans.push({ start: idx, end: idx + m[0].length });
     break;
@@ -451,6 +496,7 @@ export function parseCardNotification(raw: string, now: Date = new Date()): Pars
       merchant,
       issuer,
       last4,
+      debit: debit || undefined,
       installment,
       date: when?.date,
       overseas: fx !== undefined || /해외|국외/.test(s),
