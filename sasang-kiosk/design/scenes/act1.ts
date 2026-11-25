@@ -3,6 +3,11 @@ import {
   type Face, type Scene,
 } from '../engine'
 
+// 러너의 프리로드 샘플에 없는 1막 글자(분할 서브셋) — 첫 프레임에서 대체 글꼴로 그려지지 않도록 미리 요청
+if (typeof document !== 'undefined' && document.fonts) {
+  for (const f of [`200 40px ${FONT.serif}`, `400 40px ${FONT.serif}`]) void document.fonts.load(f, '四象形象分析墨光判讀室落點太陰少陽少陰太陽').catch(() => undefined)
+}
+
 /** 공통 무대: 한지 창 위치 (모든 막에서 재사용) */
 export const WIN = { x: 150, y: 200, w: 780, h: 1180 }
 
@@ -11,8 +16,11 @@ export const WIN = { x: 150, y: 200, w: 780, h: 1180 }
 const FC = { x: 540, y: 760, w: 500 }
 /** 장면별 전역 시작 시각 — 먼지·호흡이 장면 경계에서 끊기지 않도록 */
 const T0 = { S01: 0, S02: 4, S03: 9 }
-/** 천장 빛기둥: 창 위에 떨어지는 원뿔 */
-const BM = { cx: W / 2, topW: 230, botW: 860, h: 1420 }
+/** 천장 빛기둥: 창 위에 떨어지는 원뿔 — act2(S04)의 무대와 같은 규격이어야 S03→S04 컷이 이어진다 */
+const BM = { cx: W / 2, topW: 120, botW: 800, h: 1420 }
+/** 모든 막 공통 헤더 */
+const HEAD_L = '墨光判讀室 · INK-LIGHT READING ROOM'
+const HEAD_R = 'STANDBY'
 const beamHalf = (y: number) => (BM.topW + (BM.botW - BM.topW) * clamp(y / BM.h)) / 2
 /** 아래 캡션 기준선 */
 const CAP = { kicker: 1488, title: 1592, ring: 1700, call: 1782 }
@@ -36,7 +44,7 @@ function camera(s: number, fn: () => void, px = FC.x, py = FC.y) {
 
 /* ───── 캐시 레이어 (정적이라 1회만 굽는다) ───── */
 let beamC: HTMLCanvasElement | null = null
-/** 공기 중 빛기둥: 중첩 사다리꼴(가운데가 진함) + 가는 빛줄기 + 천장 광원 */
+/** 공기 중 빛기둥: 중첩 사다리꼴(가운데가 진함) + 가는 빛줄기(갓 레이) + 천장 광원. act2 stage()와 같은 레시피 */
 function beamCache() {
   if (beamC) return beamC
   const P = layer()
@@ -44,33 +52,19 @@ function beamCache() {
   const r = rng(41)
   const trap = (x: CanvasRenderingContext2D, wf: number, a: number, xo = 0) => {
     const g = x.createLinearGradient(0, 0, 0, BM.h)
-    g.addColorStop(0, `rgba(255,214,150,${a})`)
-    g.addColorStop(0.12, `rgba(244,184,104,${a * 0.6})`)
-    g.addColorStop(0.3, `rgba(232,166,75,${a * 0.22})`)
-    g.addColorStop(0.55, `rgba(232,166,75,${a * 0.06})`)
-    g.addColorStop(1, 'rgba(232,166,75,0)')
+    g.addColorStop(0, `rgba(255,214,150,${a})`); g.addColorStop(0.16, `rgba(240,176,92,${a * 0.6})`)
+    g.addColorStop(0.5, `rgba(232,166,75,${a * 0.22})`); g.addColorStop(1, 'rgba(232,166,75,0)')
     x.fillStyle = g
     x.beginPath()
     x.moveTo(BM.cx + xo - (BM.topW / 2) * wf, 0); x.lineTo(BM.cx + xo + (BM.topW / 2) * wf, 0)
     x.lineTo(BM.cx + xo + (BM.botW / 2) * wf, BM.h); x.lineTo(BM.cx + xo - (BM.botW / 2) * wf, BM.h)
     x.closePath(); x.fill()
   }
-  for (const [wf, a] of [[1.08, 0.22], [0.8, 0.2], [0.55, 0.19], [0.3, 0.17]] as const) trap(S.x, wf, a)
-  P.x.filter = 'blur(40px)'
-  P.x.drawImage(S.c, 0, 0)
-  // 원뿔 가장자리가 공기 중에 선명히 읽히도록 덜 흐린 외곽 한 겹
+  for (const [wf, a] of [[1, 0.2], [0.78, 0.18], [0.52, 0.18], [0.26, 0.2]] as const) trap(S.x, wf, a)
+  P.x.filter = 'blur(34px)'; P.x.drawImage(S.c, 0, 0)
   S.x.clearRect(0, 0, W, H)
-  trap(S.x, 1.0, 0.12)
-  P.x.filter = 'blur(12px)'
-  P.x.globalCompositeOperation = 'lighter'
-  P.x.drawImage(S.c, 0, 0)
-  P.x.globalCompositeOperation = 'source-over'
-  // 빛줄기(갓 레이): 가는 사다리꼴 몇 개
-  S.x.clearRect(0, 0, W, H)
-  for (let i = 0; i < 9; i++) trap(S.x, 0.05 + r() * 0.08, 0.05 + r() * 0.06, (r() - 0.5) * BM.topW * 0.9)
-  P.x.filter = 'blur(11px)'
-  P.x.globalCompositeOperation = 'lighter'
-  P.x.drawImage(S.c, 0, 0)
+  for (let i = 0; i < 11; i++) trap(S.x, 0.05 + r() * 0.09, 0.1 + r() * 0.16, (r() - 0.5) * BM.topW * 0.8)
+  P.x.filter = 'blur(7px)'; P.x.globalCompositeOperation = 'lighter'; P.x.drawImage(S.c, 0, 0)
   // 천장 광원
   P.x.filter = 'none'
   const g = P.x.createRadialGradient(BM.cx, -30, 0, BM.cx, -30, 260)
@@ -161,6 +155,16 @@ function beamFx(k: number, descent = 1) {
   L.x.fillRect(0, 0, W, H)
   drawBlur(L.c, 0, k, 'screen')
 }
+/** 먹 위의 빛기둥: 짙은 먹은 공기 중 산란광까지 덜 받아 보이게(먹의 검정이 갈색으로 뜨지 않도록) */
+function beamOverInk(mask: HTMLCanvasElement | null, hold = 0.8) {
+  if (!mask || hold <= 0) { beamFx(1); return }
+  const L = tmp()
+  L.x.drawImage(beamCache(), 0, 0)
+  L.x.globalCompositeOperation = 'destination-out'
+  L.x.globalAlpha = hold
+  L.x.drawImage(mask, 0, 0)
+  drawBlur(L.c, 0, 1, 'screen')
+}
 /** 한지 창. reveal<1: 빛이 닿은 윗변 가운데서부터 번져 켜진다. blur: 랙 포커스 */
 function windowFx(glow: number, reveal = 1, blur = 0) {
   if (glow <= 0) return
@@ -215,6 +219,26 @@ function motes(T: number, alpha = 1) {
   ctx.restore()
 }
 
+/** 잔광: S19 마지막(act6 relight(1))과 같은 그림 — 희미하게 다시 켜진 창에서 루프가 시작된다 */
+function ember(k: number, alpha = 1) {
+  if (k <= 0 || alpha <= 0) return
+  const L = onLayer(() => hanji(WIN.x, WIN.y, WIN.w, WIN.h, 1, { halo: false }))
+  L.x.globalCompositeOperation = 'destination-in'
+  const R = lerp(120, 900, ease.out3(k))
+  const g = L.x.createRadialGradient(W / 2, WIN.y - 40, 0, W / 2, WIN.y - 40, R)
+  g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.45, 'rgba(0,0,0,0.45)'); g.addColorStop(1, 'rgba(0,0,0,0)')
+  L.x.fillStyle = g
+  L.x.fillRect(0, 0, W, H)
+  drawBlur(L.c, 2, 0.2 * k * alpha)
+  const hw = (WIN.w / 2) * ease.out3(k)
+  ctx.save()
+  const lg = ctx.createLinearGradient(W / 2 - hw, 0, W / 2 + hw, 0)
+  lg.addColorStop(0, 'rgba(255,214,150,0)'); lg.addColorStop(0.5, `rgba(255,226,176,${0.42 * k * alpha})`); lg.addColorStop(1, 'rgba(255,214,150,0)')
+  ctx.fillStyle = lg
+  ctx.fillRect(W / 2 - hw, WIN.y - 1, hw * 2, 2)
+  ctx.restore()
+}
+
 /* ───── 캡션 ───── */
 /** 글자별로 번져 나오는 텍스트(가운데 정렬). k 0→1 */
 function inkText(s: string, cx: number, y: number, font: string, color: string, k: number, spacing = 0, alpha = 1) {
@@ -238,59 +262,92 @@ function kicker(alpha: number) {
 
 /* ───── 먹 ───── */
 const HARM = [[2, 0.03], [3, 0.035], [5, 0.025], [8, 0.018], [13, 0.013], [21, 0.01], [34, 0.008], [55, 0.006], [89, 0.005]] as const
+/** 얼룩 윤곽의 반지름 배율(각도 a) */
+function blobM(a: number, ph: number[], amp: number) {
+  let m = 1
+  HARM.forEach(([h, aa], j) => { m += amp * aa * Math.sin(h * a + ph[j]) })
+  return m
+}
 function blobPath(x: CanvasRenderingContext2D, cx: number, cy: number, R: number, ph: number[], amp: number, n = 220) {
   x.beginPath()
   for (let i = 0; i <= n; i++) {
     const a = (i / n) * Math.PI * 2
-    let m = 1
-    HARM.forEach(([h, aa], j) => { m += amp * aa * Math.sin(h * a + ph[j]) })
-    const rr = R * m
+    const rr = R * blobM(a, ph, amp)
     if (i === 0) x.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.96)
     else x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.96)
   }
   x.closePath()
 }
-/** 한지에 번지는 먹. k: 0(닿는 순간)→1(번짐 끝). 난수 소비량이 k와 무관 → 같은 얼룩이 자란다 */
+/**
+ * 한지에 번지는 먹. k: 0(닿는 순간)→1(번짐 끝). 난수 소비량이 k와 무관 → 같은 얼룩이 자란다.
+ * 세 겹: O(물번짐·반영, 크게 흐림) / S(젖은 먹이 겹겹이 쌓인 농담, 중간 흐림) / L(경계·조수선·과립·실번짐, 거의 선명)
+ */
 function inkStain(cx: number, cy: number, R: number, k: number, alpha = 1, seed = 21) {
   if (k <= 0 || alpha <= 0) return
   const r = rng(seed)
+  const phs = () => HARM.map(() => r() * 6.283)
   const e = ease.ink(k)
   const Rk = Math.max(3, R * e)
-  const L = tmp()
   const O = tmp()
+  const S = tmp()
+  const L = tmp()
   // 물번짐: 안료보다 앞서 나간 연한 물 띠
-  blobPath(O.x, cx, cy, Rk * 1.13 + 6, HARM.map(() => r() * 6.283), 1.3)
+  blobPath(O.x, cx, cy, Rk * 1.13 + 6, phs(), 1.3)
   const go = O.x.createRadialGradient(cx, cy, Rk * 0.7, cx, cy, Rk * 1.16 + 6)
-  go.addColorStop(0, 'rgba(70,60,46,0.26)'); go.addColorStop(1, 'rgba(70,60,46,0.12)')
+  go.addColorStop(0, 'rgba(70,60,46,0.22)'); go.addColorStop(1, 'rgba(70,60,46,0.1)')
   O.x.fillStyle = go; O.x.fill()
-  // 안료 본체: 가운데 짙고 바깥으로 옅어지다 경계에서 다시 진해짐(조수선)
-  blobPath(L.x, cx, cy, Rk, HARM.map(() => r() * 6.283), 0.9 + 0.35 * k)
+  // 안료 경계(바깥 윤곽) — 같은 윤곽으로 반영(흐린 가장자리)과 선명한 본체를 함께 만든다
+  const ph0 = phs(), amp0 = 0.9 + 0.35 * k
+  const edgeR = (a: number) => Rk * blobM(a, ph0, amp0)
+  blobPath(O.x, cx, cy, Rk * 1.025, ph0, amp0)
+  O.x.fillStyle = 'rgba(14,15,17,0.2)'; O.x.fill()
+  blobPath(L.x, cx, cy, Rk, ph0, amp0)
   const gb = L.x.createRadialGradient(cx, cy, 0, cx, cy, Rk * 1.06)
-  gb.addColorStop(0, 'rgba(9,10,11,0.94)'); gb.addColorStop(0.3, 'rgba(11,12,14,0.7)')
-  gb.addColorStop(0.72, 'rgba(14,15,17,0.44)'); gb.addColorStop(0.94, 'rgba(14,15,17,0.4)'); gb.addColorStop(1, 'rgba(10,11,12,0.6)')
+  gb.addColorStop(0, 'rgba(12,13,15,0.28)'); gb.addColorStop(0.78, 'rgba(14,15,17,0.2)'); gb.addColorStop(0.95, 'rgba(14,15,17,0.27)'); gb.addColorStop(1, 'rgba(10,11,12,0.38)')
   L.x.fillStyle = gb; L.x.fill()
-  L.x.strokeStyle = 'rgba(10,11,12,0.3)'; L.x.lineWidth = 1.6; L.x.stroke()
-  // 농담 얼룩(경계 없는 부드러운 덩어리)
-  for (let j = 0; j < 6; j++) {
-    const ox = cx + (r() - 0.5) * Rk * 0.7, oy = cy + (r() - 0.5) * Rk * 0.7, rr = Rk * (0.18 + r() * 0.3)
-    const gg = L.x.createRadialGradient(ox, oy, 0, ox, oy, rr)
-    gg.addColorStop(0, `rgba(10,11,12,${0.16 + r() * 0.14})`); gg.addColorStop(1, 'rgba(10,11,12,0)')
-    L.x.fillStyle = gg; L.x.beginPath(); L.x.arc(ox, oy, rr, 0, 6.283); L.x.fill()
+  // 조수선: 끊기며 이어지는 가는 진한 테
+  L.x.save()
+  L.x.setLineDash([18 + r() * 30, 6 + r() * 14, 40 + r() * 50, 10 + r() * 10])
+  L.x.lineDashOffset = r() * 100
+  L.x.strokeStyle = 'rgba(10,11,12,0.34)'; L.x.lineWidth = 1.8; L.x.stroke()
+  L.x.restore()
+  // 젖은 먹이 겹겹이: 안쪽으로 갈수록 짙어지는 농담 층(각자 다른 윤곽)
+  for (const [f, a] of [[0.9, 0.12], [0.75, 0.15], [0.6, 0.18], [0.45, 0.23], [0.3, 0.3]] as const) {
+    const ox = (r() - 0.5) * Rk * 0.1, oy = (r() - 0.5) * Rk * 0.1
+    blobPath(S.x, cx + ox, cy + oy, Rk * f, phs(), 1.7)
+    S.x.fillStyle = `rgba(11,12,14,${a})`; S.x.fill()
   }
-  // 섬유를 타고 뻗는 실번짐(경계에서 바깥으로)
+  // 농담 얼룩(경계 없는 부드러운 덩어리)
+  for (let j = 0; j < 7; j++) {
+    const ox = cx + (r() - 0.5) * Rk * 0.9, oy = cy + (r() - 0.5) * Rk * 0.9, rr = Rk * (0.14 + r() * 0.26)
+    const gg = S.x.createRadialGradient(ox, oy, 0, ox, oy, rr)
+    gg.addColorStop(0, `rgba(10,11,12,${0.1 + r() * 0.14})`); gg.addColorStop(1, 'rgba(10,11,12,0)')
+    S.x.fillStyle = gg; S.x.beginPath(); S.x.arc(ox, oy, rr, 0, 6.283); S.x.fill()
+  }
+  // 떨어진 자리 둘레의 짙은 먹(부드럽게)
+  const gc = S.x.createRadialGradient(cx, cy, 0, cx, cy, Rk * 0.44)
+  gc.addColorStop(0, 'rgba(8,9,10,0.72)'); gc.addColorStop(0.5, 'rgba(8,9,10,0.36)'); gc.addColorStop(1, 'rgba(8,9,10,0)')
+  S.x.fillStyle = gc; S.x.beginPath(); S.x.arc(cx, cy, Rk * 0.44, 0, 6.283); S.x.fill()
+  // 과립: 섬유에 걸린 먹 입자 — 평평한 회색 대신 종이결이 읽히게
+  for (let i = 0; i < 900; i++) {
+    const a = r() * 6.283, d = Math.sqrt(r()) * 0.97 * edgeR(a), s = 0.5 + r() * 1.2, al = 0.05 + r() * 0.16
+    L.x.fillStyle = `rgba(8,9,10,${al})`
+    L.x.fillRect(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.96, s, s)
+  }
+  // 섬유를 타고 뻗는 실번짐(실제 경계에서 바깥으로)
   L.x.lineCap = 'round'
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 460; i++) {
     const a0 = r() * 6.283
-    const start = 0.9 + r() * 0.1
-    let x = cx + Math.cos(a0) * Rk * start, y = cy + Math.sin(a0) * Rk * start * 0.96
-    let a = a0 + (r() - 0.5) * 1.4
-    const len = (5 + r() * (r() < 0.15 ? 60 : 18)) * (0.3 + 0.7 * e)
-    L.x.strokeStyle = `rgba(12,13,15,${0.12 + r() * 0.3})`
-    L.x.lineWidth = 0.4 + r() * 0.9
+    const rb = edgeR(a0) * (0.93 + r() * 0.07)
+    let x = cx + Math.cos(a0) * rb, y = cy + Math.sin(a0) * rb * 0.96
+    let a = a0 + (r() - 0.5) * 1.5
+    const len = (4 + r() * (r() < 0.18 ? 58 : 16)) * (0.3 + 0.7 * e)
+    L.x.strokeStyle = `rgba(12,13,15,${0.08 + r() * 0.26})`
+    L.x.lineWidth = 0.35 + r() * 0.8
     L.x.beginPath(); L.x.moveTo(x, y)
-    for (let st = 0; st < 4; st++) {
+    for (let st = 0; st < 5; st++) {
       a += (r() - 0.5) * 0.7
-      x += (Math.cos(a) * len) / 4; y += (Math.sin(a) * len) / 4
+      x += (Math.cos(a) * len) / 5; y += (Math.sin(a) * len) / 5
       L.x.lineTo(x, y)
     }
     L.x.stroke()
@@ -303,11 +360,12 @@ function inkStain(cx: number, cy: number, R: number, k: number, alpha = 1, seed 
     L.x.beginPath(); L.x.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.96, sz, 0, 6.283); L.x.fill()
   }
   // 떨어진 자리(진한 심)
-  blobPath(L.x, cx, cy, 14 + 30 * e, HARM.map(() => r() * 6.283), 3)
-  L.x.fillStyle = `rgba(7,8,9,${0.85 - 0.25 * k})`
+  blobPath(L.x, cx, cy, 14 + 22 * e, phs(), 3)
+  L.x.fillStyle = `rgba(7,8,9,${0.82 - 0.3 * k})`
   L.x.fill()
-  drawBlur(O.c, 9, alpha)
-  drawBlur(L.c, 1.1 + 1.6 * k, alpha)
+  drawBlur(O.c, 10, alpha)
+  drawBlur(S.c, 6, alpha)
+  drawBlur(L.c, 0.8 + 0.8 * k, alpha)
 }
 let stainC: HTMLCanvasElement | null = null
 /** 번짐이 끝난(k=1) 얼룩 캐시 — S03 응축의 출발점 */
@@ -412,16 +470,32 @@ function inkFace(f: Face, o: { gather?: number; R?: number; morph?: Morph; tint?
     L.x.beginPath(); L.x.arc(x, y, rad, 0, 6.283); L.x.fill()
   }
   drawBlur(Wl.c, 10)
+  if (o.tint && tk > 0.01) {
+    // 석채가 테두리에서 안쪽으로 스며든 띠(벡터 외곽선이 아니라 종이에 밴 안료)
+    const P = tmp()
+    P.x.beginPath()
+    OVAL.forEach((i, j) => {
+      const q = f.lm[i], v = (q.y - f.cy) / f.ry
+      const x = f.cx + (q.x - f.cx) * (m.sx - m.taper * v), y = f.cy + (q.y - f.cy) * m.sy
+      if (j) P.x.lineTo(x, y); else P.x.moveTo(x, y)
+    })
+    P.x.closePath()
+    P.x.clip()
+    P.x.strokeStyle = o.tint; P.x.lineWidth = 48; P.x.stroke()
+    drawBlur(P.c, 16, 0.34 * tk * alpha, 'multiply')
+  }
   drawBlur(L.c, 5, 0.5) // 먹 번짐
   ctx.drawImage(L.c, 0, 0)
 }
+/** 얼굴 외곽(실루엣) 랜드마크 순서 */
+const OVAL = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
 
 /* ───────── S01 ───────── */
 const S01: Scene = {
   id: 'S01',
   act: '대기',
   title: '암전, 그리고 창이 켜진다',
-  note: '완전한 어둠에서 천장의 앰버 빛기둥이 천천히 내려와 한지 창 윗변에 한 줄의 빛을 긋는다. 창은 빛이 닿은 자리에서부터 번지듯 켜지고, 빛 속에 먼지가 떠다닌다.',
+  note: '거의 완전한 어둠 — 지난 관람의 잔광처럼 한지 창만 희미하게 숨 쉰다(S19에서 이어짐). 천장의 앰버 빛기둥이 천천히 내려와 창 윗변에 한 줄의 빛을 긋고, 창은 빛이 닿은 자리에서부터 번지듯 켜지며 빛 속에 먼지가 떠다닌다.',
   dur: 4,
   render(t) {
     const T = T0.S01 + t
@@ -432,11 +506,13 @@ const S01: Scene = {
     const reveal = ease.ink(seg(t, 1.3, 3.7))
     windowFx(0.92 * kWin, reveal)
     beamFx(kBeam, descent)
-    strikeFx(kStrike, 1 - 0.4 * ease.sine(seg(t, 2.0, 3.6)))
+    strikeFx(kStrike, 1 - 0.55 * ease.sine(seg(t, 2.0, 3.6)))
     dustFx(T, kBeam, descent)
     motes(T, kBeam * descent)
     vignette(0.7)
-    header('墨光判讀室', 'STANDBY · 待機', seg(t, 2.6, 3.8))
+    // S19 끝의 잔광: 빛기둥이 닿기 전 한 번 가라앉았다가, 켜지는 창에 흡수된다
+    ember(1, (1 - 0.35 * ease.sine(seg(t, 0.15, 1.1))) * (1 - ease.sine(seg(t, 1.3, 2.8))))
+    header(HEAD_L, HEAD_R, seg(t, 2.6, 3.8))
     kicker(ease.sine(seg(t, 3, 4)))
   },
 }
@@ -457,15 +533,16 @@ const S02: Scene = {
     const kf = seg(t, 0.3, IMPACT)
     const dropY = lerp(-60, FC.y, 0.5 * kf + 0.5 * kf * kf)
     const kStain = seg(t, IMPACT, 5)
+    const SL = kStain > 0 ? onLayer(() => clipRect(WIN.x, WIN.y, WIN.w, WIN.h, () => inkStain(FC.x, FC.y, STAIN_R, kStain))) : null
     camera(push, () => {
       windowFx(0.92, 1, blur)
-      clipRect(WIN.x, WIN.y, WIN.w, WIN.h, () => inkStain(FC.x, FC.y, STAIN_R, kStain))
-      beamFx(1)
-      strikeFx(1, 0.6)
+      if (SL) ctx.drawImage(SL.c, 0, 0)
+      beamOverInk(SL ? SL.c : null)
+      strikeFx(1, 0.45)
       // 낙하 측정자(왼쪽 여백): 빛이 선을 긋고, 앰버 표식이 방울을 따라 내려간다
       const kr = ease.sine(seg(t, 0.4, 1.4)) * (1 - ease.sine(seg(t, 3.2, 4.4)))
       if (kr > 0) {
-        const rx = 72
+        const rx = 104
         const y1 = lerp(WIN.y, WIN.y + WIN.h, ease.out3(seg(t, 0.4, 1.5)))
         hair(rx, WIN.y, rx, y1, C.celadon, 1, 0.55 * kr)
         for (let i = 0; i <= 40; i++) {
@@ -477,7 +554,7 @@ const S02: Scene = {
         const hit = t >= IMPACT
         hair(rx - 12, my, rx + 26, my, hit ? C.amberCore : C.amber, 2, kr)
         const rem = Math.max(0, FC.y - dropY)
-        mono(hit ? '0000' : String(Math.round(rem)).padStart(4, '0'), rx + 4, my - 14, hit ? C.amberCore : C.amber, 15, 'left', kr)
+        mono(hit ? '0000' : String(Math.round(rem)).padStart(4, '0'), rx - 18, my + 5, hit ? C.amberCore : C.amber, 15, 'right', kr)
         mono('落', rx + 4, WIN.y - 16, C.celadon, 15, 'left', 0.7 * kr)
       }
       // 낙점 조준선(청자): 닿기 직전 맺히고 번짐 속에 사라진다
@@ -510,7 +587,7 @@ const S02: Scene = {
     dustFx(T)
     motes(T)
     vignette(0.7)
-    header('墨光判讀室', 'STANDBY · 待機')
+    header(HEAD_L, HEAD_R)
     kicker(1)
   },
 }
@@ -556,22 +633,21 @@ const S03: Scene = {
     // 지금 활성인 원형의 석채색
     let tint: string | undefined, tintK = 0
     for (const c of CYCLE) if (act[c.k] > tintK) { tintK = act[c.k]; tint = TYPE_COL[c.k] }
+    // 번진 먹이 얼굴로 거두어진다(작아지며 옅어지는 얼룩)
+    const SL = cond < 1 ? onLayer(() => clipRect(WIN.x, WIN.y, WIN.w, WIN.h, () => {
+      const s = 1 - 0.2 * cond
+      ctx.globalAlpha = 1 - cond
+      ctx.translate(FC.x, FC.y); ctx.scale(s, s); ctx.translate(-FC.x, -FC.y)
+      ctx.drawImage(stainCache(), 0, 0)
+    })) : null
     camera(push, () => {
       windowFx(0.92)
       clipRect(WIN.x, WIN.y, WIN.w, WIN.h, () => {
-        // 번진 먹이 얼굴로 거두어진다
-        if (cond < 1) {
-          const s = 1 - 0.2 * cond
-          ctx.save()
-          ctx.globalAlpha = 1 - cond
-          ctx.translate(FC.x, FC.y); ctx.scale(s, s); ctx.translate(-FC.x, -FC.y)
-          ctx.drawImage(stainCache(), 0, 0)
-          ctx.restore()
-        }
+        if (SL) ctx.drawImage(SL.c, 0, 0)
         inkFace(f, { gather, morph: m, tint, tintK: tintK * 0.9 })
       })
-      beamFx(1)
-      strikeFx(1, 0.6)
+      beamOverInk(SL ? SL.c : null)
+      strikeFx(1, 0.45)
       // 오른쪽 여백: 사상 원형 색인(세로쓰기). 태양은 판별 제외로 늘 흐림
       const kIdx = ease.sine(seg(t, 2.2, 3.0))
       if (kIdx > 0) {
@@ -597,9 +673,9 @@ const S03: Scene = {
       }
     })
     dustFx(T)
-    motes(T)
+    motes(T, 1 - ease.sine(seg(t, 5.3, 6))) // S04 무대에는 큰 먼지 보케가 없다
     vignette(0.7)
-    header('墨光判讀室', 'STANDBY · 待機')
+    header(HEAD_L, HEAD_R)
     kicker(1)
     // 제목
     inkText('얼굴과 몸으로 읽는 체질', W / 2, CAP.title, `300 60px ${FONT.hahmlet}`, C.hanji, seg(t, 2.1, 3.5), 3)
@@ -616,7 +692,7 @@ const S03: Scene = {
       ctx.fillStyle = `rgba(241,230,207,${(0.55 + 0.4 * breath) * kc})`
       ctx.beginPath(); ctx.arc(W / 2, CAP.ring, 4.5, 0, 6.283); ctx.fill()
       ctx.restore()
-      text('화면을 터치하세요', W / 2, CAP.call, `400 30px ${FONT.sans}`, C.hanji, { align: 'center', spacing: 7, alpha: (0.45 + 0.5 * breath) * kc })
+      text('화면을 터치하세요', W / 2, CAP.call, `400 30px ${FONT.sans}`, C.hanji, { align: 'center', spacing: 10, alpha: (0.45 + 0.5 * breath) * kc })
     }
   },
 }

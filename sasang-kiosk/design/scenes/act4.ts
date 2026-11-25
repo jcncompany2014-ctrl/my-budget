@@ -1,12 +1,12 @@
 /**
  * 4막 문진 — S10 족자와 문항, S11 응답의 날인
- * 셔터 섬광의 잔광 속에서 렌즈 속 먹 초상이 위로 걸려 족자(掛軸)가 되고, 족자가 아래로 풀리며
- * 네 갈래 먹줄기(太陰·少陽·少陰·太陽)가 드러난다. 그 아래 어둠에는 문항과 네 장의 한지 창호 패널.
- * 응답을 짚으면 그 창만 등불이 오르고 나머지는 먹에 잠기며, 빛이 선을 그어 族子의 太陰 줄기를 굵게 한다.
+ * S09의 채록 렌즈를 그대로 이어받아 계측선을 거두고, 렌즈가 표구에 싸여 위로 걸려 족자(掛軸)가 된다.
+ * 족자가 아래로 풀리며 네 갈래 먹줄기(太陰·少陽·少陰·太陽)가 드러나고, 그 아래 어둠에는 문항과 네 장의 한지 창.
+ * 응답을 짚으면 그 창만 등불이 오르고 나머지는 먹에 잠기며, 빛이 선을 그어 족자의 太陰 줄기를 굵게 한다.
  */
 import {
-  C, FONT, H, W, TYPE_COL, bloom, clamp, ctx, disclaimer, drawBlur, drawFace, dust, ease, face, hair, hanji, header, layer, lerp,
-  mono, rng, seg, setCtx, text, tickRing, tmp, vignette, type Face, type Scene,
+  C, FONT, H, W, clamp, ctx, disclaimer, drawBlur, dust, ease, face, hair, hanji, header, layer, lerp,
+  mono, rng, seg, setCtx, text, tmp, vignette, type Face, type Scene,
 } from '../engine'
 
 /* ───────── 무대 치수 ───────── */
@@ -39,7 +39,7 @@ const LBL = [
   { k: 'soeum', s: '少陰', x: 585, ink: '#25386C' },
   { k: 'taeyang', s: '太陽', x: 675, ink: '#3A352C' },
 ] as const
-const STR = { y0: 512, y1: 694, lab: 724 }
+const STR = { y0: 512, y1: 688, lab: 718 }
 
 /** 문항 */
 const QS = {
@@ -52,9 +52,19 @@ const QS = {
     a: ['잘 먹고, 소화도 잘 되는 편이다', '빨리 먹고, 금방 배가 고파진다', '조금만 먹어도 더부룩하다', '입맛이 그때그때 다르다'],
   },
 }
+/**
+ * 웹폰트 하위 집합(unicode-range) 미리 받기: 캔버스는 아직 받지 않은 글리프를 대체 글꼴로 그린다.
+ * 이 막을 처음 그리는 프레임(또는 S11 마지막 프레임을 캐시로 굽는 5막 S12)에서 글자 폭이 달라지지 않게 한다.
+ */
+if (typeof document !== 'undefined' && document.fonts) {
+  const ko = [...QS.q07.a, ...QS.q08.a, QS.q07.q, QS.q08.q, '형상을 담았습니다', '판별제외', '눈 너비 비코턱'].join('')
+  const hz = '一二三四太陰少陽天人地上停中停下停髮際眉間鼻下頤端目鼻廣光心推定汗脾胃①→·'
+  for (const f of [`400 37px ${FONT.serif}`, `200 40px ${FONT.serif}`, `300 52px ${FONT.hahmlet}`, `500 20px ${FONT.sans}`, `400 20px ${FONT.sans}`, `300 20px ${FONT.mono}`])
+    document.fonts.load(f, ko + hz).catch(() => undefined)
+}
 /** 문진 누적 경향(태음·소양·소음) — 07번까지 / 08번 응답(①=太陰) 후 */
 const WT7 = [0.46, 0.31, 0.23]
-const WT8 = [0.5, 0.29, 0.21]
+const WT8 = [0.54, 0.27, 0.19]
 /** 전역 시각(먼지 흐름이 장면 경계에서 끊기지 않게) */
 const T0 = { S10: 0, S11: 3.5 }
 
@@ -99,15 +109,22 @@ function polyline(pts: [number, number][], k: number): [number, number] {
   }
   return end
 }
+let measureX: CanvasRenderingContext2D | null = null
+function measurer() {
+  if (!measureX) measureX = document.createElement('canvas').getContext('2d')!
+  return measureX
+}
 /** 글자별로 먹이 맺히듯 나타나는 가로 텍스트(왼쪽 정렬). k 0→1 */
 function inkLine(s: string, x: number, y: number, font: string, color: string, k: number, o: { spacing?: number; alpha?: number; blur?: number } = {}) {
   const alpha = o.alpha ?? 1
   if (k <= 0 || alpha <= 0) return
   const sp = o.spacing ?? 0
-  ctx.save(); ctx.font = font; ctx.letterSpacing = '0px'
+  // 글자 폭은 늘 같은 분리 캔버스에서 잰다: 화면 캔버스와 오프스크린 레이어가 공백 폭을 다르게 재서
+  // (블러 레이어로 그릴 때나 5막이 S11 마지막 프레임을 캐시로 구울 때) 글자 자리가 밀리지 않게
+  const M = measurer()
+  M.font = font
   const chars = [...s]
-  const ws = chars.map((ch) => ctx.measureText(ch).width)
-  ctx.restore()
+  const ws = chars.map((ch) => M.measureText(ch).width)
   const n = chars.length
   const st = 0.06
   let xx = x
@@ -117,10 +134,145 @@ function inkLine(s: string, x: number, y: number, font: string, color: string, k
     xx += ws[i] + sp
   })
 }
-/** 세로 글자(가운데 정렬, 기준선 middle) */
-function vchars(s: string, x: number, y: number, size: number, font: string, color: string, alpha: number, gap = 1.2, blur = 0) {
+/** 세로 글자(가운데 정렬, 기준선 middle). weight는 크기 앞에 와야 유효한 font 문자열이 된다 */
+function vchars(s: string, x: number, y: number, size: number, family: string, color: string, alpha: number, gap = 1.2, blur = 0, weight = 400) {
   if (alpha <= 0) return
-  ;[...s].forEach((ch, i) => text(ch, x, y + i * size * gap, `${size}px ${font}`, color, { align: 'center', baseline: 'middle', alpha, blur }))
+  ;[...s].forEach((ch, i) => text(ch, x, y + i * size * gap, `${weight} ${size}px ${family}`, color, { align: 'center', baseline: 'middle', alpha, blur }))
+}
+
+/* ───── S09 잔상: 앞 장면 마지막 프레임을 그대로 이어받아 거둬들인다 ───── */
+const S9 = { scaleX: 128, profX: 968, eye: { x: 540, y: 246 }, ring: 398, guideY: 1612 }
+const ZONE = [
+  { hz: '天', name: '上停', ratio: '0.27' },
+  { hz: '人', name: '中停', ratio: '0.33' },
+  { hz: '地', name: '下停', ratio: '0.39' },
+]
+const LTAG = ['髮際', '眉間', '鼻下', '頤端']
+function zones(f: Face) {
+  const brow = f.lm[9].y, base = f.lm[2].y, chin = f.lm[152].y
+  return { top: brow - (base - brow) * (0.27 / 0.33), brow, base, chin }
+}
+function readSpec(f: Face) {
+  const L = f.lm
+  const eyeY = Math.max(L[263].y, L[362].y) + 24
+  const noseY = (L[358].y + L[129].y) / 2
+  const jawY = (L[397].y + L[172].y) / 2 + 6
+  const top = 1236
+  const jx = (L[397].x + L[172].x) / 2
+  return [
+    { hz: '目', val: '0.22', ko: '눈 너비 비', x: 210, span: [L[263].x, L[362].x, eyeY], lead: [[L[263].x, eyeY], [210, eyeY], [210, top]] as [number, number][] },
+    { hz: '鼻廣', val: '0.35', ko: '코 너비 비', x: 870, span: [L[358].x, L[129].x, noseY], lead: [[L[129].x, noseY], [870, noseY], [870, top]] as [number, number][] },
+    { hz: '頤', val: '0.80', ko: '턱 너비 비', x: 540, span: [L[397].x, L[172].x, jawY], lead: [[jx, jawY], [jx, top]] as [number, number][] },
+  ]
+}
+/** 선을 가운데로 거둬들인다(빛이 선을 긋는 동작의 역재생). k: 1 온전 → 0 사라짐 */
+function retract(x0: number, y0: number, x1: number, y1: number, k: number, color: string, w: number, alpha: number) {
+  if (k <= 0 || alpha <= 0) return
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2
+  hair(lerp(mx, x0, k), lerp(my, y0, k), lerp(mx, x1, k), lerp(my, y1, k), color, w, alpha)
+}
+/** 꺾인 지시선을 끝(수치 쪽)에서부터 거둬들인다 */
+function retractPoly(pts: [number, number][], k: number, color: string, w: number, alpha: number) {
+  if (k <= 0 || alpha <= 0) return
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.globalAlpha = alpha
+  polyline(pts, k); ctx.stroke(); ctx.restore()
+}
+/** 잔상 배경(렌즈 주변 방의 빛): 방 잔광, 렌즈 할로 */
+function s09Room(k: number) {
+  if (k <= 0) return
+  const g = ctx.createRadialGradient(S9.eye.x, -160, 10, S9.eye.x, -160, 1000)
+  g.addColorStop(0, `rgba(232,166,75,${0.16 * k})`); g.addColorStop(0.45, `rgba(232,166,75,${0.045 * k})`); g.addColorStop(1, 'rgba(232,166,75,0)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+  const h = ctx.createRadialGradient(LENS.x, LENS.y, LENS.r * 0.92, LENS.x, LENS.y, LENS.r * 1.8)
+  h.addColorStop(0, `rgba(241,230,207,${0.12 * 0.95 * k})`); h.addColorStop(0.3, `rgba(232,200,150,${0.045 * 0.95 * k})`); h.addColorStop(1, 'rgba(232,200,150,0)')
+  ctx.fillStyle = h; ctx.fillRect(0, 0, W, H)
+}
+/** 렌즈에 붙은 기물(금 테·72눈금). 렌즈와 함께 족자 쪽으로 움직인다 — 호출 측에서 변환 */
+function s09Lens(k: number) {
+  if (k <= 0) return
+  ctx.save()
+  ctx.strokeStyle = C.gold
+  ctx.globalAlpha = 0.62 * k; ctx.lineWidth = 1.3
+  ctx.beginPath(); ctx.arc(LENS.x, LENS.y, LENS.r + 0.5, 0, 6.283); ctx.stroke()
+  ctx.globalAlpha = 0.16 * k; ctx.lineWidth = 1
+  ctx.beginPath(); ctx.arc(LENS.x, LENS.y, LENS.r + 6, 0, 6.283); ctx.stroke()
+  ctx.restore()
+  for (let i = 0; i < 72; i++) {
+    const a = -Math.PI / 2 + (i / 72) * Math.PI * 2
+    const major = i % 6 === 0
+    const len = major ? 16 : 8
+    const c = Math.cos(a), s = Math.sin(a)
+    hair(LENS.x + c * S9.ring, LENS.y + s * S9.ring, LENS.x + c * (S9.ring + len), LENS.y + s * (S9.ring + len), C.celadon, major ? 1.8 : 1.1, (major ? 0.86 : 0.69) * k)
+  }
+}
+/** 계측 도해·판독값·안내 — 텍스트는 흐려지며, 선은 가운데로 거둬진다. r: 0(S09 마지막 프레임) → 1(모두 걷힘) */
+function s09Overlay(f: Face, r: number) {
+  if (r >= 1) return
+  const Z = zones(f)
+  const ys = [Z.top, Z.brow, Z.base, Z.chin]
+  const ta = 1 - ease.sine(seg(r, 0, 0.62)), tb = ease.sine(seg(r, 0, 0.62)) * 9
+  const lk = 1 - ease.inOut3(seg(r, 0.08, 1))
+  // 계측선(렌즈 밖 청자 / 렌즈 안 짙은 청자)
+  const lines = (col: string) => {
+    ys.forEach((y) => retract(S9.scaleX + 18, y, S9.profX - 16, y, lk, col, 1, 0.55))
+    if (lk > 0) {
+      ctx.save(); ctx.setLineDash([5, 7]); ctx.strokeStyle = col; ctx.globalAlpha = 0.33; ctx.lineWidth = 1
+      const mx = f.lm[168].x, my = (Z.top + Z.chin) / 2, hh = ((Z.chin - Z.top) / 2) * lk
+      ctx.beginPath(); ctx.moveTo(mx, my - hh); ctx.lineTo(mx, my + hh); ctx.stroke(); ctx.restore()
+    }
+    for (const sp of readSpec(f)) {
+      retract(sp.span[0], sp.span[2], sp.span[1], sp.span[2], lk, col, 1.2, 0.62)
+      for (const x of [sp.span[0], sp.span[1]]) retract(x, sp.span[2] - 9, x, sp.span[2] + 9, lk, col, 1.2, 0.62)
+      retractPoly(sp.lead, ease.inOut3(seg(lk, 0.25, 1)), col, 1, 0.49)
+    }
+  }
+  ctx.save()
+  ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(LENS.x, LENS.y, LENS.r, 0, 6.283); ctx.clip('evenodd')
+  lines(C.celadon)
+  ctx.restore()
+  ctx.save(); ctx.beginPath(); ctx.arc(LENS.x, LENS.y, LENS.r, 0, 6.283); ctx.clip()
+  lines(C.celadonDeep)
+  ctx.restore()
+  // 계측 기둥
+  retract(S9.scaleX, Z.top, S9.scaleX, Z.chin, lk, C.celadon, 1, 0.5)
+  for (const y of ys) retract(S9.scaleX - 8, y, S9.scaleX + 18, y, lk, C.celadon, 1.4, 0.7)
+  // 광심과 수직 기준선
+  const E = S9.eye
+  retract(E.x, E.y + 40, E.x, LENS.y - S9.ring - 26, lk, C.celadon, 1, 0.45)
+  if (ta > 0) {
+    ctx.save(); ctx.strokeStyle = C.celadon; ctx.lineWidth = 1
+    ctx.globalAlpha = 0.34 * ta; ctx.beginPath(); ctx.arc(E.x, E.y, 17, 0, 6.283); ctx.stroke()
+    ctx.globalAlpha = 0.14 * ta; ctx.beginPath(); ctx.arc(E.x, E.y, 31, 0, 6.283); ctx.stroke()
+    ctx.restore()
+    for (const d of [-1, 1]) hair(E.x + d * 40, E.y, E.x + d * 64, E.y, C.celadon, 1, 0.4 * ta)
+    text('光心', E.x + 78, E.y + 6, `400 17px ${FONT.serif}`, C.celadon, { alpha: 0.62 * ta, spacing: 4, blur: tb })
+    const L = tmp()
+    L.x.fillStyle = 'rgba(255,226,170,1)'
+    L.x.beginPath(); L.x.arc(E.x, E.y, 3.4, 0, 6.283); L.x.fill()
+    L.x.fillStyle = 'rgba(255,226,170,0.18)'
+    L.x.beginPath(); L.x.arc(E.x, E.y, 9, 0, 6.283); L.x.fill()
+    blurRegion(L.c, E.x - 20, E.y - 20, 40, 40, 0, ta)
+    blurRegion(L.c, E.x - 20, E.y - 20, 40, 40, 4, 0.85 * ta, 'lighter')
+    blurRegion(L.c, E.x - 20, E.y - 20, 40, 40, 16, 0.5 * ta, 'lighter')
+  }
+  if (ta <= 0) return
+  // 삼정 라벨·비율
+  ys.forEach((y, i) => text(LTAG[i], S9.scaleX - 14, y + 6, `400 15px ${FONT.serif}`, C.celadon, { align: 'right', alpha: 0.7 * ta, spacing: 1, blur: tb }))
+  mono('推定', S9.scaleX + 26, Z.top - 10, C.ash, 13, 'left', 0.7 * ta)
+  ZONE.forEach((z, i) => {
+    const ym = (ys[i] + ys[i + 1]) / 2
+    text(z.hz, 82, ym - 4, `200 40px ${FONT.serif}`, C.hanji, { align: 'center', alpha: ta, blur: tb })
+    ;[...z.name].forEach((ch, j) => text(ch, 82, ym + 30 + j * 21, `400 17px ${FONT.serif}`, C.celadon, { align: 'center', alpha: 0.8 * ta, blur: tb }))
+    text(z.ratio, W - 70, ym + 10, `300 26px ${FONT.mono}`, C.hanji, { align: 'right', alpha: ta, blur: tb, spacing: 26 * 0.08 })
+  })
+  // 아래 판독값
+  for (const sp of readSpec(f)) {
+    text(sp.hz, sp.x, 1290, `200 32px ${FONT.serif}`, C.celadon, { align: 'center', alpha: ta, blur: tb, spacing: 4 })
+    text(sp.val, sp.x, 1352, `300 46px ${FONT.mono}`, C.pearl, { align: 'center', alpha: ta, blur: tb, spacing: 46 * 0.08 })
+    text(sp.ko, sp.x, 1392, `400 19px ${FONT.sans}`, C.hanjiShadow, { align: 'center', alpha: 0.9 * ta, blur: tb, spacing: 1 })
+  }
+  mono('FRAME 01 · 판독 후 즉시 폐기', W - 72, 372, C.ash, 15, 'right', 0.8 * ta)
+  text('형상을 담았습니다', W / 2, S9.guideY, `300 46px ${FONT.hahmlet}`, C.hanji, { align: 'center', spacing: 3, alpha: ta, blur: tb })
 }
 
 /* ───── 캐시 레이어(정적, 1회 굽기) ───── */
@@ -239,27 +391,81 @@ interface ScrollO {
   answered: number // 지금까지 답한 문항 수(줄기 굵기)
   wt: number[] // 태음·소양·소음 경향
   pulse?: number // 太陰 줄기를 타고 내려가는 먹 덩이(0→1)
+  /** 太陰 줄기: 먹 덩이가 지나간 자리부터 굵어진다(px, 이전→이후) */
+  fresh?: { from: number; to: number }
+  /** 줄기별 굵기 직접 지정(px) */
+  tws?: number[]
   tauGlow?: number // 太陰 이름표 뒤 한지에 석록 빛
   beam: number
 }
 const imgBot = (u: number) => lerp(IMG.bot0, IMG.bot, u)
 
-/** 렌즈 공간 → 화면 변환과 클립 모양 */
-function portraitFx(m: number, u: number, alpha: number) {
+/** 렌즈 공간 → 화면 변환 */
+function lensSpace(m: number) {
   const s = lerp(1, PS, m)
   const cy = lerp(LENS.y, FACE_Y, m)
-  const w = lerp(LENS.r * 2, IMG.w / PS, m)
-  const h0 = lerp(LENS.r * 2, (IMG.bot0 - IMG.top) / PS, m)
+  ctx.translate(LENS.x, cy); ctx.scale(s, s); ctx.translate(-LENS.x, -LENS.y)
+}
+/**
+ * 렌즈 → 족자. 둥근 렌즈의 한지빛은 그대로 줄어들며 꺼지고, 그 둘레로 족자의 네모난 화심이 먹처럼 배어 나온다.
+ * (모양을 모핑하지 않는다 — 중간에 둥근 사각형이 생기지 않게)
+ */
+function portraitFx(m: number, u: number, alpha: number) {
+  const w = IMG.w / PS
+  const h0 = (IMG.bot0 - IMG.top) / PS
   const top = LENS.y - h0 / 2
   const h = h0 + (u * (IMG.bot - IMG.bot0)) / PS
-  const rad = Math.min(w / 2, h0 / 2, LENS.r * (1 - ease.sine(m)))
+  const rectA = clamp((m - 0.04) / 0.86)
+  const lensA = 1 - ease.sine(clamp((m - 0.28) / 0.72))
   ctx.save()
-  ctx.translate(LENS.x, cy); ctx.scale(s, s); ctx.translate(-LENS.x, -LENS.y)
-  ctx.beginPath(); ctx.roundRect(LENS.x - w / 2, top, w, h, rad); ctx.clip()
-  ctx.globalAlpha = alpha
-  ctx.drawImage(portraitCache(), 0, 0)
+  lensSpace(m)
+  if (rectA >= 1) {
+    ctx.save()
+    ctx.beginPath(); ctx.rect(LENS.x - w / 2, top, w, h); ctx.clip()
+    ctx.globalAlpha = alpha
+    ctx.drawImage(portraitCache(), 0, 0)
+    ctx.restore()
+  } else if (rectA > 0) {
+    // 렌즈 가장자리에서 바깥으로 한지가 배어 나온다(번짐 전선은 부드럽게)
+    const main = ctx
+    const L = onLayer(() => {
+      ctx.setTransform(main.getTransform())
+      ctx.beginPath(); ctx.rect(LENS.x - w / 2, top, w, h); ctx.clip()
+      ctx.drawImage(portraitCache(), 0, 0)
+      ctx.globalCompositeOperation = 'destination-in'
+      const r0 = LENS.r * 0.84 + 320 * rectA ** 1.3
+      const g = ctx.createRadialGradient(LENS.x, LENS.y, r0, LENS.x, LENS.y, r0 + 150)
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.55, 'rgba(0,0,0,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = g; ctx.fillRect(LENS.x - w / 2, top, w, h)
+    })
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.globalAlpha = alpha * ease.sine(clamp(rectA * 2.2))
+    ctx.drawImage(L.c, 0, 0)
+    ctx.restore()
+  }
+  if (lensA > 0) {
+    ctx.save()
+    ctx.beginPath(); ctx.arc(LENS.x, LENS.y, LENS.r, 0, 6.283); ctx.clip()
+    // 표구가 둘러지면 렌즈빛은 화심 안에만 남는다(둥근 빛이 비단 테 위로 삐져나오지 않게). 첫 프레임은 S09 렌즈 그대로
+    const e = lerp(40, 0, ease.sine(clamp((m - 0.04) / 0.3)))
+    ctx.beginPath(); ctx.rect(LENS.x - w / 2 - e, top - e, w + 2 * e, h + 2 * e); ctx.clip()
+    ctx.globalAlpha = 0.94 * lensA
+    ctx.drawImage(portraitCache(), 0, 0)
+    // 렌즈 경통 그늘과 천장 광원 쪽 온기(S09의 렌즈 한지와 같은 결)
+    ctx.globalAlpha = lensA
+    ctx.globalCompositeOperation = 'screen'
+    const hg = ctx.createRadialGradient(S9.eye.x, LENS.y - LENS.r - 60, 0, S9.eye.x, LENS.y - LENS.r - 60, 560)
+    hg.addColorStop(0, 'rgba(255,214,150,0.42)'); hg.addColorStop(0.5, 'rgba(240,180,100,0.12)'); hg.addColorStop(1, 'rgba(240,180,100,0)')
+    ctx.fillStyle = hg; ctx.fillRect(LENS.x - LENS.r, LENS.y - LENS.r, LENS.r * 2, LENS.r * 2)
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.globalAlpha = lensA * (1 - ease.sine(clamp(m / 0.55)))
+    const g = ctx.createRadialGradient(LENS.x, LENS.y, LENS.r * 0.45, LENS.x, LENS.y, LENS.r)
+    g.addColorStop(0, 'rgba(46,34,20,0)'); g.addColorStop(0.72, 'rgba(46,34,20,0.14)'); g.addColorStop(0.93, 'rgba(30,22,14,0.42)'); g.addColorStop(1, 'rgba(10,8,6,0.86)')
+    ctx.fillStyle = g; ctx.fillRect(LENS.x - LENS.r, LENS.y - LENS.r, LENS.r * 2, LENS.r * 2)
+    ctx.restore()
+  }
   ctx.restore()
-  return { s, cy }
 }
 
 /** 베지어 위의 점·접선 */
@@ -275,7 +481,7 @@ function bez(i: number, s: number) {
   return { x, y, nx: -dy / l, ny: dx / l }
 }
 /** 먹줄기 굵기(px): 답한 문항이 쌓일수록, 경향이 클수록 굵다 */
-const thick = (w: number, answered: number) => 2.2 + 30 * w * Math.sqrt(clamp(answered / 18))
+const thick = (w: number, answered: number) => 2 + 50 * w * Math.sqrt(clamp(answered / 18))
 
 /** 네 갈래 먹줄기 + 이름표 (화심 위, 화면 좌표) */
 function streams(o: ScrollO) {
@@ -285,31 +491,45 @@ function streams(o: ScrollO) {
   for (let i = 0; i < 3; i++) {
     const head = o.heads[i]
     if (head <= 0) continue
-    const tw = thick(o.wt[i], o.answered)
+    const tw = o.tws ? o.tws[i] : thick(o.wt[i], o.answered)
+    const fr = i === 0 ? o.fresh : undefined
+    const pk = o.pulse ?? 1
+    /** 먹 덩이 위쪽(지나간 자리)은 새 굵기, 아래는 이전 굵기 */
+    const twAt = (s: number) => (fr ? lerp(fr.from, fr.to, pk >= 1 ? 1 : clamp((pk - s) / 0.1)) : tw)
     const N = 56
     const left: [number, number][] = [], right: [number, number][] = []
     for (let j = 0; j <= N; j++) {
       const s = (head * j) / N
       const p = bez(i, s)
-      const w = tw * (0.28 + 0.72 * ease.out3(clamp(s / 0.42))) * (1 + 0.09 * Math.sin(s * 19 + i * 2.1 + o.T * 1.3)) / 2
+      // 붓끝: 흐름의 앞 14%는 가늘게 모인다
+      const tip = lerp(1, 0.32, ease.sine(clamp((s - head + 0.14) / 0.14)))
+      const w = twAt(s) * (0.28 + 0.72 * ease.out3(clamp(s / 0.42))) * tip * (1 + 0.09 * Math.sin(s * 19 + i * 2.1 + o.T * 1.3)) / 2
       left.push([p.x + p.nx * w, p.y + p.ny * w])
       right.push([p.x - p.nx * w, p.y - p.ny * w])
     }
-    x.fillStyle = 'rgba(10,11,12,0.86)'
+    // 초상 아래에서 배어 나와(위는 옅다), 이름표에 닿으며 그 체질의 석채로 물든다
+    const pg = x.createLinearGradient(0, STR.y0, 0, STR.y1 + 6)
+    const pig = parseInt(LBL[i].ink.slice(1), 16)
+    const pc = `${(pig >> 16) & 255},${(pig >> 8) & 255},${pig & 255}`
+    pg.addColorStop(0, 'rgba(10,11,12,0)'); pg.addColorStop(0.2, 'rgba(10,11,12,0.86)')
+    pg.addColorStop(0.6, 'rgba(10,11,12,0.86)'); pg.addColorStop(1, `rgba(${pc},0.9)`)
+    x.fillStyle = pg
     x.beginPath()
     left.forEach(([a, b], j) => (j ? x.lineTo(a, b) : x.moveTo(a, b)))
     for (let j = right.length - 1; j >= 0; j--) x.lineTo(right[j][0], right[j][1])
     x.closePath(); x.fill()
-    // 흐름 끝(먹이 맺힌 방울)
+    // 흐르는 동안의 젖은 앞머리(이름표에 닿으면 붓끝으로 거둬진다)
     const hp = bez(i, head)
-    x.beginPath(); x.arc(hp.x, hp.y, tw * 0.62, 0, 6.283); x.fill()
+    const bead = twAt(head) * 0.5 * (1 - ease.sine(clamp((head - 0.82) / 0.18)))
+    if (bead > 0.3) { x.beginPath(); x.arc(hp.x, hp.y, bead, 0, 6.283); x.fill() }
     // 흘러내리는 농묵 마디
     for (let j = 0; j < 3; j++) {
       const sb = frac(o.T * (0.16 + 0.05 * i) + j / 3 + i * 0.17)
       if (sb > head) continue
       const p = bez(i, sb)
-      x.fillStyle = 'rgba(4,4,5,0.55)'
-      x.beginPath(); x.ellipse(p.x, p.y, tw * 0.55, tw * 0.9, 0, 0, 6.283); x.fill()
+      const tws = twAt(sb) * (0.28 + 0.72 * ease.out3(clamp(sb / 0.42)))
+      x.fillStyle = 'rgba(4,4,5,0.42)'
+      x.beginPath(); x.ellipse(p.x, p.y, tws * 1.1, tws * 0.4, Math.atan2(-p.nx, p.ny), 0, 6.283); x.fill()
     }
   }
   // 太陽: 판별 제외 — 점선 실가닥
@@ -323,9 +543,15 @@ function streams(o: ScrollO) {
   // 太陰 줄기를 타고 내려가는 먹 덩이
   if (o.pulse != null && o.pulse > 0 && o.pulse < 1) {
     const p = bez(0, o.pulse)
-    const tw = thick(o.wt[0], o.answered)
-    x.fillStyle = 'rgba(3,3,4,0.92)'
-    x.beginPath(); x.ellipse(p.x, p.y, tw * 0.8, tw * 1.5, 0, 0, 6.283); x.fill()
+    const tw = o.fresh ? o.fresh.to : thick(o.wt[0], o.answered)
+    // 줄기 안에서 번지는 농묵(뚜렷한 덩이가 아니라, 흐름을 따라 길게 풀린 짙은 먹)
+    x.save()
+    x.translate(p.x, p.y); x.rotate(Math.atan2(-p.nx, p.ny)); x.scale(1.9, 1)
+    const pg = x.createRadialGradient(0, 0, 0, 0, 0, tw * 0.72)
+    pg.addColorStop(0, 'rgba(2,2,3,0.95)'); pg.addColorStop(0.6, 'rgba(4,4,5,0.6)'); pg.addColorStop(1, 'rgba(4,4,5,0)')
+    x.fillStyle = pg
+    x.beginPath(); x.arc(0, 0, tw * 0.72, 0, 6.283); x.fill()
+    x.restore()
   }
   ctx.save()
   ctx.beginPath(); ctx.rect(IMG.x, IMG.top, IMG.w, bot - IMG.top); ctx.clip()
@@ -346,8 +572,8 @@ function streams(o: ScrollO) {
     if (a <= 0) return
     const ex = lb.k === 'taeyang'
     const col = i === 0 && tg > 0 ? mixHex(lb.ink, '#0E3B26', tg) : lb.ink
-    vchars(lb.s, lb.x, STR.lab, 28, `400 ${FONT.serif}`, col, (ex ? 0.3 : 0.9) * a, 1.22)
-    if (ex) vchars('판별제외', lb.x + 25, STR.lab - 6, 13, `500 ${FONT.sans}`, '#3A352C', 0.42 * a, 1.25)
+    vchars(lb.s, lb.x, STR.lab, 30, FONT.serif, col, (ex ? 0.3 : 0.92) * a, 1.2, 0, 500)
+    if (ex) vchars('판별제외', lb.x + 30, STR.lab - 8, 17, FONT.sans, '#3A352C', 0.6 * a, 1.15, 0, 500)
   })
   ctx.restore()
 }
@@ -405,9 +631,15 @@ function rod(x0: number, x1: number, y: number, h: number, a: number, knobs = fa
   ctx.restore()
 }
 
+/** 족자 최종 좌표(화면) → 지금 렌즈가 있는 자리로 옮기는 변환: 표구가 렌즈와 함께 걸려 올라간다 */
+function hangSpace(m: number) {
+  if (m >= 1) return
+  const s = lerp(1, PS, m), cy = lerp(LENS.y, FACE_Y, m)
+  ctx.translate(LENS.x, cy); ctx.scale(s / PS, s / PS); ctx.translate(-LENS.x, -FACE_Y)
+}
 /** 족자 전체 */
 function scrollFx(o: ScrollO) {
-  mounting(o.mount, o.unroll)
+  ctx.save(); hangSpace(o.morph); mounting(o.mount, o.unroll); ctx.restore()
   portraitFx(o.morph, o.unroll, o.paper)
   if (o.morph >= 1) streams(o)
   // 빛기둥과 먼지(족자를 위에서 비춘다)
@@ -444,8 +676,8 @@ function ruler(v: number, k: number, alpha = 1) {
     blurRegion(L.c, 30, my - 12, 80, 24, 0, alpha)
     blurRegion(L.c, 30, my - 12, 80, 24, 6, 0.8 * alpha, 'lighter')
   }
-  mono('01', TICK.x - 12, y0 + 5, C.ash, 13, 'right', 0.6 * alpha * clamp(k * 3))
-  mono('18', TICK.x - 12, y1 + 5, C.ash, 13, 'right', 0.6 * alpha * clamp(k * 3 - 2))
+  mono('01', TICK.x - 12, y0 + 6, C.ash, 16, 'right', 0.65 * alpha * clamp(k * 3))
+  mono('18', TICK.x - 12, y1 + 6, C.ash, 16, 'right', 0.65 * alpha * clamp(k * 3 - 2))
 }
 
 /** 진행 숫자(Cormorant 이탤릭). v 연속값: 정수 사이에서 멈췄다가 굴러 넘어간다 */
@@ -479,14 +711,55 @@ function questionHead(q: typeof QS.q07, o: { rule: number; tag: number; q: numbe
 }
 
 const NUM = ['一', '二', '三', '四']
-/** 창호 패널 한 장(역광 한지) */
+/** 패널 한 장 크기의 재사용 캔버스(전체 화면 레이어보다 싸다) */
+let paneScratch: { c: HTMLCanvasElement; x: CanvasRenderingContext2D } | null = null
+function paneLayer() {
+  if (!paneScratch) {
+    const c = document.createElement('canvas')
+    c.width = PANE.w; c.height = PANE.h
+    paneScratch = { c, x: c.getContext('2d')! }
+  }
+  return paneScratch
+}
+/**
+ * 창호 패널 한 장(역광 한지). glow: 존재(0→1, 0.5 = 대기 상태의 등불, 1 = 선택되어 등불이 다 오름).
+ * 어둠과 섞어 회색 카드가 되지 않도록, 등불을 낮출 때는 한지에 따뜻한 등빛을 곱해 채도를 지킨다.
+ */
 function paneFx(i: number, glow: number) {
   if (glow <= 0) return
   const y = paneY(i)
+  const pres = clamp(glow / 0.5) // 나타남
+  const lamp = clamp((glow - 0.5) / 0.5) // 등불이 오른 정도(0 = 대기, 1 = 선택)
+  const P = paneLayer()
+  const X = P.x
+  X.globalCompositeOperation = 'source-over'
+  X.globalAlpha = 1
+  X.clearRect(0, 0, PANE.w, PANE.h)
+  X.drawImage(paneCache(), PANE.x, y, PANE.w, PANE.h, 0, 0, PANE.w, PANE.h)
+  // 등불: 글이 놓인 왼쪽 2/5 뒤에 핫스폿, 가장자리로 갈수록 호박빛으로 가라앉는다
+  X.globalCompositeOperation = 'multiply'
+  const g = X.createRadialGradient(PANE.w * 0.36, PANE.h * 0.5, 30, PANE.w * 0.42, PANE.h * 0.5, PANE.w * 0.7)
+  const c0 = [lerp(196, 255, lamp), lerp(178, 252, lamp), lerp(150, 244, lamp)]
+  const c1 = [lerp(118, 236, lamp), lerp(98, 214, lamp), lerp(76, 178, lamp)]
+  g.addColorStop(0, `rgb(${c0.map(Math.round).join(',')})`)
+  g.addColorStop(0.55, `rgb(${c0.map((v, j) => Math.round(lerp(v, c1[j], 0.45))).join(',')})`)
+  g.addColorStop(1, `rgb(${c1.map(Math.round).join(',')})`)
+  X.fillStyle = g; X.fillRect(0, 0, PANE.w, PANE.h)
   ctx.save()
-  ctx.globalAlpha = clamp(glow)
-  ctx.drawImage(paneCache(), PANE.x, y, PANE.w, PANE.h, PANE.x, y, PANE.w, PANE.h)
+  ctx.globalAlpha = ease.sine(pres)
+  ctx.drawImage(P.c, PANE.x, y)
   ctx.restore()
+}
+/** 대기 중인 창들의 은은한 빛 번짐(어둠 속 등불감). k: 0→1 */
+function paneGlowAll(ks: number[]) {
+  if (ks.every((k) => k <= 0)) return
+  const L = tmp()
+  ks.forEach((k, i) => {
+    if (k <= 0) return
+    L.x.fillStyle = `rgba(255,206,140,${k})`
+    L.x.fillRect(PANE.x + 30, paneY(i) + 10, PANE.w - 60, PANE.h - 20)
+  })
+  blurRegion(L.c, PANE.x, PANE.y0, PANE.w, paneY(3) + PANE.h - PANE.y0, 38, 0.2, 'screen')
 }
 /** 패널 위 먹 글씨: 번호(세로 계선으로 구획) + 답 */
 function paneText(i: number, s: string, k: number, o: { alpha?: number; blur?: number } = {}) {
@@ -495,9 +768,9 @@ function paneText(i: number, s: string, k: number, o: { alpha?: number; blur?: n
   const y = paneY(i), cy = y + PANE.h / 2
   const b = o.blur ?? 0
   const e = ease.sine(clamp(k * 1.6))
-  text(NUM[i], PANE.x + 54, cy + 11, `400 30px ${FONT.serif}`, '#17130F', { align: 'center', alpha: 0.78 * e * a, blur: b + (1 - e) * 6 })
-  hair(PANE.x + 100, y + 30, PANE.x + 100, lerp(y + 30, y + PANE.h - 30, e), '#17130F', 1, 0.28 * a)
-  inkLine(s, PANE.x + 134, cy + 12, `500 35px ${FONT.sans}`, '#16120E', clamp(k * 1.25 - 0.2), { spacing: 0.5, alpha: 0.94 * a, blur: b })
+  text(NUM[i], PANE.x + 54, cy + 11, `400 30px ${FONT.serif}`, '#2A1C10', { align: 'center', alpha: 0.7 * e * a, blur: b + (1 - e) * 6 })
+  hair(PANE.x + 100, y + 30, PANE.x + 100, lerp(y + 30, y + PANE.h - 30, e), '#2A1C10', 1, 0.3 * a)
+  inkLine(s, PANE.x + 134, cy + 13, `400 37px ${FONT.serif}`, '#120D08', clamp(k * 1.25 - 0.2), { spacing: 0.5, alpha: 0.95 * a, blur: b })
 }
 
 /** 손끝 그림자: 오른쪽 아래에서 다가와 접점으로 모인다. k 0(멀다)→1(닿음) */
@@ -507,16 +780,27 @@ function fingerShadow(tx: number, ty: number, k: number, alpha: number) {
   const off = 1 - k
   L.x.translate(tx + off * 90, ty + off * 130)
   L.x.rotate(Math.atan2(1, 0.45) - Math.PI / 2)
-  L.x.fillStyle = 'rgb(46,32,20)'
-  L.x.beginPath(); L.x.arc(0, 30, 30, Math.PI, 0); L.x.lineTo(44, 420); L.x.lineTo(-44, 420); L.x.closePath(); L.x.fill()
-  L.x.beginPath(); L.x.ellipse(40, 620, 160, 210, 0.22, 0, 6.283); L.x.fill()
+  // 손가락 끝만 또렷하고, 손 쪽으로 갈수록 그림자가 빛에 녹아 사라진다(막대처럼 읽히지 않게)
+  const sg = L.x.createLinearGradient(0, 0, 0, 300)
+  sg.addColorStop(0, 'rgba(46,32,20,1)'); sg.addColorStop(0.35, 'rgba(46,32,20,0.75)'); sg.addColorStop(1, 'rgba(46,32,20,0)')
+  L.x.fillStyle = sg
+  // 검지: 둥근 끝, 첫 마디에서 살짝 굵어진다
+  const X = L.x
+  X.beginPath()
+  X.arc(0, 24, 24, Math.PI, 0)
+  X.bezierCurveTo(26, 90, 30, 130, 30, 170)
+  X.bezierCurveTo(33, 220, 40, 260, 48, 300)
+  X.lineTo(-44, 300)
+  X.bezierCurveTo(-36, 260, -30, 220, -28, 170)
+  X.bezierCurveTo(-28, 130, -25, 90, -24, 24)
+  X.closePath(); X.fill()
   ctx.save()
   ctx.beginPath()
   for (let i = 0; i < 4; i++) ctx.rect(PANE.x, paneY(i), PANE.w, PANE.h)
   ctx.clip()
   ctx.globalCompositeOperation = 'multiply'
-  ctx.globalAlpha = alpha * (0.18 + 0.36 * k)
-  ctx.filter = `blur(${5 + off * 36}px)`
+  ctx.globalAlpha = alpha * (0.16 + 0.4 * k)
+  ctx.filter = `blur(${4 + off * 30}px)`
   ctx.drawImage(L.c, 0, 0)
   ctx.restore()
 }
@@ -548,10 +832,24 @@ function inkFlood(ks: number[]) {
     x.save()
     x.beginPath(); x.rect(PANE.x, y, PANE.w, PANE.h); x.clip()
     const ph = [r() * 6.283, r() * 6.283, r() * 6.283, r() * 6.283]
-    const ph2 = ph.map((p) => p + 1.7)
-    x.fillStyle = 'rgba(8,9,10,0.5)'; frontPath(x, ox, oy, R * 1.1, ph, 0.22); x.fill()
-    x.strokeStyle = 'rgba(6,7,8,0.5)'; x.lineWidth = 3; frontPath(x, ox, oy, R * 1.1, ph, 0.22); x.stroke()
-    x.fillStyle = 'rgba(6,7,8,0.82)'; frontPath(x, ox, oy, R * 0.86, ph2, 0.26); x.fill()
+    // 역광 속의 먹: 묽은 가장자리는 빛이 비쳐 갈색으로, 안쪽으로 갈수록 겹쳐 짙어진다
+    const NL = 6
+    for (let l = 0; l < NL; l++) {
+      const u = l / (NL - 1)
+      const phl = ph.map((p, j) => p + l * (0.7 + j * 0.31))
+      x.fillStyle = `rgba(${Math.round(lerp(58, 6, u))},${Math.round(lerp(34, 7, u))},${Math.round(lerp(14, 8, u))},${lerp(0.2, 0.5, u)})`
+      frontPath(x, ox, oy, R * lerp(1.12, 0.62, u), phl, 0.2 + 0.05 * u); x.fill()
+    }
+    // 번짐 전선의 짙은 테(먹이 마르며 가장자리에 모인다)
+    x.strokeStyle = 'rgba(22,13,6,0.55)'; x.lineWidth = 2.4; frontPath(x, ox, oy, R * 1.12, ph, 0.2); x.stroke()
+    x.strokeStyle = 'rgba(22,13,6,0.25)'; x.lineWidth = 6; frontPath(x, ox, oy, R * 1.1, ph, 0.2); x.stroke()
+    // 입자감(먹 알갱이가 섬유에 걸린다)
+    for (let j = 0; j < 260; j++) {
+      const a = r() * 6.283, d = Math.sqrt(r()) * R * 1.05
+      const gx = ox + Math.cos(a) * d, gy = oy + Math.sin(a) * d * 0.62
+      x.fillStyle = `rgba(${r() < 0.5 ? '4,4,5' : '70,44,20'},${0.15 + r() * 0.3})`
+      x.fillRect(gx, gy, 1 + r() * 2.2, 1 + r() * 2.2)
+    }
     // 섬유를 타고 뻗는 실번짐
     x.lineCap = 'round'
     for (let j = 0; j < 70; j++) {
@@ -634,61 +932,54 @@ const S10: Scene = {
   id: 'S10',
   act: '문진',
   title: '족자와 문항',
-  note: '셔터 섬광의 잔광 속에서 렌즈 속 먹 초상이 위로 걸려 족자가 되고, 족자가 풀리며 네 갈래 먹줄기가 太陰·少陽·少陰(太陽은 판별 제외)으로 흘러내린다. 아래 어둠에는 앰버 표식이 01에서 07로 미끄러지며 질문이 맺히고, 네 장의 한지 창호에 차례로 등불이 든다.',
+  note: '채록된 렌즈에서 계측선이 가운데로 거둬지고 수치가 흐려지면, 둥근 렌즈빛이 줄어들며 먹 초상이 위로 걸려 족자가 된다. 족자가 풀리며 네 갈래 먹줄기가 太陰·少陽·少陰(太陽은 판별 제외)으로 흘러내리고, 아래 어둠에는 앰버 표식이 01에서 07로 미끄러지며 질문이 맺히고 네 장의 한지 창에 차례로 등불이 든다.',
   dur: 3.5,
   render(t) {
     const T = T0.S10 + t
-    const morph = ease.inOut3(seg(t, 0.3, 1.35))
-    const unroll = ease.inOut3(seg(t, 1.2, 1.95))
-    const v = 1 + 6 * ease.inOut3(seg(t, 1.55, 2.55))
+    const f = face(LENS.x, LENS.y, FACE_W)
+    const morph = ease.inOut3(seg(t, 0.32, 1.45))
+    const unroll = ease.inOut3(seg(t, 1.25, 1.98))
+    const v = 1 + 6 * ease.inOut3(seg(t, 1.3, 2.3))
     const answered = v - 1
-    const heads = [0, 1, 2, 3].map((i) => ease.out3(seg(t, 1.32 + i * 0.07, 2.1 + i * 0.07)))
-    const upBlur = 1.3 * ease.sine(seg(t, 2.0, 2.8))
+    const heads = [0, 1, 2, 3].map((i) => ease.out3(seg(t, 1.35 + i * 0.07, 2.12 + i * 0.07)))
+    const upBlur = 2.2 * ease.sine(seg(t, 1.9, 2.8))
     const so: ScrollO = {
       T, morph, unroll, heads, answered, wt: WT7,
       paper: lerp(0.98, 0.64, morph),
-      mount: ease.sine(seg(t, 0.95, 1.6)),
-      beam: 0.8 * ease.sine(seg(t, 0.9, 2.0)),
+      mount: ease.sine(seg(t, 0.5, 1.3)),
+      beam: 0.8 * ease.sine(seg(t, 0.7, 1.9)),
     }
+    // ── S09 잔광: 방의 빛과 렌즈 할로가 가라앉는다
+    s09Room(1 - ease.sine(seg(t, 0, 1.0)))
     // ── 위: 족자 (초점이 문항으로 넘어가며 살짝 흐려진다)
     if (upBlur > 0.2) {
       const L = onLayer(() => scrollFx(so))
       blurRegion(L.c, 0, 0, W, 880, upBlur)
     } else scrollFx(so)
-    // 렌즈 잔상: 청자 72눈금 링과 앰버 점구름이 먹 초상으로 타 들어간다
-    const ring = 1 - ease.sine(seg(t, 0.0, 0.55))
-    if (ring > 0) {
-      const s = lerp(1, PS, morph), cy = lerp(LENS.y, FACE_Y, morph)
-      ctx.save(); ctx.globalAlpha = ring
-      ctx.translate(LENS.x, cy); ctx.scale(s, s); ctx.translate(-LENS.x, -LENS.y)
-      tickRing(LENS.x, LENS.y, LENS.r + 12, 72, 1, C.celadon, C.celadonDeep, 6, 16)
-      ctx.restore()
+    // 렌즈 테·72눈금: 렌즈와 함께 올라가며 꺼진다
+    const lensK = 1 - ease.sine(seg(t, 0.15, 0.75))
+    if (lensK > 0) {
+      ctx.save(); lensSpace(morph); s09Lens(lensK); ctx.restore()
     }
-    const amb = 1 - ease.sine(seg(t, 0.0, 0.5))
-    if (amb > 0.01) drawFace(face(LENS.x, LENS.y, FACE_W), 'amber', { alpha: amb * 0.8, glow: amb * 0.7 })
-    // 셔터 섬광의 꼬리
-    const fl = 1 - ease.out3(seg(t, 0, 0.6))
-    if (fl > 0) {
-      ctx.save()
-      ctx.globalCompositeOperation = 'screen'
-      const g = ctx.createRadialGradient(LENS.x, LENS.y, 0, LENS.x, LENS.y, 900)
-      g.addColorStop(0, `rgba(255,246,228,${0.75 * fl})`); g.addColorStop(0.45, `rgba(255,240,215,${0.35 * fl})`); g.addColorStop(1, `rgba(255,240,215,${0.08 * fl})`)
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
-      ctx.restore()
-    }
+    // 계측 도해·판독값: 선은 가운데로 거둬지고 글자는 흐려진다
+    s09Overlay(f, seg(t, 0, 0.62))
 
     // ── 아래: 문진
-    ruler(v, seg(t, 1.35, 2.05))
-    counter(v, ease.sine(seg(t, 1.45, 1.8)))
-    questionHead(QS.q07, { rule: seg(t, 1.55, 2.25), tag: ease.sine(seg(t, 2.2, 2.6)), q: seg(t, 2.05, 2.85) })
+    ruler(v, seg(t, 0.9, 1.7))
+    counter(v, ease.sine(seg(t, 1.0, 1.35)))
+    questionHead(QS.q07, { rule: seg(t, 1.25, 2.0), tag: ease.sine(seg(t, 2.0, 2.4)), q: seg(t, 1.8, 2.6) })
+    const pg = [0, 1, 2, 3].map((i) => seg(t, 1.95 + i * 0.12, 2.5 + i * 0.12))
+    paneGlowAll(pg.map((k) => ease.sine(k)))
     for (let i = 0; i < 4; i++) {
-      const g = 0.5 * ease.sine(seg(t, 2.3 + i * 0.12, 2.8 + i * 0.12))
-      paneFx(i, g)
-      paneText(i, QS.q07.a[i], seg(t, 2.45 + i * 0.12, 3.15 + i * 0.12))
+      paneFx(i, 0.5 * pg[i])
+      paneText(i, QS.q07.a[i], seg(t, 2.15 + i * 0.12, 2.85 + i * 0.12))
     }
 
-    vignette(0.55)
-    header('墨光判讀室 · INK-LIGHT READING ROOM', '問診 · SURVEY')
+    vignette(lerp(0.6, 0.55, seg(t, 0, 1)))
+    // 머리띠: 형상 판독 04/04 → 문진
+    header('墨光判讀室 · INK-LIGHT READING ROOM', '')
+    mono('形象 · FACE READ  04 / 04', W - 72, 96, C.ash, 20, 'right', 1 - ease.sine(seg(t, 0.05, 0.35)))
+    mono('問診 · SURVEY', W - 72, 96, C.ash, 20, 'right', ease.sine(seg(t, 0.35, 0.7)))
     disclaimer(1)
   },
 }
@@ -709,9 +1000,12 @@ const S11: Scene = {
     const answered = 6 + ease.sine(seg(t, 1.55, 2.1))
     const pulse = seg(t, 1.3, 1.95)
     const tauGlow = ease.sine(seg(t, 1.7, 2.05)) * (1 - 0.65 * ease.sine(seg(t, 2.4, 3.3)))
-    const upBlur = 1.3 * (1 - ease.sine(seg(t, 1.0, 1.4))) + 1.3 * ease.sine(seg(t, 2.1, 2.6))
+    const upBlur = 2.2 * (1 - ease.sine(seg(t, 0.95, 1.4))) + 2.2 * ease.sine(seg(t, 2.1, 2.7))
     const lowBlur = 3.2 * ease.sine(seg(t, 1.05, 1.45)) * (1 - ease.sine(seg(t, 1.95, 2.35)))
-    const so: ScrollO = { T, morph: 1, unroll: 1, heads: [1, 1, 1, 1], answered, wt, pulse, tauGlow, paper: 0.64, mount: 1, beam: 0.8 }
+    // 太陰은 먹 덩이가 지나간 자리부터 굵어지고, 少陽·少陰은 그만큼 가늘어진다
+    const tws = [0, thick(wt[1], answered), thick(wt[2], answered)]
+    const fresh = { from: thick(WT7[0], 6), to: thick(WT8[0], 7) }
+    const so: ScrollO = { T, morph: 1, unroll: 1, heads: [1, 1, 1, 1], answered, wt, pulse, fresh, tws, tauGlow, paper: 0.64, mount: 1, beam: 0.8 }
 
     ctx.save()
     ctx.translate(W / 2, TP.y); ctx.scale(push, push); ctx.translate(-W / 2, -TP.y)
@@ -733,9 +1027,11 @@ const S11: Scene = {
       const lit = ease.out3(seg(t, touch, touch + 0.45))
       const floods = [0, 1, 2, 3].map((i) => (i === 0 ? 0 : seg(t, 0.68 + (i - 1) * 0.1, 1.5 + (i - 1) * 0.1)))
       const g0 = (0.5 + 0.5 * lit) * old
+      paneGlowAll([old, ...floods.slice(1).map((k) => (1 - ease.sine(k)) * old)])
       paneHalo(0, lit * old)
       paneFx(0, g0)
-      for (let i = 1; i < 4; i++) paneFx(i, 0.5 * (1 - ease.sine(clamp((floods[i] - 0.2) / 0.8))))
+      // 먹에 잠긴 창: 한지 결만 희미하게 남았다가 다음 문항이 올 때 걷힌다
+      for (let i = 1; i < 4; i++) paneFx(i, lerp(0.5, 0.13, ease.sine(clamp((floods[i] - 0.2) / 0.8))) * old)
       inkRipple(seg(t, touch, touch + 1.1))
       fingerShadow(TP.x, TP.y, ease.out3(seg(t, 0, touch)), 1 - ease.sine(seg(t, touch + 0.05, touch + 0.5)))
       paneText(0, QS.q07.a[0], 1, { alpha: old, blur: (1 - old) * 8 })
@@ -751,6 +1047,7 @@ const S11: Scene = {
     const nq = seg(t, 2.3, 2.95)
     if (nq > 0) {
       questionHead(QS.q08, { rule: 0, tag: ease.sine(seg(t, 2.35, 2.75)), q: nq })
+      paneGlowAll([0, 1, 2, 3].map((i) => ease.sine(seg(t, 2.45 + i * 0.1, 2.95 + i * 0.1))))
       for (let i = 0; i < 4; i++) {
         paneFx(i, 0.5 * ease.sine(seg(t, 2.45 + i * 0.1, 2.95 + i * 0.1)))
         paneText(i, QS.q08.a[i], seg(t, 2.55 + i * 0.1, 3.2 + i * 0.1))
@@ -773,8 +1070,8 @@ const S11: Scene = {
       blurRegion(L.c, 80, ly - 20, 360, TP.y - ly + 40, 0, la)
       blurRegion(L.c, 80, ly - 20, 360, TP.y - ly + 40, 6, 0.8 * la, 'lighter')
       const na = ease.sine(seg(t, 1.4, 1.7)) * la
-      mono('Q07 · ① → 太陰', 116, ly - 14, C.amber, 15, 'left', na)
-      mono(`+${(WT8[0] - WT7[0]).toFixed(2).slice(1)}`, 116, ly + 30, C.amberCore, 15, 'left', na)
+      mono('Q07 · ① → 太陰', 112, ly - 16, C.amber, 19, 'left', na)
+      mono(`+${(WT8[0] - WT7[0]).toFixed(2).slice(1)}`, 112, ly + 38, C.amberCore, 24, 'left', na)
     }
     ctx.restore()
 

@@ -4,8 +4,8 @@
  * 이어 어두운 무대에서 라인업 눈금자와 앰버 수평면이 키를 재고, BMI가 각인된 뒤 8엽 조리개가 닫힌다.
  */
 import {
-  C, FONT, H, W, blackout, bloom, clamp, clipRect, ctx, disclaimer, drawBlur, drawFace, drawLine, dust, ease, face,
-  hair, hanji, header, inkBloom, layer, lerp, mono, rng, scanPlane, seal, seg, setCtx, text, tmp, vignette, type Scene,
+  C, FONT, H, W, blackout, bloom, clamp, clipRect, ctx, disclaimer, drawBlur, drawLine, dust, ease, face,
+  hair, hanji, header, inkBloom, layer, lerp, mono, rng, seal, seg, setCtx, text, tmp, vignette, type Scene,
 } from '../engine'
 import { WIN } from './act1'
 
@@ -44,6 +44,43 @@ function vcol(s: string, x: number, y: number, size: number, font: string, color
     yy += size * gap * step
   })
   return yy
+}
+
+/** act1 inkText와 같은 글자별 배치(가운데 정렬) — S03 제목과 픽셀 단위로 이어지도록 */
+function inkTextA(s: string, cx: number, y: number, font: string, color: string, spacing: number, alpha: number, blur = 0) {
+  if (alpha <= 0) return
+  ctx.save(); ctx.font = font
+  const chars = [...s]
+  const ws = chars.map((ch) => ctx.measureText(ch).width)
+  ctx.restore()
+  const total = ws.reduce((a, b) => a + b, 0) + spacing * (chars.length - 1)
+  let x = cx - total / 2
+  chars.forEach((ch, i) => {
+    if (ch !== ' ') text(ch, x, y, font, color, { alpha, blur })
+    x += ws[i] + spacing
+  })
+}
+
+/** act1 inkFace(중립 형상·석채 없음)와 같은 화법: 먹점 + 담묵 음영 — S03 마지막 얼굴과 같은 그림 */
+function inkFaceS03(f: ReturnType<typeof face>) {
+  const L = tmp()
+  const Wl = tmp()
+  const mx = (f.lm[61].x + f.lm[291].x) / 2, my = (f.lm[13].y + f.lm[14].y) / 2, mw = Math.abs(f.lm[291].x - f.lm[61].x) / 2
+  for (const p of f.pts) {
+    const mu = ((p.x - mx) / (mw * 1.2)) ** 2 + ((p.y - my) / (mw * 0.42)) ** 2
+    const calm = p.edge && mu < 1 ? 0.6 : 1
+    const a = Math.min(0.95, 0.1 + (1 - p.s) * 0.55 + p.edge * 0.5) * calm
+    if (p.r < 0.13) {
+      Wl.x.fillStyle = `rgba(28,24,20,${0.018 + (1 - p.s) ** 2 * 0.11})`
+      Wl.x.beginPath(); Wl.x.arc(p.x, p.y, 7 + p.r * 60, 0, 6.283); Wl.x.fill()
+    }
+    L.x.fillStyle = `rgba(12,13,15,${a})`
+    const rad = p.edge ? 1.4 + p.r * 1.6 : 0.8 + p.r * 0.9
+    L.x.beginPath(); L.x.arc(p.x, p.y, rad, 0, 6.283); L.x.fill()
+  }
+  drawBlur(Wl.c, 10)
+  drawBlur(L.c, 5, 0.5)
+  ctx.drawImage(L.c, 0, 0)
 }
 
 /** 화면 터치 파문 (원형) */
@@ -85,12 +122,15 @@ function fingerShadow(tx: number, ty: number, k: number, alpha: number) {
   L.x.translate(tx + off * 80, ty + off * 120)
   L.x.rotate(phi - Math.PI / 2)
   L.x.fillStyle = 'rgb(46,32,20)'
-  L.x.beginPath(); L.x.arc(0, 30, 30, Math.PI, 0); L.x.lineTo(44, 400); L.x.lineTo(-44, 400); L.x.closePath(); L.x.fill()
-  L.x.beginPath(); L.x.ellipse(36, 590, 150, 200, 0.22, 0, 6.283); L.x.fill()
+  // 검지(끝이 둥근 원뿔) + 말아 쥔 손가락 마디 + 엄지 + 손바닥: 막대가 아니라 손으로 읽히도록 짧고 뭉툭하게
+  L.x.beginPath(); L.x.arc(0, 26, 26, Math.PI, 0); L.x.lineTo(34, 220); L.x.lineTo(-34, 220); L.x.closePath(); L.x.fill()
+  L.x.beginPath(); L.x.ellipse(58, 262, 82, 72, 0.3, 0, 6.283); L.x.fill()
+  L.x.beginPath(); L.x.ellipse(-72, 300, 34, 96, 0.55, 0, 6.283); L.x.fill()
+  L.x.beginPath(); L.x.ellipse(26, 440, 160, 175, 0.2, 0, 6.283); L.x.fill()
   ctx.save()
   ctx.globalCompositeOperation = 'multiply'
-  ctx.globalAlpha = alpha * (0.16 + 0.34 * k)
-  ctx.filter = `blur(${5 + off * 38}px)`
+  ctx.globalAlpha = alpha * (0.14 + 0.3 * k)
+  ctx.filter = `blur(${9 + off * 40}px)`
   ctx.drawImage(L.c, 0, 0)
   ctx.restore()
 }
@@ -116,17 +156,24 @@ function inkWash(cx: number, cy: number, k: number, seed = 41) {
   const e = ease.inOut3(k)
   const R = 40 + 1720 * e
   const ph = Array.from({ length: 5 }, () => r() * 6.283 + k * 0.5)
-  const ph2 = Array.from({ length: 5 }, () => r() * 6.283 - k * 0.4)
-  const ph3 = Array.from({ length: 5 }, () => r() * 6.283 + k * 0.3)
   const L = tmp()
   const x = L.x
-  // 담묵 전선
-  x.fillStyle = 'rgba(8,9,10,0.55)'; frontPath(x, cx, cy, R, ph, 0.2); x.fill()
-  // 마른 자국(가장자리에 먹이 몰림)
-  x.strokeStyle = 'rgba(6,7,8,0.55)'; x.lineWidth = 3 + 4 * e; frontPath(x, cx, cy, R * 0.995, ph, 0.2); x.stroke()
-  // 중묵·농묵
-  x.fillStyle = 'rgba(7,8,9,0.7)'; frontPath(x, cx, cy, R * 0.84, ph2, 0.24); x.fill()
-  x.fillStyle = 'rgba(5,6,7,0.95)'; frontPath(x, cx, cy, R * 0.62, ph3, 0.28); x.fill()
+  // 번짐 층: 바깥은 갈색 도는 담묵, 안으로 갈수록 농묵. 층마다 마른 자국(경계에 먹이 몰린 선)이 남는다
+  const layers = [
+    { f: 1.0, amp: 0.2, col: '38,30,22', a: 0.34, ph },
+    { f: 0.92, amp: 0.22, col: '22,18,15', a: 0.42 },
+    { f: 0.8, amp: 0.24, col: '12,11,10', a: 0.6 },
+    { f: 0.64, amp: 0.27, col: '7,7,8', a: 0.85 },
+    { f: 0.46, amp: 0.3, col: '5,6,7', a: 0.98 },
+  ]
+  layers.forEach((ly, j) => {
+    const p = ly.ph ?? Array.from({ length: 5 }, () => r() * 6.283 + k * (j % 2 ? -0.4 : 0.35))
+    x.fillStyle = `rgba(${ly.col},${ly.a})`; frontPath(x, cx, cy, R * ly.f, p, ly.amp); x.fill()
+    x.strokeStyle = `rgba(${ly.col},${Math.min(1, ly.a + 0.3)})`; x.lineWidth = 1.5 + 3 * e
+    frontPath(x, cx, cy, R * ly.f * 0.997, p, ly.amp); x.stroke()
+  })
+  // 안료 알갱이: 먹이 고르게 칠해진 면이 아니라 종이 결에 앉은 입자로 보이게
+  x.save(); x.globalCompositeOperation = 'destination-out'; x.globalAlpha = 0.5; x.drawImage(granule(), 0, 0); x.restore()
   // 섬유를 타고 뻗는 실번짐
   x.lineCap = 'round'
   for (let i = 0; i < 140; i++) {
@@ -151,8 +198,22 @@ function inkWash(cx: number, cy: number, k: number, seed = 41) {
   ctx.lineWidth = 50
   frontPath(ctx, cx, cy, R * 1.04, ph, 0.2); ctx.stroke()
   ctx.restore()
-  drawBlur(L.c, 5, 0.9)
-  drawBlur(L.c, 26, 0.6)
+  drawBlur(L.c, 1.5, 0.92)
+  drawBlur(L.c, 24, 0.5)
+}
+let granC: HTMLCanvasElement | null = null
+/** 먹 알갱이(입자 빠짐) 텍스처 — 섬유 방향으로 살짝 늘어진 점 */
+function granule() {
+  if (granC) return granC
+  const P = layer()
+  const r = rng(808)
+  for (let i = 0; i < 26000; i++) {
+    P.x.fillStyle = `rgba(0,0,0,${0.15 + r() * 0.6})`
+    const s = 0.8 + r() * 2.2
+    P.x.fillRect(r() * W, r() * H, s * (1 + r() * 2), s)
+  }
+  granC = P.c
+  return granC
 }
 
 /* ───────── 1막에서 이어지는 무대 (S03 마지막 프레임과 같은 빛) ───────── */
@@ -295,7 +356,7 @@ const S04: Scene = {
     // ① 먹 얼굴이 종이에 스며 풀린다
     const kF = seg(t, T.dissolve[0], T.dissolve[1])
     if (kF < 1) {
-      const F = offscreen(() => drawFace(face(540, 760, 500), 'ink'))
+      const F = offscreen(() => inkFaceS03(face(540, 760, 500)))
       const e = ease.ink(kF)
       clipRect(WIN.x, WIN.y, WIN.w, WIN.h, () => {
         ctx.save()
@@ -399,7 +460,7 @@ const S04: Scene = {
     const kOld = 1 - ease.sine(seg(t, 0.18, 0.7))
     if (kOld > 0) {
       text('四象 形象 分析', W / 2, CAP.kicker, `200 40px ${FONT.serif}`, C.hanji, { align: 'center', spacing: 22, alpha: kOld * 0.78 })
-      text('얼굴과 몸으로 읽는 체질', W / 2, CAP.title, `300 60px ${FONT.hahmlet}`, C.hanji, { align: 'center', spacing: 3, alpha: kOld, blur: (1 - kOld) * 6 })
+      inkTextA('얼굴과 몸으로 읽는 체질', W / 2, CAP.title, `300 60px ${FONT.hahmlet}`, C.hanji, 3, kOld, (1 - kOld) * 6)
       const ph = (T_S04 + t - 12.5) / 2.4
       const breath = 0.5 - 0.5 * Math.cos(ph * Math.PI * 2)
       const rp = ph - Math.floor(ph)
@@ -423,7 +484,7 @@ const S04: Scene = {
       text('入門 · 同意', W / 2, CAP.kicker, `200 36px ${FONT.serif}`, C.hanji, { align: 'center', spacing: 18, alpha: kIns * 0.7 })
       text('낙관을 눌러 동의해 주세요', W / 2, CAP.title, `300 52px ${FONT.hahmlet}`, C.hanji, { align: 'center', spacing: 3, alpha: kIns, blur: (1 - kIns) * 6 })
     }
-    const kDone = ease.sine(seg(t, T.stamp + 0.35, T.stamp + 0.75)) * (1 - ease.sine(kWipe * 1.6 > 1 ? 1 : kWipe * 1.6))
+    const kDone = ease.sine(seg(t, T.stamp + 0.2, T.stamp + 0.5)) * (1 - ease.sine(kWipe * 1.6 > 1 ? 1 : kWipe * 1.6))
     if (kDone > 0) {
       mono('SEALED · 同意 確認 · 14:32:07', W / 2, CAP.kicker - 6, C.amber, 20, 'center', kDone * 0.9)
       text('동의가 날인되었습니다', W / 2, CAP.title, `300 52px ${FONT.hahmlet}`, C.hanji, { align: 'center', spacing: 3, alpha: kDone, blur: (1 - kDone) * 6 })
@@ -457,15 +518,17 @@ const yCm = (cm: number) => 1620 - (cm - 140) * 21.5
 const SL = { x: 430, w: 580, h: 196, gap: 36 }
 const slabTop = (i: number) => yCm(173) - SL.h / 2 + (i - 2) * (SL.h + SL.gap)
 const ROWS = [
-  { hz: '性別', ko: '성별', unit: '', raw: 'SEX · M', win: [0.42, 0.72] },
-  { hz: '年齡', ko: '나이', unit: '세', raw: 'AGE · 35', win: [0.7, 1.0] },
-  { hz: '身長', ko: '키', unit: 'cm', raw: 'H · 173.0', win: [0.98, 1.95] },
-  { hz: '體重', ko: '몸무게', unit: 'kg', raw: 'W · 61.0', win: [1.92, 2.3] },
+  { hz: '性別', ko: '성별', unit: '', raw: 'SEX · M', win: [0.42, 0.7] },
+  { hz: '年齡', ko: '나이', unit: '세', raw: 'AGE · 35', win: [0.68, 0.96] },
+  { hz: '身長', ko: '키', unit: 'cm', raw: 'H · 173.0', win: [0.96, 1.85] },
+  { hz: '體重', ko: '몸무게', unit: 'kg', raw: 'W · 61.0', win: [1.82, 2.15] },
 ] as const
-const TH = { mark: [1.0, 1.9] as const, bmi: 2.25, iris: [3.3, 3.96] as const }
+const TH = { mark: [1.0, 1.8] as const, bmi: 2.12, iris: [3.38, 3.98] as const }
+/** 화면상의 '20.4' 중심(푸시 1.035 적용 후) — 마지막 틸트의 기준점 */
+const BMI_C = { x: 572, y: 1468 }
 /** 초점이 머무는 석판 번호(0~3), 4 = BMI. 랙 포커스로 옮겨 다닌다 */
 function focusAt(t: number) {
-  const steps: [number, number][] = [[0.66, 0.78], [0.94, 1.06], [1.86, 1.98], [2.22, 2.4]]
+  const steps: [number, number][] = [[0.64, 0.76], [0.92, 1.04], [1.78, 1.9], [2.08, 2.26]]
   let f = 0
   steps.forEach(([a, b]) => { f += ease.inOut3(seg(t, a, b)) })
   return f
@@ -523,14 +586,29 @@ function ruler(t: number) {
       mono(String(cm), 72, y + 7, C.celadon, 20, 'left', ease.sine(k) * 0.9)
       // 라인업 벽: 무대 전체를 가로지르는 희미한 선
       const low = y > 1270 ? 1 - 0.85 * bmiIn : 1
-      drawLineA(282, y, W - 40, y, ease.out3(k), C.celadon, 1, 0.13 * ease.sine(k) * low)
+      drawLineA(282, y, W - 40, y, ease.out3(k), C.celadon, 1, 0.2 * ease.sine(k) * low)
     } else if (mid) {
       const low = y > 1270 ? 1 - 0.85 * bmiIn : 1
-      drawLineA(224, y, W - 40, y, ease.out3(k), C.celadon, 1, 0.05 * ease.sine(k) * low)
+      drawLineA(224, y, W - 40, y, ease.out3(k), C.celadon, 1, 0.07 * ease.sine(k) * low)
     }
   }
   mono('cm', 72, yCm(200) - 52, C.celadonDeep, 18, 'left', ease.sine(seg(t, 0.5, 0.9)))
   ;[...'身長尺'].forEach((ch, j) => text(ch, 84, yCm(140) + 62 + j * 26, `400 20px ${FONT.serif}`, C.celadonDeep, { align: 'center', alpha: ease.sine(seg(t, 0.2, 0.6)) }))
+}
+
+/** 키 측정 수평면: 눈금자에서 석판까지 그어진 레이저 + 위로 옅게 번진 빛의 막. 벽 너머로는 희미하게 이어진다 */
+function laserPlane(y: number, x0: number, x1: number, k: number) {
+  if (k <= 0) return
+  drawLineA(x1, y, W - 40, y, 1, C.amber, 1, 0.22 * k)
+  const L = tmp()
+  const g = L.x.createLinearGradient(x0, 0, x1, 0)
+  g.addColorStop(0, 'rgba(255,236,200,0)'); g.addColorStop(0.12, 'rgba(255,236,200,1)'); g.addColorStop(1, 'rgba(255,240,214,1)')
+  L.x.fillStyle = g; L.x.fillRect(x0, y - 1, x1 - x0, 2)
+  const v = L.x.createLinearGradient(0, y - 30, 0, y)
+  v.addColorStop(0, 'rgba(255,208,138,0)'); v.addColorStop(1, 'rgba(255,208,138,0.2)')
+  L.x.fillStyle = v; L.x.fillRect(x0 + 40, y - 30, x1 - x0 - 40, 30)
+  drawBlur(L.c, 0, k)
+  bloom(L.c, [5, 22], [0.9 * k, 0.5 * k])
 }
 
 function heightMarker(t: number) {
@@ -539,7 +617,7 @@ function heightMarker(t: number) {
   const k = ease.p4out(seg(t, TH.mark[0], TH.mark[1]))
   const h = lerp(140, 173, k)
   const y = yCm(h)
-  scanPlane(y, 96, SL.x, kOn)
+  laserPlane(y, 96, SL.x, kOn)
   // 포인터
   ctx.save(); ctx.globalAlpha = kOn; ctx.fillStyle = C.amberCore
   ctx.beginPath(); ctx.moveTo(136, y - 9); ctx.lineTo(150, y); ctx.lineTo(136, y + 9); ctx.closePath(); ctx.fill(); ctx.restore()
@@ -555,47 +633,58 @@ function profileSlab(i: number, t: number, hNow: number) {
   const [a, b] = row.win
   const kVal = seg(t, a, b)
   const act = clamp(Math.min(seg(t, a - 0.12, a + 0.04), 1 - seg(t, b + 0.04, b + 0.4)))
-  // 몸체: 먹돌 — 왼쪽이 짙고 오른쪽으로 옅어지는 판, 결이 보인다
+  // 조도: 입력 중인 석판만 빛을 받는다. 끝난 석판은 잔광, 빈 석판은 어둠에 잠겨 윗모서리만 남는다
+  const lit = Math.max(act, kVal >= 1 ? 0.3 : 0.06)
+  // 벽에 드리운 그림자(물성) — 석판이 카드가 아니라 벽 앞에 선 돌로 읽히도록
+  ctx.save(); ctx.globalAlpha = kIn * 0.85; ctx.filter = 'blur(9px)'; ctx.fillStyle = 'rgba(0,0,0,0.9)'
+  ctx.fillRect(x + 12, y + 10, w, h); ctx.restore()
+  // 몸체: 먹돌. 결은 빛이 닿는 만큼만 드러난다
   ctx.save()
   ctx.globalAlpha = kIn
-  const body = ctx.createLinearGradient(x, 0, x + w, 0)
-  body.addColorStop(0, 'rgba(16,18,20,0.94)'); body.addColorStop(1, 'rgba(12,14,16,0.72)')
+  const body = ctx.createLinearGradient(x, y, x, y + h)
+  body.addColorStop(0, 'rgba(22,23,24,0.94)'); body.addColorStop(1, 'rgba(9,10,11,0.94)')
   ctx.fillStyle = body; ctx.fillRect(x, y, w, h)
   ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
+  ctx.globalAlpha = kIn * (0.3 + 0.7 * lit)
   ctx.fillStyle = ctx.createPattern(stone(), 'repeat')!
   ctx.translate(i * 97, i * 53); ctx.fillRect(x - i * 97, y - i * 53, w, h)
   ctx.restore()
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  // 위에서 스치는 빛: 윗면 가까이만 살짝 밝다
+  const top = ctx.createLinearGradient(0, y, 0, y + h * 0.5)
+  top.addColorStop(0, `rgba(241,230,207,${0.05 + 0.06 * lit})`); top.addColorStop(1, 'rgba(241,230,207,0)')
+  ctx.fillStyle = top; ctx.fillRect(x, y, w, h * 0.5)
   if (act > 0) {
-    // 입력 중: 왼쪽 앰버 띠에서 빛이 석판 위로 번진다 + 한지 결이 희미하게 비친다
-    hanji(x, y, w, h, act * 0.05, { halo: false })
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
-    const sp = ctx.createRadialGradient(x, y + h / 2, 10, x, y + h / 2, w * 0.75)
-    sp.addColorStop(0, `rgba(232,166,75,${0.3 * act})`); sp.addColorStop(0.35, `rgba(232,166,75,${0.1 * act})`); sp.addColorStop(1, 'rgba(232,166,75,0)')
+    // 입력 중: 왼쪽 가장자리에서 앰버 빛이 돌 위로 번진다(레이킹 라이트)
+    const sp = ctx.createRadialGradient(x, y + h / 2, 10, x, y + h / 2, w * 0.8)
+    sp.addColorStop(0, `rgba(232,166,75,${0.34 * act})`); sp.addColorStop(0.35, `rgba(232,166,75,${0.11 * act})`); sp.addColorStop(1, 'rgba(232,166,75,0)')
     ctx.fillStyle = sp; ctx.fillRect(x, y, w, h)
-    ctx.restore()
   }
-  // 윗면 반사(샴페인 금) + 아랫면 그늘
+  ctx.restore()
+  // 오른쪽은 어둠으로 녹아든다(사각 카드의 경계를 지운다)
+  ctx.save()
+  ctx.globalCompositeOperation = 'destination-out'
+  const fade = ctx.createLinearGradient(x + w * 0.55, 0, x + w + 14, 0)
+  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,0.9)')
+  ctx.fillStyle = fade; ctx.fillRect(x + w * 0.55, y - 2, w * 0.45 + 40, h + 40)
+  ctx.restore()
+  // 윗모서리에 맺힌 빛(샴페인 금) + 아랫면 그늘
   ctx.save()
   const spec = ctx.createLinearGradient(x, 0, x + w, 0)
-  spec.addColorStop(0, 'rgba(210,185,138,0)'); spec.addColorStop(0.3, `rgba(210,185,138,${0.55 * kIn})`); spec.addColorStop(1, 'rgba(210,185,138,0.04)')
-  ctx.fillStyle = spec; ctx.fillRect(x, y, w * kIn, 1)
+  const sa = (0.35 + 0.5 * lit) * kIn
+  spec.addColorStop(0, `rgba(210,185,138,${sa * 0.5})`); spec.addColorStop(0.25, `rgba(226,203,150,${sa})`); spec.addColorStop(1, 'rgba(210,185,138,0)')
+  ctx.fillStyle = spec; ctx.fillRect(x, y, w * kIn, 1.2)
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x, y + h - 2, w, 2)
   ctx.restore()
-  // 맞춤표(청자)
-  for (const [cx, cy, sx, sy] of [[x + w, y, -1, 1], [x + w, y + h, -1, -1]] as const) {
-    hair(cx + 8, cy, cx + 8 + sx * 18, cy, C.celadon, 1.1, 0.7 * kIn)
-    hair(cx + 8, cy, cx + 8, cy + sy * 18, C.celadon, 1.1, 0.7 * kIn)
-  }
   // 왼쪽 띠: 입력 중이면 앰버, 끝나면 금
   ctx.save(); ctx.globalAlpha = kIn
   ctx.fillStyle = act > 0.05 ? `rgba(232,166,75,${0.35 + 0.65 * act})` : kVal >= 1 ? 'rgba(210,185,138,0.5)' : 'rgba(156,195,178,0.25)'
   ctx.fillRect(x, y, 3, h); ctx.restore()
   // 한자 세로 라벨 + 구분선
   ;[...row.hz].forEach((ch, j) => text(ch, x + 50, y + h / 2 - 22 + j * 46, `200 36px ${FONT.serif}`, C.celadon, { align: 'center', baseline: 'middle', alpha: 0.9 * kIn }))
-  hair(x + 92, y + 34, x + 92, y + h - 34, 'rgba(156,195,178,0.25)', 1, kIn)
-  text(row.ko, x + 124, y + 52, `400 24px ${FONT.sans}`, C.hanjiShadow, { alpha: kIn * 0.95, spacing: 2 })
-  mono(`0${i + 1}`, x + w - 26, y + 52, C.ash, 18, 'right', 0.7 * kIn)
+  text(row.ko, x + 124, y + 54, `400 28px ${FONT.sans}`, '#B9AE98', { alpha: kIn * 0.95, spacing: 2 })
+  mono(`0${i + 1}`, x + w - 26, y + 52, C.ash, 18, 'right', 0.55 * kIn)
   if (kVal <= 0) {
     // 아직 입력 전: 빈 자리
     hair(x + 124, y + 160, x + 300, y + 160, 'rgba(156,195,178,0.2)', 1, kIn)
@@ -658,8 +747,8 @@ function bmiBlock(t: number) {
   const k0 = ease.out3(seg(t, TH.bmi, TH.bmi + 0.4))
   if (k0 <= 0) return
   drawLine(x, y0, x + w, y0, k0, 'rgba(210,185,138,0.55)', 1)
-  mono('BMI', x, y0 + 44, C.gold, 22, 'left', k0)
-  text('체질량지수', x + 74, y0 + 44, `400 22px ${FONT.sans}`, C.hanjiShadow, { alpha: k0, spacing: 2 })
+  mono('BMI', x, y0 + 46, C.gold, 26, 'left', k0)
+  text('체질량지수', x + 84, y0 + 46, `400 28px ${FONT.sans}`, '#B9AE98', { alpha: k0, spacing: 2 })
   const f = ['61.0 kg', '÷ (1.73 m)²', '= 20.38']
   f.forEach((s, i) => {
     const k = ease.sine(seg(t, TH.bmi + 0.1 + i * 0.13, TH.bmi + 0.4 + i * 0.13))
@@ -674,9 +763,9 @@ function bmiBlock(t: number) {
   drawLineA(sx(18.5), yS, sx(23), yS, kS, C.celadon, 3, kS * 0.9)
   for (const v of [15, 18.5, 23, 25, 30]) {
     hair(sx(v), yS - 6, sx(v), yS + 6, C.celadon, 1, kS * 0.7)
-    if (v !== 15 && v !== 30) mono(String(v), sx(v), yS + 40, C.ash, 16, 'center', kS * 0.8)
+    if (v !== 15 && v !== 30) mono(String(v), sx(v), yS + 42, C.ash, 20, 'center', kS * 0.85)
   }
-  text('정상 범위 18.5–22.9', (sx(18.5) + sx(23)) / 2, yS - 16, `400 18px ${FONT.sans}`, C.celadon, { align: 'center', alpha: kS * 0.7, spacing: 2 })
+  text('정상 범위 18.5–22.9', (sx(18.5) + sx(23)) / 2, yS - 18, `400 26px ${FONT.sans}`, C.celadon, { align: 'center', alpha: kS * 0.85, spacing: 1 })
   const km = ease.p4out(seg(t, TH.bmi + 0.75, TH.bmi + 1.05))
   if (km > 0) {
     const mx = lerp(x, sx(20.4), km)
@@ -735,7 +824,7 @@ const S05: Scene = {
   id: 'S05',
   act: '입문',
   title: '신상 계측',
-  note: '어둠 속 라인업 눈금자에서 앰버 수평면이 173 cm까지 떠올라 키 석판과 맞물리고, 성별·나이·몸무게가 차례로 맺힌 뒤 BMI 20.4가 레이저로 각인된다. 8엽 조리개가 닫히며 암전.',
+  note: '어둠 속 라인업 눈금자에서 앰버 레이저 수평면이 173 cm까지 떠올라 키 석판과 맞물린다. 빛이 닿는 석판만 깨어나며 성별·나이·몸무게가 차례로 맺히고, BMI 20.4가 레이저로 각인되면 카메라가 그 숫자로 틸트해 내려가고 8엽 조리개가 그 위에서 닫히며 암전.',
   dur: 4,
   render(t) {
     // 어두운 무대: 먹이 스민 어둠 + 천장의 아주 옅은 잔광과 먼지
@@ -744,12 +833,22 @@ const S05: Scene = {
     ctx.save()
     const g = ctx.createRadialGradient(W * 0.62, -200, 50, W * 0.62, 200, 1500)
     g.addColorStop(0, `rgba(232,166,75,${0.1 * amb})`); g.addColorStop(1, 'rgba(232,166,75,0)')
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore()
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+    // 라인업 벽에 떨어진 낮은 조명 웅덩이: 석판이 벽 앞에 선 물체로 읽힌다
+    const pool = ctx.createRadialGradient(700, 820, 40, 700, 900, 760)
+    pool.addColorStop(0, `rgba(150,120,80,${0.24 * amb})`); pool.addColorStop(0.5, `rgba(110,90,62,${0.1 * amb})`); pool.addColorStop(1, 'rgba(90,75,55,0)')
+    ctx.fillStyle = pool; ctx.fillRect(0, 0, W, H); ctx.restore()
     dust(W * 0.62, 700, 1100, H, 260, t + 20, 9, '255,214,150', 0.35 * amb)
 
     // 카메라: 아주 느린 푸시 인
     const push = lerp(1, 1.035, ease.sine(seg(t, 0, TH.iris[1])))
     ctx.save()
+    // 마지막: 카메라가 BMI 20.4로 틸트·푸시해 조리개 중심(540,760)에 얹는다 → 조리개는 이 숫자 위에서 닫힌다
+    const kc = ease.inOut3(seg(t, 3.0, TH.iris[1]))
+    if (kc > 0) {
+      const P = BMI_C
+      ctx.translate(lerp(P.x, 540, kc), lerp(P.y, 760, kc)); ctx.scale(lerp(1, 1.55, kc), lerp(1, 1.55, kc)); ctx.translate(-P.x, -P.y)
+    }
     ctx.translate(600, 980); ctx.scale(push, push); ctx.translate(-600, -980)
     ruler(t)
     const hNow = heightMarker(t)
@@ -763,6 +862,9 @@ const S05: Scene = {
       ctx.save()
       ctx.globalAlpha = 1 - 0.38 * d
       if (d > 0.04) ctx.filter = `blur(${d * 3.4}px)`
+      // 초점 밖 석판은 한 뼘 뒤로 물러난다(깊이감): 왼쪽 가장자리 기준으로 살짝 작아지고 오른쪽으로 밀린다
+      const zs = 1 - 0.03 * d, cy = slabTop(i) + SL.h / 2
+      ctx.translate(SL.x + 14 * d, cy); ctx.scale(zs, zs); ctx.translate(-SL.x, -cy)
       ctx.drawImage(L, 0, y, W, SL.h + 60, 0, y, W, SL.h + 60)
       ctx.restore()
     }
@@ -776,7 +878,7 @@ const S05: Scene = {
     bmiBlock(t)
     ctx.restore()
 
-    header('墨光判讀室 · INK-LIGHT READING ROOM', '入門 · PROFILE', ease.sine(seg(t, 0.1, 0.6)))
+    header('墨光判讀室 · INK-LIGHT READING ROOM', '入門 · PROFILE', ease.sine(seg(t, 0.1, 0.6)) * (1 - ease.sine(seg(t, 3.0, 3.35))))
     disclaimer(ease.sine(seg(t, 0.2, 0.8)))
     vignette(0.65)
 

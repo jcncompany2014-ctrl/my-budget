@@ -9,6 +9,14 @@ import {
   type Face, type Scene,
 } from '../engine'
 
+// 러너의 프리로드 샘플에 없는 3막 글자(분할 서브셋) — 새 페이지의 첫 프레임에서 대체 글꼴로 그려지지 않도록 미리 요청
+if (typeof document !== 'undefined' && document.fonts) {
+  const HZ = '距離照度正面適光心側形象判讀點完了推定髮際眉間鼻下頤端天人地上停中停下停目鼻廣墨室'
+  const KO = '빛의중심을바라봐주세요잠시그대로계세요빛이얼굴을지나갑니다얼굴의비례를재고있습니다형상을담았습니다거리조도정면도눈너비코턱판독후즉시폐기'
+  for (const f of [`200 40px ${FONT.serif}`, `400 40px ${FONT.serif}`]) void document.fonts.load(f, HZ).catch(() => undefined)
+  for (const f of [`300 40px ${FONT.hahmlet}`, `400 40px ${FONT.sans}`]) void document.fonts.load(f, KO).catch(() => undefined)
+}
+
 const ACT = '형상 판독'
 /** 렌즈: S05에서 조리개가 닫힌 바로 그 중심 */
 const LC = { x: 540, y: 760, r: 390 }
@@ -132,6 +140,16 @@ function guide(s: string, k: number, alpha = 1) {
   const e = ease.sine(clamp(k))
   text(s, W / 2, GUIDE_Y, `300 46px ${FONT.hahmlet}`, C.hanji, { align: 'center', spacing: 3, alpha: e * alpha, blur: (1 - ease.out3(clamp(k))) * 10 })
 }
+/** 안내 교체: 앞 문구가 먹처럼 번져(흐림·자간 확산) 완전히 사라진 뒤 다음 문구가 초점 속으로 맺힌다.
+ *  두 문장이 같은 자리에서 반투명으로 겹쳐 읽히지 않게 순차로 둔다. k=0은 guide(a,1)과 같은 그림 */
+function guideSwap(a: string, b: string, k: number, alphaA = 1, alphaB = 1) {
+  const kOut = seg(k, 0, 0.46)
+  if (kOut < 1) {
+    const e = ease.sine(kOut)
+    text(a, W / 2, GUIDE_Y, `300 46px ${FONT.hahmlet}`, C.hanji, { align: 'center', spacing: 3 + 5 * e, alpha: (1 - e) * alphaA, blur: e * 14 })
+  }
+  guide(b, seg(k, 0.5, 1), alphaB)
+}
 /** 상단 크레딧(오른쪽 순번은 장면 시작에서 교차) */
 function head(from: number, to: number, k: number, alpha = 1) {
   if (alpha <= 0) return
@@ -248,13 +266,19 @@ function inkFace(f: Face, o: { s?: number; yaw?: number; alpha?: number } = {}) 
   region(L.c, BOX)
 }
 /** 앰버 점구름(판독된 얼굴). scanY 아래는 그리지 않고, 평면 근처는 희게 달아오른다 */
-function amberFace(f: Face, o: { scanY?: number; alpha?: number; glow?: number } = {}) {
+function amberFace(f: Face, o: { scanY?: number; alpha?: number; glow?: number; echoY?: number; echo?: number; hot?: number } = {}) {
   const alpha = o.alpha ?? 1, gl = o.glow ?? 1
   const L = tmp()
+  // 입술 윤곽은 앰버에서 가장 밝게 뭉쳐 '웃는 가면'처럼 시선을 뺏는다 — 눈·미간이 초점이 되도록 입가를 가라앉힌다
+  const mx = (f.lm[61].x + f.lm[291].x) / 2, my = (f.lm[13].y + f.lm[14].y) / 2, mw = Math.abs(f.lm[291].x - f.lm[61].x) / 2
   for (const p of f.pts) {
     if (o.scanY != null && p.y > o.scanY + 3) continue
-    const near = o.scanY != null ? Math.exp(-((p.y - o.scanY) ** 2) / 700) : 0
-    const a = Math.min(1, 0.12 + p.s * 0.55 + near * 0.9 + p.edge * 0.25) * alpha
+    let near = o.scanY != null ? Math.exp(-((p.y - o.scanY) ** 2) / 700) * (o.hot ?? 1) : 0
+    // 검증 왕복: 아래에서 위로 되짚는 가는 빛줄 근처가 진주빛으로 반짝인다
+    if (o.echoY != null && o.echo) near = Math.max(near, o.echo * Math.exp(-((p.y - o.echoY) ** 2) / 260) * (0.35 + 0.65 * p.r))
+    const mu = ((p.x - mx) / (mw * 1.25)) ** 2 + ((p.y - my) / (mw * 0.5)) ** 2
+    const calm = mu < 1 ? (p.edge ? 0.5 : 0.75) : 1
+    const a = Math.min(1, (0.12 + p.s * 0.55 + p.edge * 0.25) * calm + near * 0.9) * alpha
     L.x.fillStyle = near > 0.35 ? `rgba(255,238,206,${a})` : `rgba(232,166,75,${a})`
     const s = 1.6 + p.edge * 0.6 + near * 0.8
     L.x.fillRect(p.x - s / 2, p.y - s / 2, s, s)
@@ -280,7 +304,7 @@ function pins(f: Face, k: number, alpha: number, scanY?: number) {
 
 /* ───────── 계기 ───────── */
 /** 72눈금 링. prog: 시계방향 점등, scanY: 평면과 만나는 눈금이 달아오름, flare: 셔터 순간 */
-function ring(prog: number, alpha: number, sp: Ctx, o: { scanY?: number; flare?: number } = {}) {
+function ring(prog: number, alpha: number, sp: Ctx, o: { scanY?: number; flare?: number; charge?: number; dim?: { i: number; k: number }; arc?: number } = {}) {
   if (alpha <= 0) return
   const n = 72
   const lead = prog * n
@@ -291,16 +315,39 @@ function ring(prog: number, alpha: number, sp: Ctx, o: { scanY?: number; flare?:
     const c = Math.cos(a), s = Math.sin(a)
     const x0 = LC.x + c * RING, y0 = LC.y + s * RING, x1 = LC.x + c * (RING + len), y1 = LC.y + s * (RING + len)
     const lit = clamp(lead - i)
-    lineA(x0, y0, x1, y1, C.celadon, major ? 1.8 : 1.1, (0.14 + 0.72 * lit) * (major ? 1 : 0.8) * alpha)
+    const dm = o.dim && o.dim.i === i ? 1 - o.dim.k : 1
+    lineA(x0, y0, x1, y1, C.celadon, major ? 1.8 : 1.1, (0.14 + 0.72 * lit) * (major ? 1 : 0.8) * alpha * dm)
     let hot = 0
     if (prog > 0 && prog < 1) { const d = lead - i; if (d > 0 && d < 4) hot = (1 - d / 4) ** 1.5 }
     if (o.scanY != null) hot = Math.max(hot, Math.exp(-(((y0 - o.scanY) / 24) ** 2)))
+    // 셔터 장전: 앰버가 시계방향으로 한 바퀴 차오른다(머리는 희게)
+    if (o.charge && o.charge > 0) {
+      const d = o.charge * n - i
+      if (d > 0) hot = Math.max(hot, d < 3 ? 0.7 + 0.3 * (1 - d / 3) : 0.7)
+    }
     if (o.flare) hot = Math.max(hot, o.flare)
     if (hot > 0.02) {
       sp.strokeStyle = `rgba(255,214,150,${hot * alpha})`
       sp.lineWidth = major ? 2 : 1.4
       sp.beginPath(); sp.moveTo(x0, y0); sp.lineTo(x1, y1); sp.stroke()
     }
+  }
+  // 조준 호: 눈금이 켜지는 만큼 청자 가는 선이 링 바깥을 따라 그어진다
+  if (o.arc && o.arc > 0.002 && prog > 0.002) {
+    ctx.save()
+    const a1 = -Math.PI / 2 + prog * Math.PI * 2
+    ctx.strokeStyle = C.celadon; ctx.globalAlpha = 0.6 * o.arc * alpha; ctx.lineWidth = 1.2
+    ctx.beginPath(); ctx.arc(LC.x, LC.y, RING + 26, -Math.PI / 2, a1); ctx.stroke()
+    ctx.restore()
+    if (prog < 0.995) spark(sp, LC.x + Math.cos(a1) * (RING + 26), LC.y + Math.sin(a1) * (RING + 26), 2.4, o.arc * alpha)
+  }
+  // 장전 호: 링 안쪽을 따라 빛이 시계방향으로 선을 긋는다
+  if (o.charge && o.charge > 0.002) {
+    const a0 = -Math.PI / 2, a1 = a0 + o.charge * Math.PI * 2
+    sp.strokeStyle = `rgba(255,208,138,${0.85 * alpha})`
+    sp.lineWidth = 1.4
+    sp.beginPath(); sp.arc(LC.x, LC.y, RING - 7, a0, a1); sp.stroke()
+    if (o.charge < 0.995) spark(sp, LC.x + Math.cos(a1) * (RING - 7), LC.y + Math.sin(a1) * (RING - 7), 2.6, alpha)
   }
 }
 /** 광심: 카메라 자리의 빛점. look: 시선이 맞을 때의 밝아짐 */
@@ -325,12 +372,12 @@ function eyeLight(T: number, k: number, sp: Ctx, look = 0, pulse = 1) {
   text('光心', EYE.x + 78, EYE.y + 6, `400 17px ${FONT.serif}`, C.celadon, { alpha: 0.62 * k, spacing: 4 })
 }
 
-interface Gauge { hz: string; ko: string; unit: string; min: number; max: number; lo: number; hi: number; v0: number; v1: number; a: number; b: number; x: number; dec: number; sign?: boolean }
+interface Gauge { hz: string; ko: string; unit: string; min: number; max: number; lo: number; hi: number; v0: number; v1: number; a: number; b: number; x: number; dec: number; sign?: boolean; band?: string }
 /** 거리 → 조도 → 정면도 순으로 적정 범위에 든다 */
 const GA: Gauge[] = [
   { hz: '距離', ko: '거리', unit: 'cm', min: 30, max: 100, lo: 50, hi: 70, v0: 86, v1: 62, a: 1.45, b: 2.3, x: 252, dec: 0 },
   { hz: '照度', ko: '조도', unit: 'lx', min: 0, max: 1000, lo: 300, hi: 800, v0: 150, v1: 420, a: 2.05, b: 2.9, x: 540, dec: 0 },
-  { hz: '正面', ko: '정면도', unit: '°', min: -30, max: 30, lo: -5, hi: 5, v0: -17, v1: 1.2, a: 2.65, b: 3.5, x: 828, dec: 1, sign: true },
+  { hz: '正面', ko: '정면도', unit: '°', min: -30, max: 30, lo: -5, hi: 5, v0: -17, v1: 1.2, a: 2.65, b: 3.5, x: 828, dec: 1, sign: true, band: '±5' },
 ]
 /** 센서 값(바늘 기상 전). t6: S06 기준 시각 */
 function rawV(g: Gauge, t6: number, T: number) {
@@ -376,7 +423,8 @@ function dial(g: Gauge, v: number, alpha: number, sp: Ctx) {
   ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 6.283); ctx.fill(); ctx.stroke()
   ctx.restore()
   lineA(cx - R - 24, cy, cx + R + 24, cy, C.celadon, 1, 0.22 * alpha)
-  mono(String(g.min), cx - R, cy + 22, C.celadonDeep, 14, 'center', 0.9 * alpha)
+  // 음수 눈금은 하이픈이 아닌 마이너스 기호로
+  mono(String(g.min).replace('-', '−'), cx - R, cy + 22, C.celadonDeep, 14, 'center', 0.9 * alpha)
   mono(String(g.max), cx + R, cy + 22, C.celadonDeep, 14, 'center', 0.9 * alpha)
   const vs = fmt(g, v)
   const vf = `300 36px ${FONT.mono}`
@@ -386,8 +434,8 @@ function dial(g: Gauge, v: number, alpha: number, sp: Ctx) {
   text(vs, vx, cy + 62, vf, inK > 0.9 ? C.hanji : C.amber, { alpha, spacing: 3.6 })
   mono(g.unit, vx + vw + 8, cy + 62, C.hanjiShadow, 18, 'left', alpha)
   text(g.hz, cx - 6, cy + 104, `200 26px ${FONT.serif}`, C.celadon, { align: 'right', alpha, spacing: 4 })
-  text(g.ko, cx + 6, cy + 102, `400 20px ${FONT.sans}`, C.hanjiShadow, { alpha, spacing: 1 })
-  mono(`適 ${g.lo}–${g.hi}`, cx, cy + 134, inK > 0.9 ? C.celadon : C.ash, 15, 'center', 0.8 * alpha)
+  text(g.ko, cx + 6, cy + 102, `400 22px ${FONT.sans}`, C.hanjiShadow, { alpha, spacing: 1 })
+  mono(`適 ${g.band ?? `${g.lo}–${g.hi}`}`, cx, cy + 134, inK > 0.9 ? C.celadon : C.ash, 15, 'center', 0.8 * alpha)
 }
 function dials(t6: number, T: number, alpha: number, sp: Ctx) {
   if (alpha <= 0) return
@@ -467,8 +515,10 @@ const S06: Scene = {
     const kUI = ease.sine(seg(t, 0.85, 1.45))
     // 판독 상태가 렌즈 속 영상을 바로잡는다: 거리→크기·초점, 조도→한지 밝기, 정면도→고개
     const d = rawV(GA[0], t, T), lx = rawV(GA[1], t, T), yawDeg = rawV(GA[2], t, T)
-    const sc = clamp(62 / d, 0.6, 1.2)
-    const foc = Math.min(11, Math.abs(d - 62) * 0.46)
+    // 정렬이 끝나면 렌즈 속 영상은 S07 첫 프레임과 똑같이(크기 1·초점·정면) 멈춘다 — 컷에서 얼굴이 튀지 않게
+    const settle = ease.sine(seg(t, 3.45, 3.95))
+    const sc = lerp(clamp(62 / d, 0.6, 1.2), 1, settle)
+    const foc = Math.min(11, Math.abs(d - 62) * 0.46) * (1 - settle)
     const pg = lerp(0.36, 0.95, clamp((lx - 150) / 270))
     const look = Math.sin(Math.PI * seg(t, 3.25, 3.95))
     camera(push, () => {
@@ -476,7 +526,7 @@ const S06: Scene = {
       halo(pg * kOpen)
       const img = off(() => {
         region(paper(), BOX, 0, pg)
-        inkFace(f, { s: sc, yaw: (yawDeg * Math.PI) / 180, alpha: 0.5 + 0.5 * clamp((pg - 0.36) / 0.59) })
+        inkFace(f, { s: sc, yaw: ((yawDeg * Math.PI) / 180) * (1 - settle), alpha: 0.5 + 0.5 * clamp((pg - 0.36) / 0.59) })
       })
       region(img, BOX, foc)
       reticle(kUI)
@@ -566,7 +616,7 @@ const S07: Scene = {
     reticle(1 - ease.sine(seg(t, 0.1, 0.7)))
     pins(f, seg(t, LOCK + 0.05, LOCK + 0.75), 1)
     rim(1)
-    ring(kRing, 0.9 + 0.1 * kRing, SP.x, { flare: lockK > 0 ? (1 - ease.sine(lockK)) * 0.8 : 0 })
+    ring(kRing, 0.9 + 0.1 * kRing, SP.x, { flare: lockK > 0 ? (1 - ease.sine(lockK)) * 0.8 : 0, arc: 1 - ease.sine(seg(t, LOCK + 0.1, LOCK + 0.85)) })
     // 고정 순간 링 바깥으로 번지는 청자 파동
     if (lockK > 0 && lockK < 1) {
       ctx.save(); ctx.strokeStyle = C.celadon; ctx.lineWidth = 1.2
@@ -589,9 +639,7 @@ const S07: Scene = {
     }
     slate(t, 1, SP.x)
     flush(SP)
-    const kG = seg(t, 0.35, 1.0)
-    guide('빛의 중심을 바라봐 주세요', 1 - kG, 1)
-    guide('잠시 그대로 계세요', kG, 1)
+    guideSwap('빛의 중심을 바라봐 주세요', '잠시 그대로 계세요', seg(t, 0.3, 1.05))
     vignette(0.6)
     head(1, 2, seg(t, 0, 0.4))
     disclaimer()
@@ -616,7 +664,7 @@ function profilePts(f: Face): [number, number][] {
   return raw.map(([y, z]) => [PROF_X + z * 46, y])
 }
 /** 왼쪽 계측 기둥: S08 주사 진척 → S09 삼정 기둥 */
-function scaleCol(f: Face, k: number, minor: number, sy: number | null, sp: Ctx) {
+function scaleCol(f: Face, k: number, minor: number, sy: number | null, sp: Ctx, mk = 1) {
   if (k <= 0) return
   const Z = zones(f)
   const y0 = Z.top, y1 = Z.chin
@@ -631,10 +679,10 @@ function scaleCol(f: Face, k: number, minor: number, sy: number | null, sp: Ctx)
   for (const y of [Z.top, Z.brow, Z.base, Z.chin]) lineA(SCALE_X - 8, y, SCALE_X + 18, y, C.celadon, 1.4, 0.7 * k)
   if (sy != null && sy > y0 - 30) {
     const yy = clamp(sy, y0, y1)
-    ctx.save(); ctx.fillStyle = C.amberCore; ctx.globalAlpha = k
+    ctx.save(); ctx.fillStyle = C.amberCore; ctx.globalAlpha = k * mk
     ctx.beginPath(); ctx.moveTo(SCALE_X - 4, yy); ctx.lineTo(SCALE_X - 16, yy - 7); ctx.lineTo(SCALE_X - 16, yy + 7); ctx.closePath(); ctx.fill(); ctx.restore()
     const pct = clamp((yy - y0) / (y1 - y0)) * 100
-    mono(String(Math.round(pct)).padStart(3, '0'), SCALE_X - 22, yy + 6, C.amber, 16, 'right', k * 0.95)
+    mono(String(Math.round(pct)).padStart(3, '0'), SCALE_X - 22, yy + 6, C.amber, 16, 'right', k * 0.95 * mk)
   }
 }
 function profile(f: Face, sy: number, k: number, sp: Ctx) {
@@ -660,19 +708,24 @@ function profile(f: Face, sy: number, k: number, sp: Ctx) {
   ctx.stroke(); ctx.restore()
   if (sy < Z.chin + 10) spark(sp, hx, hy, 2.2, k)
 }
-/** 판독점 계수기 (아래 띠) */
-function counter(f: Face, sy: number, alpha: number) {
+/** 판독점 계수기 (아래 띠). done: 검증 왕복이 끝나 '판독 완료'로 바뀐 정도 */
+function counter(f: Face, sy: number, alpha: number, done = 0) {
   if (alpha <= 0) return
   let n = 0
   for (const p of f.lm) if (p.y < sy) n++
   const y = 1414
-  mono('判讀點 · LANDMARKS', W / 2, 1262, C.celadon, 17, 'center', 0.85 * alpha)
+  const d = ease.sine(clamp(done))
+  if (d < 1) mono('判讀點 · LANDMARKS', W / 2, 1262, C.celadon, 17, 'center', 0.85 * alpha * (1 - d))
+  if (d > 0) mono('判讀 完了 · READ COMPLETE', W / 2, 1262, C.amber, 17, 'center', 0.95 * alpha * d)
   text(String(n).padStart(3, '0'), W / 2 + 34, y, `italic 300 150px ${FONT.italic}`, n >= 478 ? C.pearl : C.amberCore, { align: 'right', alpha })
   mono('/ 478', W / 2 + 50, y - 6, C.ash, 26, 'left', alpha)
-  mono('468 MESH + 10 IRIS', W / 2, y + 46, C.ash, 15, 'center', 0.7 * alpha)
+  // 아래 각주: 이탤릭 숫자(올드스타일) 꼬리 아래로 충분히 띄운다
+  hair(W / 2 - 120, y + 52, W / 2 + 120, y + 52, C.celadonDeep, 1, 0.6 * alpha)
+  mono('468 MESH + 10 IRIS', W / 2, y + 84, C.ash, 15, 'center', 0.75 * alpha * (1 - d))
+  if (d > 0) mono('468 MESH + 10 IRIS · VERIFIED', W / 2, y + 84, C.hanjiShadow, 15, 'center', 0.85 * alpha * d)
 }
 /** 렌즈: 평면 위는 판독된 어둠+앰버, 아래는 한지+먹. cap: 턱 아래 남은 한지가 먹빛으로 잠기는 정도 */
-function scanLens(f: Face, sy: number, cap: number, glowK = 0.9) {
+function scanLens(f: Face, sy: number, cap: number, glowK = 0.9, echoY?: number, echo = 0, hot = 1) {
   const below = off(() => { region(paper(), BOX, 0, 0.95); inkFace(f) })
   clipCircle(LC.x, LC.y, LC.r, () => {
     ctx.drawImage(darkPaper(), 0, 0)
@@ -690,11 +743,25 @@ function scanLens(f: Face, sy: number, cap: number, glowK = 0.9) {
     ctx.save()
     ctx.beginPath(); ctx.rect(0, 0, W, sy); ctx.clip()
     const ag = ctx.createLinearGradient(0, sy - 110, 0, sy)
-    ag.addColorStop(0, 'rgba(241,230,207,0)'); ag.addColorStop(1, 'rgba(241,230,207,0.2)')
+    ag.addColorStop(0, 'rgba(241,230,207,0)'); ag.addColorStop(1, `rgba(241,230,207,${0.2 * (1 - ease.sine(cap))})`)
     ctx.fillStyle = ag; ctx.fillRect(BOX.x, sy - 110, BOX.w, 110)
-    amberFace(f, { scanY: sy, glow: glowK })
+    amberFace(f, { scanY: sy, glow: glowK, echoY, echo, hot })
     ctx.restore()
   })
+}
+/** 검증 왕복선: 턱에서 이마로 되짚어 오르는 가는 진주빛 선(렌즈 현 안쪽만) */
+function echoLine(y: number, k: number, sp: Ctx) {
+  if (k <= 0.01) return
+  const dy = y - LC.y
+  const hw = Math.sqrt(Math.max(0, LC.r * LC.r - dy * dy)) - 6
+  if (hw <= 2) return
+  const g = sp.createLinearGradient(LC.x - hw, 0, LC.x + hw, 0)
+  g.addColorStop(0, 'rgba(243,238,229,0)'); g.addColorStop(0.2, `rgba(243,238,229,${0.5 * k})`)
+  g.addColorStop(0.8, `rgba(243,238,229,${0.5 * k})`); g.addColorStop(1, 'rgba(243,238,229,0)')
+  sp.fillStyle = g
+  sp.fillRect(LC.x - hw, y - 0.6, hw * 2, 1.2)
+  // 계측 기둥에 되짚는 눈금
+  lineA(SCALE_X - 14, y, SCALE_X + 20, y, C.pearl, 1, 0.7 * k)
 }
 /** 스캔 평면: 렌즈 현을 가로지르는 백열선 + 방을 가로지르는 희미한 투영선 */
 function plane(y: number, k: number, sp: Ctx) {
@@ -705,7 +772,8 @@ function plane(y: number, k: number, sp: Ctx) {
   if (hw > 2) {
     const g = ctx.createLinearGradient(0, y - 60, 0, y)
     g.addColorStop(0, 'rgba(255,208,138,0)'); g.addColorStop(1, `rgba(255,208,138,${0.26 * k})`)
-    clipCircle(LC.x, LC.y, LC.r, () => { ctx.fillStyle = g; ctx.fillRect(LC.x - hw, y - 60, hw * 2, 60) })
+    // 잔광 띠는 렌즈 원 전체 폭으로 채우고 원으로 자른다(현의 폭으로 자르면 모서리가 각진 사각형이 된다)
+    clipCircle(LC.x, LC.y, LC.r, () => { ctx.fillStyle = g; ctx.fillRect(LC.x - LC.r, y - 60, LC.r * 2, 60) })
     const lg = sp.createLinearGradient(LC.x - hw - 40, 0, LC.x + hw + 40, 0)
     lg.addColorStop(0, 'rgba(255,240,210,0)'); lg.addColorStop(0.08, `rgba(255,240,210,${k})`); lg.addColorStop(0.92, `rgba(255,240,210,${k})`); lg.addColorStop(1, 'rgba(255,240,210,0)')
     sp.fillStyle = lg
@@ -719,7 +787,7 @@ const S08: Scene = {
   id: 'S08',
   act: ACT,
   title: '빛의 주사',
-  note: '앰버 스캔 평면이 이마에서 턱으로 내려간다(파워4 감속). 평면이 지난 자리는 한지 불이 꺼지고 먹점이 앰버 점구름으로 깨어나며, 왼쪽 기둥의 진척·오른쪽 옆얼굴 단면·판독점 수가 함께 새겨진다.',
+  note: '앰버 스캔 평면이 이마에서 턱으로 내려간다(파워4 감속). 평면이 지난 자리는 한지 불이 꺼지고 먹점이 앰버 점구름으로 깨어나며, 왼쪽 기둥의 진척·오른쪽 옆얼굴 단면·판독점 수가 함께 새겨진다. 턱에 닿으면 가는 진주빛 선이 위로 한 번 되짚어 오르고 계수기가 “판독 완료”로 바뀐다.',
   dur: 3.5,
   render(t) {
     const T = T0.S08 + t
@@ -729,9 +797,16 @@ const S08: Scene = {
     const kPl = ease.sine(seg(t, 0.18, 0.4)) * (1 - ease.sine(seg(t, 2.85, 3.35)))
     const cap = seg(t, 2.55, 3.4)
     const kSide = ease.sine(seg(t, 0.05, 0.5))
+    // 검증 왕복: 턱 → 발제
+    const kE = seg(t, 2.25, 3.05)
+    const Z = zones(f)
+    const ey = lerp(Z.chin + 8, Z.top - 6, ease.inOut3(kE))
+    const eK = Math.sin(Math.PI * kE)
     room(T, 1, SP.x)
     halo(0.95 * (1 - 0.75 * ease.sine(seg(t, 0.3, 3.3))))
-    scanLens(f, sy, cap)
+    // 평면이 꺼지면 평면 근처의 백열도 함께 식는다(S09 첫 프레임과 맞춤)
+    scanLens(f, sy, cap, 0.9, ey, eK, kPl)
+    echoLine(ey, eK, SP.x)
     pins(f, 1, 1 - 0.25 * seg(t, 0.4, 2.5), sy)
     rim(1)
     ring(1, 1, SP.x, { scanY: kPl > 0.05 ? sy : undefined })
@@ -739,7 +814,7 @@ const S08: Scene = {
     eyeLight(T, 1, SP.x, 0, 0)
     lineA(EYE.x, EYE.y + 40, EYE.x, LC.y - RING - 26, C.celadon, 1, 0.45)
     plane(sy, kPl, SP.x)
-    scaleCol(f, kSide, kSide, sy, SP.x)
+    scaleCol(f, kSide, kSide, sy, SP.x, Math.max(kPl, 1 - seg(t, 0, 0.4)))
     profile(f, sy, kSide, SP.x)
     // 아래 띠: 고정 슬레이트 → 판독점 계수기
     const kSw = seg(t, 0.05, 0.5)
@@ -748,11 +823,9 @@ const S08: Scene = {
       off(() => slate(2.5, 1, S.x), S)
       region(S.c, { x: 0, y: 1300, w: W, h: 160 }, 6 * ease.sine(kSw), 1 - ease.sine(kSw))
     }
-    counter(f, sy, ease.sine(seg(t, 0.3, 0.7)))
+    counter(f, sy, ease.sine(seg(t, 0.3, 0.7)), seg(t, 2.9, 3.3))
     flush(SP)
-    const kG = seg(t, 0.2, 0.85)
-    guide('잠시 그대로 계세요', 1 - kG)
-    guide('빛이 얼굴을 지나갑니다', kG)
+    guideSwap('잠시 그대로 계세요', '빛이 얼굴을 지나갑니다', seg(t, 0.15, 0.9))
     vignette(0.6)
     head(2, 3, seg(t, 0, 0.4))
     disclaimer()
@@ -760,6 +833,7 @@ const S08: Scene = {
 }
 
 /* ───────── S09 ───────── */
+/** 셔터 섬광 순간 */
 const SHUT = 2.55
 const ZONE = [
   { hz: '天', name: '上停', ratio: '0.27' },
@@ -848,7 +922,7 @@ const S09: Scene = {
   id: 'S09',
   act: ACT,
   title: '삼정 계측, 그리고 채록',
-  note: '빛이 天·人·地 경계에 청자 가는 선을 긋고 上停·中停·下停 비율(0.27·0.33·0.39)이 새겨진 뒤, 눈·코·턱의 치수선과 지시선 수치가 아래로 내려 적힌다. 부드러운 셔터 섬광이 지나가면 렌즈엔 채록된 먹 초상만 남는다.',
+  note: '빛이 天·人·地 경계에 청자 가는 선을 긋고 上停·中停·下停 비율(0.27·0.33·0.39)이 새겨진 뒤, 눈·코·턱의 치수선과 지시선 수치가 아래로 내려 적힌다. 렌즈 둘레가 앰버로 한 바퀴 장전되고 부드러운 셔터 섬광이 번지면, 렌즈엔 한지 위에 채록된 먹 초상만 남는다.',
   dur: 3.5,
   render(t) {
     const T = T0.S09 + t
@@ -857,12 +931,14 @@ const S09: Scene = {
     const fl = ease.sine(seg(t, SHUT - 0.06, SHUT)) * (1 - ease.out3(seg(t, SHUT, SHUT + 0.75)))
     const cap = t >= SHUT ? 1 : 0
     const kOut = ease.sine(seg(t, 0, 0.45))
+    /** 셔터 장전: 계측이 끝나면 72눈금이 앰버로 한 바퀴 차오르고, 섬광과 함께 식는다 */
+    const charge = ease.inOut3(seg(t, 1.95, SHUT - 0.08)) * (1 - ease.sine(seg(t, SHUT, SHUT + 0.35)))
     room(T, 1, SP.x)
     halo(cap ? 0.6 + 0.35 * ease.sine(seg(t, SHUT, 3.4)) : 0.24)
     if (!cap) {
       clipCircle(LC.x, LC.y, LC.r, () => {
         ctx.drawImage(darkPaper(), 0, 0)
-        amberFace(f, { glow: lerp(0.9, 0.6, ease.sine(seg(t, 0.1, 1.2))), alpha: lerp(1, 0.85, ease.sine(seg(t, 0.1, 1.2))) })
+        amberFace(f, { glow: lerp(0.9, 0.6, ease.sine(seg(t, 0.1, 1.2))) + 0.35 * charge, alpha: lerp(1, 0.85, ease.sine(seg(t, 0.1, 1.2))) })
       })
     } else {
       // 채록: 섬광 뒤 한지 위에 먹 초상이 정착한다
@@ -871,9 +947,10 @@ const S09: Scene = {
     }
     pins(f, 1, 0.75 * (1 - kOut), 2000)
     rim(1)
-    ring(1, 1, SP.x, { flare: fl })
+    // 中停 비율(0.33) 바로 앞의 잔눈금은 비율이 새겨질 때 물러난다 — 음수 부호처럼 읽히지 않게
+    ring(1, 1, SP.x, { flare: fl, charge, dim: { i: 16, k: ease.sine(seg(t, 0.8, 1.2)) } })
     faceBrackets(f, 1, 0.42 * (1 - kOut), 2, SP.x)
-    eyeLight(T, 1, SP.x, fl, 0)
+    eyeLight(T, 1, SP.x, Math.max(fl, 0.8 * charge), 0)
     lineA(EYE.x, EYE.y + 40, EYE.x, LC.y - RING - 26, C.celadon, 1, 0.45)
     // S08에서 넘어온 기둥·옆얼굴·계수기는 물러나고, 기둥은 삼정 기둥으로 남는다
     scaleCol(f, 1, 1 - kOut, null, SP.x)
@@ -882,8 +959,8 @@ const S09: Scene = {
       off(() => profile(f, 2000, 1, P.x), P)
       region(P.c, { x: PROF_X - 40, y: 300, w: 140, h: 900 }, 0, 1 - kOut)
       const Cn = tmp()
-      off(() => counter(f, 2000, 1), Cn)
-      region(Cn.c, { x: 0, y: 1200, w: W, h: 300 }, 8 * kOut, 1 - kOut)
+      off(() => counter(f, 2000, 1, 1), Cn)
+      region(Cn.c, { x: 0, y: 1200, w: W, h: 340 }, 8 * kOut, 1 - kOut)
     }
     const after = cap ? 1 - 0.35 * ease.sine(seg(t, SHUT, SHUT + 0.6)) : 1
     measure(f, t, after, cap ? C.celadonDeep : C.celadon, cap ? undefined : SP.x)
@@ -901,11 +978,10 @@ const S09: Scene = {
       }
     }
     flush(SP)
-    const kG = seg(t, 0.25, 0.85)
-    const kG2 = seg(t, SHUT + 0.1, SHUT + 0.7)
-    guide('빛이 얼굴을 지나갑니다', 1 - kG)
-    guide('얼굴의 비례를 재고 있습니다', kG * (1 - kG2))
-    guide('형상을 담았습니다', kG2)
+    // 앞 문구는 섬광 속으로 번져 사라지고, '형상을 담았습니다'는 컷 전에 충분히 머문다
+    const kG2 = seg(t, SHUT - 0.12, SHUT + 0.5)
+    if (kG2 <= 0) guideSwap('빛이 얼굴을 지나갑니다', '얼굴의 비례를 재고 있습니다', seg(t, 0.2, 0.95))
+    else guideSwap('얼굴의 비례를 재고 있습니다', '형상을 담았습니다', kG2)
     // 부드러운 셔터 섬광: 렌즈 중심에서 번지는 한지빛
     if (fl > 0) {
       ctx.save()
