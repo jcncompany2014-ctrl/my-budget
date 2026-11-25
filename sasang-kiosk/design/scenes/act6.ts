@@ -279,25 +279,31 @@ function sourceGlint(k: number) {
   ctx.fillRect(BM.cx - 460, 3, 920, 2.5)
   ctx.restore()
 }
-/** 어둠 속 몇 점의 먼지(S14에서 이어짐). 빛 속에 들어오면 밝아진다 */
+/**
+ * 어둠 속 몇 점의 티끌 — S14(5막 끝, '사유의 방' 침묵)의 티끌을 같은 시드·같은 궤적으로 이어받는다(컷이 보이지 않게).
+ * T는 이 막의 전역 시각(S15 시작 = 0) → S14 안의 시각으로는 3 + T. 빛기둥 안에 들어온 티끌은 밝아진다.
+ */
+const MOTE_P0 = { x: 540, y: 760 }
 function motes(T: number, alpha: number, open = 0) {
   if (alpha <= 0) return
-  const r = rng(707)
-  ctx.save()
-  ctx.globalCompositeOperation = 'screen'
+  const t14 = 3 + T, TT = 8.5 + t14
+  const r = rng(303)
+  const L = tmp()
   for (let i = 0; i < 9; i++) {
-    const x0 = 540 + (r() - 0.5) * 780, y0 = 380 + r() * 1100, sp = 2.5 + r() * 5, ph = r() * 6.283, sz = 1.3 + r() * 2.2, b = 0.35 + r() * 0.5
-    const y = y0 - T * sp, x = x0 + Math.sin(T * 0.35 + ph) * 16
+    const x0 = MOTE_P0.x + (r() - 0.5) * 760, y0 = MOTE_P0.y + (r() - 0.5) * 900
+    const sp = 9 + r() * 12, ph = r() * 6.283, rr = r() < 0.4 ? 1.4 + r() : 5 + r() * 9
+    const x = x0 + Math.sin(TT * 0.3 + ph) * 26, y = y0 - t14 * sp + 20
     const inB = open > 0 ? clamp((beamHalf(y) * open - Math.abs(x - BM.cx)) / 60 + 0.5) : 0
-    const a = alpha * b * (0.7 + 0.3 * Math.sin(T * 1.7 + ph)) * (1 + inB * 0.8)
-    const rr = sz * 7
-    const g = ctx.createRadialGradient(x, y, 0, x, y, rr)
-    g.addColorStop(0, `rgba(255,234,196,${clamp(a)})`); g.addColorStop(0.16, `rgba(255,214,150,${clamp(a * 0.4)})`); g.addColorStop(1, 'rgba(255,214,150,0)')
-    ctx.fillStyle = g
-    ctx.beginPath(); ctx.arc(x, y, rr, 0, 6.283); ctx.fill()
+    const al = (rr > 3 ? 0.1 + r() * 0.08 : 0.35 + r() * 0.3) * alpha * (0.7 + 0.3 * Math.sin(TT * 1.4 + ph * 3)) * (1 + inB * 0.8)
+    const g = L.x.createRadialGradient(x, y, 0, x, y, rr)
+    g.addColorStop(0, `rgba(255,214,150,${al})`); g.addColorStop(0.75, `rgba(255,214,150,${al * 0.7})`); g.addColorStop(1, 'rgba(255,214,150,0)')
+    L.x.fillStyle = g; L.x.beginPath(); L.x.arc(x, y, rr, 0, 6.283); L.x.fill()
   }
-  ctx.restore()
+  region(L.c, 60, 200, W - 120, 1300, 1.2, 1)
+  region(L.c, 60, 200, W - 120, 1300, 6, 0.6, 'lighter')
 }
+/** S14 끝의 티끌 밝기(0.65)에서 빛이 열리며 잦아든다 */
+const moteA15 = (t: number) => 0.65 * (1 - 0.45 * ease.sine(seg(t, 0.8, 2.5)))
 /** 빛기둥 속 먼지 */
 function dustFx(T: number, alpha: number, open = 1) {
   if (alpha <= 0) return
@@ -344,7 +350,7 @@ const BX = 540, BY = 690, BW = 410
 let bustC: Bust | null = null
 const gauss = (dx: number, dy: number, sx: number, sy: number) => Math.exp(-(dx * dx) / (sx * sx) - (dy * dy) / (sy * sy))
 /** 천장 단일 광원(위·약간 앞·왼쪽) */
-const LGT = (() => { const v = [-0.14, -0.66, 0.74], n = Math.hypot(...v); return v.map((c) => c / n) })()
+const LGT = (() => { const v = [-0.16, -0.75, 0.64], n = Math.hypot(...v); return v.map((c) => c / n) })()
 /**
  * 진주 흉상 — 깊이 정보가 없으므로 얼굴 랜드마크 위에 높이장(가우시안 부조: 이마·눈두덩·콧등·광대·입술·턱)을 세우고
  * 그 기울기로 법선을 구해 천장 광원에 대한 램버트 밝기를 계산한다. 입자는 밝기에 비례해 남기므로(어두운 곳은 성글다)
@@ -376,17 +382,18 @@ function bust(): Bust {
     [nx0 - wing * 0.8, baseY - 14, 15, 12, 11], [nx0 + wing * 0.8, baseY - 14, 15, 12, 11], // 콧방울
     [mo.x, mo.y - 2, mo.hw * 1.3, 46, 4], // 입 둘레
     [mo.x, mo.y - 7, mo.hw * 0.78, 7, 4], // 윗입술
-    [mo.x, mo.y + 12, mo.hw * 0.66, 9, 9], // 아랫입술
+    [mo.x, mo.y + 13, mo.hw * 0.62, 9, 6], // 아랫입술
     [mo.x, mo.y + 34, mo.hw * 0.62, 8, -6], // 턱입술 고랑
     [mo.x, lerp(mo.y, chin, 0.6), 54, 36, 15], // 턱끝
   ]
   for (const e of eyes) {
     bumps.push([e.x + e.sg * 4, e.y - 46, e.hw * 1.5, 15, 12]) // 눈썹뼈
-    bumps.push([e.x, e.y - 4, e.hw * 1.15, 24, -15]) // 눈두덩 오목
-    bumps.push([e.x, e.y - 1, e.hw * 0.85, 11, 7]) // 눈꺼풀(안구)
+    bumps.push([e.x, e.y - 4, e.hw * 1.1, 22, -11]) // 눈두덩 오목
+    bumps.push([e.x, e.y - 2, e.hw * 0.85, 12, 9]) // 눈꺼풀(안구)
     bumps.push([e.x + e.sg * e.hw * 0.45, e.y + 72, e.hw * 1.3, 34, 13]) // 광대
     bumps.push([e.x + e.sg * e.hw * 1.9, e.y - 70, 26, 46, -7]) // 관자놀이
   }
+  const oval = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL.map((e) => [lm[e.start], lm[e.end]] as const)
   const brows = [[107, 66, 105, 63, 70], [336, 296, 334, 293, 300]].map((ids) => ids.map((i) => lm[i]))
   const distPoly = (x: number, y: number, P: { x: number; y: number }[]) => {
     let best = 1e9
@@ -400,7 +407,7 @@ function bust(): Bust {
   /** 얼굴 면의 밝기 [밝기, 림]; 밝기 -1 = 파낸 선(입술 사이 · 내리깐 눈꺼풀 선) */
   const light = (x: number, y: number): [number, number] => {
     const u = (x - fcx) / f.rx, v = (y - f.cy) / f.ry
-    let nxv = u * (0.3 + 1.5 * u * u), nyv = v * (0.25 + 1.1 * v * v)
+    let nxv = u * (0.25 + 2.0 * u * u), nyv = v * (0.25 + 1.1 * v * v)
     for (const [x0, y0, sx, sy, a] of bumps) {
       const dx = x - x0, dy = y - y0
       const g = a * Math.exp(-(dx * dx) / (sx * sx) - (dy * dy) / (sy * sy))
@@ -409,7 +416,7 @@ function bust(): Bust {
     }
     const d = clamp(((LGT[0] * nxv + LGT[1] * nyv + LGT[2]) / Math.hypot(nxv, nyv, 1) + 0.12) / 1.12)
     let occ = 1
-    for (const e of eyes) occ *= 1 - 0.5 * gauss(x - e.x, y - (e.y - 6), e.hw * 1.05, 14) // 눈썹뼈 그늘
+    for (const e of eyes) occ *= 1 - 0.36 * gauss(x - e.x, y - (e.y - 10), e.hw * 1.0, 12) // 눈썹뼈 그늘
     occ *= 1 - 0.55 * gauss(x - nx0, y - (baseY + 10), wing * 1.25, 10) // 코 밑 그늘
     occ *= 1 - 0.35 * gauss(x - mo.x, y - (mo.y + 30), mo.hw * 0.6, 8) // 아랫입술 밑 그늘
     for (const sg of [-1, 1]) occ *= 1 - 0.6 * gauss(x - (nx0 + sg * wing * 0.42), y - (baseY - 5), 7, 4) // 콧구멍
@@ -424,59 +431,67 @@ function bust(): Bust {
       if (Math.abs(xe) < 1.08) {
         const dd = y - (e.y + 3 - 4.5 * (1 - xe * xe))
         if (Math.abs(dd) < 1.5 * (1 - Math.min(1, xe ** 4)) + 0.25) return [-1, 0]
-        if (dd > 0 && dd < 7) occ *= 0.55 + (0.45 * dd) / 7 // 속눈썹 그늘
+        if (dd > 0 && dd < 6) occ *= 0.68 + (0.32 * dd) / 6 // 속눈썹 그늘
       }
     }
-    for (const P of brows) { const dd = distPoly(x, y, P); if (dd < 8) occ *= 0.6 + 0.4 * (dd / 8) }
-    const rim = clamp((Math.hypot(u, v * 0.92) - 0.86) / 0.14) * clamp((Math.abs(u) - 0.55) / 0.25)
-    // 이마 꼭대기는 한 단 낮춰 초점(눈)보다 밝지 않게
-    const top = 1 - 0.22 * clamp((-v - 0.55) / 0.4)
+    for (const P of brows) { const dd = distPoly(x, y, P); if (dd < 7) occ *= 0.74 + 0.26 * (dd / 7) }
+    let dOv = 1e9
+    for (const [A, B] of oval) {
+      const vx = B.x - A.x, vy = B.y - A.y
+      const t = clamp(((x - A.x) * vx + (y - A.y) * vy) / (vx * vx + vy * vy || 1))
+      dOv = Math.min(dOv, Math.hypot(x - A.x - vx * t, y - A.y - vy * t))
+    }
+    // 역광 림: 실루엣에서 14px 안쪽, 광대~턱선 쪽에서만(관자놀이·이마는 제외)
+    const rim = clamp(1 - dOv / 12) * clamp((Math.abs(u) - 0.45) / 0.3) * clamp((v + 0.35) / 0.35)
+    // 이마 꼭대기는 한 단 낮추고, 머리선(메시 윗변)은 두개 쪽으로 풀어 헬멧 선이 생기지 않게
+    const top = (1 - 0.32 * clamp((-v - 0.42) / 0.4)) * (v < -0.45 ? 0.35 + 0.65 * clamp(dOv / 34) : 1)
     return [d * occ * top, rim]
   }
   const surf = (x: number, y: number) => {
     const [b, rim] = light(x, y)
-    if (b < 0 || r() > 0.1 + 0.9 * clamp(b * 1.15)) return
-    add(x, y, Math.min(1.1, b + rim * 0.42), 0, rim > 0.45 ? 1 : 0, 1)
+    if (b < 0 || r() > 0.08 + 0.92 * Math.max(clamp(b * 1.1) ** 1.3, rim * 0.7)) return
+    add(x, y, Math.min(1.1, b * (1 - rim * 0.3) + rim * 0.46), 0, rim > 0.45 ? 1 : 0, 1)
   }
-  // 얼굴 면: 테셀레이션 삼각형 안을 고르게 채운다(메시 선이 보이지 않게)
+  // 얼굴 면: 테셀레이션을 점유 격자로 래스터화한 뒤 그 안을 고르게 채운다.
+  // (입을 닫느라 접힌 입술 삼각형이 겹쳐 밀도가 두 배가 되면 밝은 '웃음 띠'가 생기므로, 겹침을 격자로 없앤다)
+  const CS = 2
+  const xs = lm.map((p) => p.x), ys = lm.map((p) => p.y)
+  const gx0 = Math.floor(Math.min(...xs)) - 4, gy0 = Math.floor(Math.min(...ys)) - 4
+  const GW = Math.ceil((Math.max(...xs) - gx0 + 8) / CS), GH = Math.ceil((Math.max(...ys) - gy0 + 8) / CS)
+  const occG = new Uint8Array(GW * GH)
+  const mark = (cx: number, cy: number) => { if (cx >= 0 && cy >= 0 && cx < GW && cy < GH) occG[cy * GW + cx] = 1 }
+  const tri = (A: { x: number; y: number }, B: { x: number; y: number }, Cc: { x: number; y: number }) => {
+    const minX = Math.floor((Math.min(A.x, B.x, Cc.x) - gx0) / CS), maxX = Math.ceil((Math.max(A.x, B.x, Cc.x) - gx0) / CS)
+    const minY = Math.floor((Math.min(A.y, B.y, Cc.y) - gy0) / CS), maxY = Math.ceil((Math.max(A.y, B.y, Cc.y) - gy0) / CS)
+    const sgn = (P: { x: number; y: number }, Q: { x: number; y: number }, x: number, y: number) => (Q.x - P.x) * (y - P.y) - (Q.y - P.y) * (x - P.x)
+    for (let cy = minY; cy <= maxY; cy++) for (let cx = minX; cx <= maxX; cx++) {
+      const x = gx0 + (cx + 0.5) * CS, y = gy0 + (cy + 0.5) * CS
+      const d1 = sgn(A, B, x, y), d2 = sgn(B, Cc, x, y), d3 = sgn(Cc, A, x, y)
+      const neg = d1 < -0.5 || d2 < -0.5 || d3 < -0.5, pos = d1 > 0.5 || d2 > 0.5 || d3 > 0.5
+      if (!(neg && pos)) mark(cx, cy)
+    }
+  }
   const adj = new Map<number, Set<number>>()
   for (const e of FaceLandmarker.FACE_LANDMARKS_TESSELATION) {
     if (!adj.has(e.start)) adj.set(e.start, new Set())
     if (!adj.has(e.end)) adj.set(e.end, new Set())
     adj.get(e.start)!.add(e.end); adj.get(e.end)!.add(e.start)
   }
-  const tris: [number, number, number, number][] = []
-  const seen = new Set<string>()
   for (const e of FaceLandmarker.FACE_LANDMARKS_TESSELATION) {
-    for (const c of adj.get(e.start)!) {
-      if (!adj.get(e.end)!.has(c)) continue
-      const k = [e.start, e.end, c].sort((a, b) => a - b).join(',')
-      if (seen.has(k)) continue
-      seen.add(k)
-      const A = lm[e.start], B = lm[e.end], Cc = lm[c]
-      tris.push([e.start, e.end, c, Math.abs((B.x - A.x) * (Cc.y - A.y) - (Cc.x - A.x) * (B.y - A.y)) / 2])
-    }
+    for (const c of adj.get(e.start)!) if (adj.get(e.end)!.has(c)) tri(lm[e.start], lm[e.end], lm[c])
   }
-  const total = tris.reduce((a, t) => a + t[3], 0)
-  const N = 30000
-  for (const [ia, ib, ic, area] of tris) {
-    let n = (area / total) * N
-    const whole = Math.floor(n)
-    n = whole + (r() < n - whole ? 1 : 0)
-    const A = lm[ia], B = lm[ib], Cc = lm[ic]
-    for (let i = 0; i < n; i++) {
-      let a1 = r(), b1 = r()
-      if (a1 + b1 > 1) { a1 = 1 - a1; b1 = 1 - b1 }
-      surf(A.x + (B.x - A.x) * a1 + (Cc.x - A.x) * b1, A.y + (B.y - A.y) * a1 + (Cc.y - A.y) * b1)
-    }
-  }
-  // 눈구멍(메시에 없는 자리)도 같은 밀도로 덮는다 — 눈은 내리감았다
+  // 눈구멍(메시에 없는 자리)도 덮는다 — 눈은 내리감았다
   for (const e of eyes) {
-    const m = Math.round((N / total) * Math.PI * e.hw * 0.95 * 9)
-    for (let i = 0; i < m; i++) {
-      const a = r() * 6.283, d = Math.sqrt(r())
-      surf(e.x + Math.cos(a) * d * e.hw * 0.95, e.y + Math.sin(a) * d * 9)
+    for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) {
+      const x = gx0 + (cx + 0.5) * CS, y = gy0 + (cy + 0.5) * CS
+      if (((x - e.x) / (e.hw * 1.02)) ** 2 + ((y - e.y) / 11) ** 2 < 1) occG[cy * GW + cx] = 1
     }
+  }
+  const dens = 0.24 // 후보 입자 / px² (밝기에 따라 다시 솎는다)
+  const M = Math.round(GW * GH * CS * CS * dens)
+  for (let i = 0; i < M; i++) {
+    const x = gx0 + r() * GW * CS, y = gy0 + r() * GH * CS
+    if (occG[Math.floor((y - gy0) / CS) * GW + Math.floor((x - gx0) / CS)]) surf(x, y)
   }
   const inFace = (x: number, y: number, m = 1) => ((x - f.cx) / (f.rx * m)) ** 2 + ((y - f.cy) / (f.ry * m)) ** 2 < 1
   // 얼굴 가장자리: 옆면과 턱선에만 역광 림(석록으로 물든다). 이마 위는 두개로 이어지므로 선을 두지 않는다
@@ -526,7 +541,7 @@ function bust(): Bust {
   const halfW = (v: number) => (v < 0.38 ? 0.6 : v < 0.86 ? lerp(0.62, 1.42, ease.sine((v - 0.38) / 0.48)) : v < 1.36 ? lerp(1.42, 1.82, Math.sqrt((v - 0.86) / 0.5)) : 1.86)
   /** |u|에서 실루엣 윗면의 v (위에서 빛을 받는 면) */
   const vTop = (au: number) => { let v = -0.22; while (v < 2.3 && halfW(v) < au) v += 0.01; return v }
-  for (let i = 0; i < 12000; i++) {
+  for (let i = 0; i < 17000; i++) {
     const v = -0.22 + r() * 2.5, u = (r() * 2 - 1) * halfW(v)
     const x = U(u), y = V(v)
     if (inFace(x, y)) continue
@@ -534,9 +549,9 @@ function bust(): Bust {
     const au = Math.abs(u)
     let s: number
     if (au < 0.6 && v < 0.4) s = (0.06 + 0.3 * clamp((v + 0.1) / 0.5)) * (0.75 + 0.25 * Math.sqrt(Math.max(0, 1 - (au / 0.6) ** 2))) // 턱 아래 그늘
-    else s = 0.2 + 0.62 * clamp(1 - (v - vTop(au)) / 0.42) * (au > 0.6 ? 1 : 0.7) // 어깨 윗면이 빛을 받는다
+    else s = 0.24 + 0.7 * clamp(1 - (v - vTop(au)) / 0.46) * (au > 0.6 ? 1 : 0.72) // 어깨 윗면이 빛을 받는다
     if (r() > 0.25 + 0.75 * clamp(s * 1.4)) continue
-    add(x, y, s, 0, 0, fadeV(v) * 0.85)
+    add(x, y, s, 0, 0, fadeV(v))
   }
   bustC = { pts, top: ccy - cry, eyeY: (lm[33].y + lm[263].y) / 2, chin }
   return bustC
@@ -576,7 +591,7 @@ function drawBust(o: BustO) {
     // 위에서 떨어지는 단일 광원: 이마·콧등이 밝고 턱 아래로 식는다
     const lt = y < b.chin ? lerp(1.06, 0.9, clamp((y - b.top) / (b.chin - b.top))) : 0.85
     // 면은 대비를 높여(감마) 부조가 읽히게, 윤곽은 고르게
-    const base = p.e > 0 ? 0.08 + p.s * 0.5 + p.e * 0.14 : 0.03 + 0.92 * Math.pow(p.s, 1.5)
+    const base = p.e > 0 ? 0.08 + p.s * 0.5 + p.e * 0.14 : 0.02 + 1.08 * Math.pow(p.s, 1.65)
     const a = Math.min(1, base) * alpha * p.fade * aIn * lb * lt
     if (a <= 0.01) continue
     // 진주광: 일부 입자는 샴페인 금빛, 일부는 푸른 진주빛
@@ -601,9 +616,11 @@ function drawBust(o: BustO) {
     } else if (dz < 0.55 || p.r < 0.45) {
       const s = 1.2 + p.r * 1.0 + dz * 2.4
       // 초점면에서 먼 입자는 흐린 층으로(얕은 심도) — 구슬처럼 보이는 원판 대신
-      const tg = dz > 0.36 ? bx : lx
+      const soft = p.h2 < clamp((dz - 0.28) / 0.34)
+      const tg = soft ? bx : lx
       tg.fillStyle = col
-      tg.globalAlpha = Math.min(1, a * (1 - Math.min(0.72, dz)) * (dz > 0.36 ? 1.35 : 1))
+      // 흐려진 입자는 퍼질 뿐 빛의 양은 같다 — 초점 밖 어깨가 사라지지 않게 감쇠를 약하게
+      tg.globalAlpha = Math.min(1, soft ? a * (1 - Math.min(0.4, dz * 0.5)) * 1.3 : a * (1 - Math.min(0.6, dz)))
       tg.fillRect(x - s / 2, y - s / 2, s, s)
     }
   }
@@ -682,18 +699,18 @@ function nameGlyphs(ks: number[], alpha: number, rim: number) {
 function nameRule(k: number, alpha: number) {
   if (k <= 0 || alpha <= 0) return
   const x = NM.x - 128
-  const y0 = NM.y0 - NM.size * 0.95, y1 = NM.y0 + NM.step * 2 + 24
+  const y0 = NM.y0 - NM.size * 0.95, y1 = SEAL_P.y - SEAL_P.size * 0.5 - 22
   const e = ease.out3(k)
   lineA(x, y0, x, lerp(y0, y1, e), C.gold, 1, 0.45 * alpha)
   for (let i = 0; i < 3; i++) {
     const yc = NM.y0 + i * NM.step - NM.size * 0.38
     if (yc > lerp(y0, y1, e)) break
     lineA(x, yc, x + 12, yc, C.gold, 1, 0.6 * alpha)
-    mono(`0${i + 1}`, x - 10, yc + 5, C.gold, 13, 'right', 0.55 * alpha)
+    mono(`0${i + 1}`, x - 10, yc + 5, C.gold, 15, 'right', 0.55 * alpha)
   }
 }
 /** 이름 아래 캡션: 한글 이름 · 로마자 · 경향 수치 */
-const CAP = { kor: 1134, lat: 1182, line: 1210, m1: 1254, m2: 1288 }
+const CAP = { kor: 1046, lat: 1096, line: 1126, m1: 1180, m2: 1224 }
 function nameCaption(p: { kor: number; lat: number; line: number; mono: number }, alpha: number) {
   if (alpha <= 0) return
   revealText('태음인', NM.x, CAP.kor, `300 60px ${FONT.hahmlet}`, C.hanji, p.kor, { align: 'center', spacing: 4, alpha })
@@ -704,11 +721,12 @@ function nameCaption(p: { kor: number; lat: number; line: number; mono: number }
   }
   if (p.mono > 0) {
     const a = ease.sine(p.mono) * alpha
-    mono('경향 62%', NM.x, CAP.m1, C.amberCore, 24, 'center', a)
-    mono('소양 24 · 소음 14', NM.x, CAP.m2, C.ash, 17, 'center', a * 0.9)
+    mono('경향 62%', NM.x, CAP.m1, C.amberCore, 32, 'center', a)
+    mono('소양 24 · 소음 14', NM.x, CAP.m2, '#A39C8E', 26, 'center', a * 0.95)
   }
 }
-const SEAL_P = { x: 872, y: 1010, size: 80 }
+/** 낙관: 이름 옆(人의 왼쪽 아래, 금니 계측선의 끝) */
+const SEAL_P = { x: 744, y: 930, size: 66 }
 /** 유리 물방울: 안에 거꾸로 맺힌 太陰人 */
 function dropFx(y: number, alpha: number) {
   if (alpha <= 0) return
@@ -741,7 +759,7 @@ function ringRipple(x: number, y: number, k: number) {
   for (let i = 0; i < 3; i++) {
     const kk = clamp((k - i * 0.13) / 0.74)
     if (kk <= 0 || kk >= 1) continue
-    const R = 14 + 210 * ease.out3(kk)
+    const R = 12 + 150 * ease.out3(kk)
     ctx.save()
     ctx.strokeStyle = `rgba(255,236,200,${0.5 * (1 - ease.sine(kk))})`
     ctx.lineWidth = 1.4 - i * 0.35
@@ -877,8 +895,8 @@ function ruleFx(y: number, k: number, alpha = 0.22) {
 function sectionLabel(hz: string, ko: string, x: number, y: number, k: number) {
   if (k <= 0) return
   const a = ease.sine(k)
-  text(hz, x, y, `400 21px ${FONT.serif}`, SHU, { alpha: 0.85 * a, spacing: 6 })
-  text(ko, x + textW(hz, `400 21px ${FONT.serif}`, 6) + 14, y - 1, `500 18px ${FONT.sans}`, INK2, { alpha: a, spacing: 2 })
+  text(hz, x, y, `400 25px ${FONT.serif}`, SHU, { alpha: 0.85 * a, spacing: 6 })
+  text(ko, x + textW(hz, `400 25px ${FONT.serif}`, 6) + 14, y - 1, `500 23px ${FONT.sans}`, INK2, { alpha: a, spacing: 2 })
 }
 /** 석채 호(돌가루 안료의 입자감) */
 function pigmentArc(cx: number, cy: number, r: number, w: number, a0: number, span: number, aEnd: number, color: string, seed: number) {
@@ -906,7 +924,7 @@ function pigmentArc(cx: number, cy: number, r: number, w: number, a0: number, sp
   }
   ctx.restore()
 }
-const RG = { x: 322, y: 594, r: 138, w: 22 }
+const RG = { x: 322, y: 586, r: 132, w: 22 }
 const PROB = [
   { k: 'taeeum', hz: '太陰', ko: '태음', v: 62 },
   { k: 'soyang', hz: '少陽', ko: '소양', v: 24 },
@@ -941,7 +959,7 @@ function ringFx(k: number) {
   if (kn > 0) {
     text('62', RG.x - 10, RG.y + 30, `italic 300 112px ${FONT.italic}`, INK, { align: 'center', alpha: kn, blur: (1 - kn) * 6 })
     text('%', RG.x + 52, RG.y + 28, `italic 300 40px ${FONT.italic}`, INK2, { alpha: kn })
-    text('太陰 傾向', RG.x, RG.y + 70, `400 19px ${FONT.serif}`, INK2, { align: 'center', alpha: kn, spacing: 6 })
+    text('太陰 傾向', RG.x, RG.y + 72, `400 23px ${FONT.serif}`, INK2, { align: 'center', alpha: kn, spacing: 6 })
   }
 }
 function legendFx(k: number) {
@@ -951,7 +969,7 @@ function legendFx(k: number) {
   rows.forEach((p, i) => {
     const kk = clamp(k * 1.7 - i * 0.22)
     if (kk <= 0) return
-    const y = 506 + i * 66
+    const y = 498 + i * 64
     const a = ease.sine(kk)
     const da = p.dim ? 0.34 : 1
     ctx.save()
@@ -960,24 +978,23 @@ function legendFx(k: number) {
     else { ctx.fillStyle = TYPE_COL[p.k]; ctx.fillRect(x0, y - 30, 12, 34) }
     ctx.restore()
     text(p.hz, x0 + 32, y, `400 30px ${FONT.serif}`, INK, { alpha: a * da, spacing: 2 })
-    text(p.ko, x0 + 112, y - 2, `300 24px ${FONT.hahmlet}`, INK2, { alpha: a * da })
+    text(p.ko, x0 + 112, y - 2, `300 27px ${FONT.hahmlet}`, INK2, { alpha: a * da })
     if (!p.dim) {
       text(String(p.v), x1 - 24, y + 4, `italic 300 48px ${FONT.italic}`, INK, { align: 'right', alpha: a })
       text('%', x1, y + 2, `italic 300 24px ${FONT.italic}`, INK2, { align: 'right', alpha: a })
-    } else text('판별 제외', x1, y - 3, `500 19px ${FONT.sans}`, INK2, { align: 'right', alpha: a * 0.6, spacing: 1 })
+    } else text('판별 제외', x1, y - 3, `500 23px ${FONT.sans}`, INK2, { align: 'right', alpha: a * 0.7, spacing: 1 })
     lineA(x0, y + 21, lerp(x0, x1, ease.out3(kk)), y + 21, INK, 1, 0.15)
   })
 }
 function honestFx(k: number) {
   if (k <= 0) return
-  const s = '판정 일치도가 아닌 모델 확신도 · 전문가 진단 일치율 연구상 55~69%'
-  let size = 21
-  while (size > 15 && textW(s, `400 ${size}px ${FONT.sans}`) > CX1 - CX0) size -= 0.5
+  // 정직한 한 줄 — 작게 숨기지 않고 두 줄로 읽히게(26px)
   const kk = ease.sine(k)
-  lineA(CX0, 772, CX0 + 26, 772, SHU, 1.2, 0.7 * kk)
-  text(s, CX0 + 40, 779, `400 ${size}px ${FONT.sans}`, INK2, { alpha: kk })
+  lineA(CX0, 783, CX0 + 26, 783, SHU, 1.2, 0.7 * kk)
+  text('판정 일치도가 아닌 모델 확신도', CX0 + 40, 792, `500 26px ${FONT.sans}`, INK2, { alpha: kk })
+  text('전문가 진단 일치율 연구상 55~69%', CX0 + 40, 830, `400 26px ${FONT.sans}`, INK2, { alpha: kk * 0.92 })
 }
-const RD = { x: 322, y: 1100, R: 132 }
+const RD = { x: 322, y: 1130, R: 124 }
 const ORG = [{ hz: '肺', v: 0.36 }, { hz: '脾', v: 0.6 }, { hz: '肝', v: 0.9 }, { hz: '腎', v: 0.62 }]
 const orgAng = (i: number) => -Math.PI / 2 + (i * Math.PI) / 2
 function radarFx(kg: number, ki: number) {
@@ -1072,13 +1089,13 @@ function evidenceFx(k: number) {
   EV.forEach((e, i) => {
     const kk = clamp(k * 1.5 - i * 0.25)
     if (kk <= 0) return
-    const y = 968 + i * 110
+    const y = 1002 + i * 104
     const a = ease.sine(kk)
     text(e.name, x0, y, `500 28px ${FONT.sans}`, INK, { alpha: a })
-    const tf = `500 17px ${FONT.sans}`
+    const tf = `500 20px ${FONT.sans}`
     const tw = textW(e.tag, tf, 2) + 22
     const tc = e.lit ? C.celadonDeep : '#8A4A2E'
-    ctx.save(); ctx.globalAlpha = a * 0.85; ctx.strokeStyle = tc; ctx.lineWidth = 1; ctx.strokeRect(x1 - tw + 0.5, y - 24.5, tw - 1, 32); ctx.restore()
+    ctx.save(); ctx.globalAlpha = a * 0.85; ctx.strokeStyle = tc; ctx.lineWidth = 1; ctx.strokeRect(x1 - tw + 0.5, y - 27.5, tw - 1, 36); ctx.restore()
     text(e.tag, x1 - tw / 2 + 1, y - 2, tf, tc, { align: 'center', alpha: a, spacing: 2 })
     text(e.w.toFixed(2), x1 - tw - 18, y + 1, `italic 300 32px ${FONT.italic}`, INK, { align: 'right', alpha: a * ease.sine(seg(kk, 0.55, 1)) })
     lineA(x0, y + 36, x1, y + 36, INK, 1, 0.16 * a)
@@ -1095,8 +1112,8 @@ function evidenceFx(k: number) {
     }
   })
   if (tips) {
-    region(L.c, x0 - 20, 920, x1 - x0 + 40, 300, 0, 1)
-    region(L.c, x0 - 20, 920, x1 - x0 + 40, 300, 10, 0.9, 'lighter')
+    region(L.c, x0 - 20, 950, x1 - x0 + 40, 320, 0, 1)
+    region(L.c, x0 - 20, 950, x1 - x0 + 40, 320, 10, 0.9, 'lighter')
   }
 }
 const CHIPS = ['땀 내는 유산소 운동', '저녁 과식 줄이기', '무 · 도라지 · 율무', '아침 햇빛 산책']
@@ -1106,7 +1123,7 @@ function chipsFx(k: number) {
   CHIPS.forEach((s, i) => {
     const kk = clamp(k * 1.6 - i * 0.2)
     if (kk <= 0) return
-    const x = i % 2 ? 546 : CX0, y = 1398 + Math.floor(i / 2) * 90, w = 374, h = 72
+    const x = i % 2 ? 546 : CX0, y = 1414 + Math.floor(i / 2) * 88, w = 374, h = 72
     const a = ease.sine(kk)
     // 부전지(附箋): 아주 옅은 종이 한 겹과 먹 실선
     ctx.save()
@@ -1119,7 +1136,7 @@ function chipsFx(k: number) {
     ctx.restore()
     text(NUMS[i], x + 24, y + h / 2 + 10, `400 26px ${FONT.serif}`, SHU, { alpha: a * 0.85 })
     lineA(x + 60, y + 18, x + 60, y + h - 18, INK, 1, 0.2 * a)
-    revealText(s, x + 78, y + h / 2 + 10, `500 27px ${FONT.sans}`, INK, kk, { stagger: 0.05 })
+    revealText(s, x + 78, y + h / 2 + 10, `500 28px ${FONT.sans}`, INK, kk, { stagger: 0.05 })
   })
 }
 function footFx(k: number) {
@@ -1142,15 +1159,15 @@ function reportContent(k: RepK) {
   ringFx(k.ring)
   legendFx(k.legend)
   honestFx(k.honest)
-  ruleFx(826, k.honest)
+  ruleFx(864, k.honest)
   // 2. 장부 · 근거
-  sectionLabel('臟腑', '이론 도식', CX0, 878, k.grid)
+  sectionLabel('臟腑', '이론 도식', CX0, 914, k.grid)
   radarFx(k.grid, k.ink)
-  sectionLabel('根據', '판별 근거', 566, 878, k.ev)
+  sectionLabel('根據', '판별 근거', 566, 914, k.ev)
   evidenceFx(k.ev)
-  ruleFx(1318, k.chips)
+  ruleFx(1336, k.chips)
   // 3. 양생
-  sectionLabel('養生', '생활 제안', CX0, 1370, k.chips)
+  sectionLabel('養生', '생활 제안', CX0, 1386, k.chips)
   chipsFx(k.chips)
   footFx(k.foot)
 }
@@ -1158,10 +1175,17 @@ function reportContent(k: RepK) {
 function reportFx(u: number, k: RepK, rodA = 1, light = 1) {
   const vis = lerp(PAPER.y0, PAPER.y1, u)
   if (u > 0.002) {
+    // 종이 뒤 후광: 풀린 만큼만, 끝은 부드럽게(딱 잘린 수평선이 보이지 않게)
+    const HL = tmp()
+    HL.x.drawImage(haloCache(), 0, 0)
+    HL.x.globalCompositeOperation = 'destination-in'
+    const hg = HL.x.createLinearGradient(0, vis - 30, 0, vis + 170)
+    hg.addColorStop(0, 'rgba(0,0,0,1)'); hg.addColorStop(1, 'rgba(0,0,0,0)')
+    HL.x.fillStyle = hg
+    HL.x.fillRect(0, 0, W, H)
     ctx.save()
-    ctx.beginPath(); ctx.rect(0, 0, W, vis + 60); ctx.clip()
     ctx.globalAlpha = light
-    ctx.drawImage(haloCache(), 0, 0)
+    ctx.drawImage(HL.c, 0, 0)
     ctx.restore()
     ctx.save()
     ctx.beginPath(); ctx.rect(PAPER.x, PAPER.y0, PAPER.w, vis - PAPER.y0); ctx.clip()
@@ -1290,8 +1314,8 @@ const S15: Scene = {
       drawBust({ T, gather: 0, rest: pool, glow: 0.8 })
     })
     sourceGlint(glint * (1 - 0.55 * open))
-    motes(T, 1 - 0.5 * ease.sine(seg(t, 0.8, 2.3)), open)
     vignette(0.72)
+    motes(T, moteA15(t), open) // S14에서는 비네트 위에 그려졌다
   },
 }
 
@@ -1300,7 +1324,7 @@ const S16: Scene = {
   id: 'S16',
   act: ACT,
   title: '진주 입자의 흉상',
-  note: '바닥 빛웅덩이의 진주 가루가 빛기둥을 타고 떠올라 어깨부터 목, 얼굴, 정수리 순으로 흉상을 이룬다. 초점이 바닥에서 눈으로 천천히 옮겨 가며 뒤로 보케가 피어나고, 가장자리에 태음의 석록빛이 스민다.',
+  note: '바닥 빛웅덩이의 진주 가루가 빛기둥을 타고 떠올라 어깨부터 목, 얼굴, 정수리 순으로 흉상을 이룬다. 천장 단일 광원이 이마와 콧등을 밝히고 눈두덩에 그늘을 드리워, 반가사유상처럼 눈을 내리감은 담담한 얼굴이 빛과 그늘만으로 드러난다. 초점이 바닥에서 눈으로 옮겨 가며 뒤로 보케가 피어나고, 턱선에 태음의 석록빛 림이 스민다.',
   dur: 4,
   render(t) {
     const T = T0.S16 + t
@@ -1316,8 +1340,8 @@ const S16: Scene = {
       dustFx(T, 1)
       drawBust({ T, gather, focusY, rest: 1, rim: 0.6 * ease.sine(seg(t, 2.5, 4)), glow: lerp(0.8, 1, ease.sine(seg(t, 1, 3.5))) })
     })
-    motes(T, 0.5 * (1 - ease.sine(seg(t, 0, 1.6))), 1)
     vignette(0.72)
+    motes(T, moteA15(2.5) * (1 - ease.sine(seg(t, 0, 1.6))), 1)
     header(HEAD_L, HEAD_R, ease.sine(seg(t, 3.1, 4)))
   },
 }
@@ -1327,7 +1351,7 @@ const S17: Scene = {
   id: 'S17',
   act: ACT,
   title: '이름이 맺히다',
-  note: '카메라가 흉상을 왼쪽으로 비켜 세우면, 안에 太陰人이 거꾸로 비친 유리 물방울이 오른쪽 어둠으로 떨어져 파문을 남긴다. 그 자리에서 太陰人이 붓이 지나가듯 한 자씩 위에서 아래로 맺히고, 태음인 · 경향 수치가 새겨진 뒤 주사 낙관 觀形이 찍힌다.',
+  note: '카메라가 흉상을 왼쪽으로 비켜 세우면, 안에 太陰人이 거꾸로 비친 유리 물방울이 오른쪽 어둠으로 떨어져 파문을 남긴다. 그 자리에서 太陰人이 붓이 지나가듯 한 자씩 위에서 아래로 맺히고, 태음인 · 경향 수치가 새겨진 뒤 이름 옆 계측선 끝에 주사 낙관 觀形이 찍힌다.',
   dur: 5.5,
   render(t) {
     const T = T0.S17 + t
@@ -1451,21 +1475,21 @@ const S19: Scene = {
       ctx.restore()
     }
     // 먹 위에 빛으로 맺히는 인사
-    const fade = 1 - ease.sine(seg(t, 2.55, 3.05))
-    revealText('결과는 저장되지 않았습니다', W / 2, 896, `300 44px ${FONT.hahmlet}`, C.hanji, seg(t, 1.45, 2.2), { align: 'center', spacing: 3, alpha: fade })
-    const kl = seg(t, 1.8, 2.35)
+    const fade = 1 - ease.sine(seg(t, 3.0, 3.35))
+    revealText('결과는 저장되지 않았습니다', W / 2, 896, `300 44px ${FONT.hahmlet}`, C.hanji, seg(t, 1.25, 1.95), { align: 'center', spacing: 3, alpha: fade })
+    const kl = seg(t, 1.6, 2.1)
     if (kl > 0) {
       const hw = 120 * ease.out3(kl)
       lineA(W / 2 - hw, 946, W / 2 + hw, 946, C.gold, 1, 0.6 * fade)
     }
-    revealText('감사합니다', W / 2, 1044, `300 72px ${FONT.hahmlet}`, C.hanji, seg(t, 1.9, 2.55), { align: 'center', spacing: 10, alpha: fade })
+    revealText('감사합니다', W / 2, 1044, `300 72px ${FONT.hahmlet}`, C.hanji, seg(t, 1.65, 2.3), { align: 'center', spacing: 10, alpha: fade })
     vignette(0.72)
     const hd = 1 - ease.sine(seg(t, 0.5, 1.6))
     header(HEAD_L, HEAD_R, hd)
     disclaimer(hd)
-    blackout(ease.sine(seg(t, 2.75, 3.25)))
+    blackout(ease.sine(seg(t, 3.15, 3.5)))
     // 처음으로: 한지 창이 희미하게 다시 켜진다
-    const gw = ease.sine(seg(t, 3.3, 3.9))
+    const gw = ease.sine(seg(t, 3.5, 3.95))
     if (gw > 0.003) relight(gw)
   },
 }

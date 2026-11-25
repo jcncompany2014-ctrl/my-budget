@@ -4,7 +4,7 @@
  * 모든 장면은 render(t) 하나로 그려지며, 같은 t면 같은 그림이 나와야 한다(시드 고정).
  */
 import { FaceLandmarker } from '@mediapipe/tasks-vision'
-import demo from '../src/data/demoFace.json'
+import demo from './data/neutralFace.json'
 
 export const W = 1080
 export const H = 1920
@@ -189,23 +189,8 @@ export function drawLine(x0: number, y0: number, x1: number, y1: number, k: numb
 export type Pt = { x: number; y: number; s: number; edge: number; r: number }
 export interface Face { pts: Pt[]; lm: { x: number; y: number }[]; cx: number; cy: number; rx: number; ry: number; top: number; chin: number }
 
-function closeMouth(lm: { x: number; y: number }[]) {
-  const inner = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 95, 88, 178, 87, 14, 317, 402, 318, 324]
-  const lowerOuter = [146, 91, 181, 84, 17, 314, 405, 321, 375]
-  const L = lm[78], R = lm[308]
-  const gap = lm[14].y - lm[13].y
-  const cY = (lm[13].y + lm[14].y) / 2 - gap * 0.1
-  const mid = (x: number) => {
-    const t = (x - L.x) / (R.x - L.x)
-    return L.y + (R.y - L.y) * t + (cY - (L.y + R.y) / 2) * (1 - (2 * t - 1) ** 2) * 0.5 + gap * 0.18
-  }
-  for (const i of inner) lm[i] = { x: lm[i].x, y: mid(lm[i].x) }
-  for (const i of lowerOuter) lm[i] = { x: lm[i].x, y: lm[i].y - gap * 0.85 }
-  for (const i of [61, 291, 78, 308]) lm[i] = { x: lm[i].x, y: lm[i].y + gap * 0.25 }
-}
-
 const faceCache = new Map<string, Face>()
-/** 실측 478 랜드마크 기반 얼굴. cx,cy=중심, width=얼굴 폭(px) */
+/** 무표정 표준 얼굴(MediaPipe canonical, 입 다문 상태) 478점. cx,cy=중심, width=얼굴 폭(px) */
 export function face(cx: number, cy: number, width: number, perEdge = 8, seed = 7): Face {
   const key = [cx, cy, width, perEdge, seed].join(',')
   const hit = faceCache.get(key)
@@ -218,7 +203,6 @@ export function face(cx: number, cy: number, width: number, perEdge = 8, seed = 
   const ox = cx - ((minX + maxX) / 2) * sc
   const oy = cy - ((minY + maxY) / 2) * sc
   const lm = raw.map((p) => ({ x: 2 * cx - (p.x * sc + ox), y: p.y * sc + oy }))
-  closeMouth(lm)
   const rx = width / 2
   const ry = ((maxY - minY) * sc) / 2
   const shade = (x: number, y: number) => {
@@ -246,6 +230,19 @@ export function face(cx: number, cy: number, width: number, perEdge = 8, seed = 
       const t = i / 20
       const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t
       pts.push({ x, y, s: shade(x, y), edge: 1, r: r() })
+    }
+  }
+  // 홍채·동공: 눈꺼풀 사이로만 보이는 원 (무표정 얼굴의 눈이 비어 보이지 않게). 마지막에 추가해 기존 점/난수 순서 유지
+  for (const [c, ring, up, lo] of [[468, 469, 159, 145], [473, 474, 386, 374]]) {
+    const o = lm[c], rad = Math.hypot(lm[ring].x - o.x, lm[ring].y - o.y)
+    const top = lm[up].y + rad * 0.12, bot = lm[lo].y - rad * 0.05
+    for (const [k, n] of [[1, 44], [0.42, 18]] as const) {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * 6.283
+        const x = o.x + Math.cos(a) * rad * k, y = o.y + Math.sin(a) * rad * k
+        if (y < top || y > bot) continue
+        pts.push({ x, y, s: shade(x, y), edge: 1, r: r() })
+      }
     }
   }
   const f: Face = { pts, lm, cx, cy, rx, ry, top: lm[10].y, chin: lm[152].y }
