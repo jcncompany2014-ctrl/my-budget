@@ -342,65 +342,101 @@ interface BP { x: number; y: number; s: number; e: number; r: number; h1: number
 interface Bust { pts: BP[]; top: number; eyeY: number; chin: number }
 const BX = 540, BY = 690, BW = 410
 let bustC: Bust | null = null
+const gauss = (dx: number, dy: number, sx: number, sy: number) => Math.exp(-(dx * dx) / (sx * sx) - (dy * dy) / (sy * sy))
+/** 천장 단일 광원(위·약간 앞·왼쪽) */
+const LGT = (() => { const v = [-0.12, -0.78, 0.62], n = Math.hypot(...v); return v.map((c) => c / n) })()
+/**
+ * 진주 흉상 — 깊이 정보가 없으므로 얼굴 랜드마크 위에 높이장(가우시안 부조: 이마·눈두덩·콧등·광대·입술·턱)을 세우고
+ * 그 기울기로 법선을 구해 천장 광원에 대한 램버트 밝기를 계산한다. 입자는 밝기에 비례해 남기므로(어두운 곳은 성글다)
+ * 윤곽선 없이 빛과 그늘만으로 형태가 읽힌다. 표정은 데모 얼굴의 웃음 대신, 사유의 방 반가사유상처럼 눈을 내리깐 담담한 얼굴.
+ */
 function bust(): Bust {
   if (bustC) return bustC
   const f = face(BX, BY, BW)
+  const lm = f.lm
   const r = rng(808)
   const pts: BP[] = []
   const add = (x: number, y: number, s: number, e: number, rim: number, fade = 1) => { pts.push({ x, y, s, e, r: r(), h1: r(), h2: r(), h3: r(), rim, fade }) }
   const w2 = BW / 2
-  // 입 주변은 밝은 윤곽이 웃는 인상을 만들어 낮춘다
-  const mx = (f.lm[61].x + f.lm[291].x) / 2, my = (f.lm[13].y + f.lm[14].y) / 2, mw = Math.abs(f.lm[291].x - f.lm[61].x) / 2
-  const mouthFade = (x: number, y: number, edge: boolean) => (((x - mx) / (mw * 1.25)) ** 2 + ((y - my) / (mw * 0.55)) ** 2 < 1 ? (edge ? 0.2 : 0.6) : 1)
-  // 데모 얼굴의 웃는 입꼬리를 70% 펴서 담담한 표정으로(입 둘레만 국소 변형)
-  const cornerY = (f.lm[61].y + f.lm[291].y) / 2, dyc = my - cornerY
-  const calmY = (x: number, y: number) => {
-    const u = (x - mx) / mw, dv = Math.abs(y - my) / (mw * 0.8)
-    if (Math.abs(u) > 1.35 || dv > 1) return y
-    return y - 0.7 * dyc * Math.max(0, 1 - u * u) * (1 - dv)
+  const fcx = (lm[234].x + lm[454].x) / 2
+  const eye = (o: number, i: number) => {
+    const x = (lm[o].x + lm[i].x) / 2
+    return { x, y: (lm[o].y + lm[i].y) / 2, hw: Math.abs(lm[o].x - lm[i].x) / 2, sg: Math.sign(x - fcx) }
   }
-  // 이마 위 얼굴선(머리띠처럼 읽힌다)은 흐리게
-  const capFade = (x: number, y: number) => (y < f.lm[9].y && ((x - f.cx) / f.rx) ** 2 + ((y - f.cy) / f.ry) ** 2 > 0.7 ? 0.3 : 1)
-  // 깊이 정보가 없으므로 랜드마크 둘레의 부조(浮彫)로 위쪽 단일 광원을 흉내 낸다
-  const RELIEF: [number, number, number][] = [
-    [151, 0.42, 0.3], [9, 0.16, 0.22], [168, 0.12, 0.26], [6, 0.08, 0.45], [197, 0.07, 0.45], [195, 0.07, 0.42], [5, 0.07, 0.4], [4, 0.09, 0.5], [1, 0.09, 0.45],
-    [50, 0.2, 0.32], [280, 0.2, 0.32], [199, 0.12, 0.26], [0, 0.07, 0.2],
-    [2, 0.1, -0.75], [98, 0.07, -0.5], [327, 0.07, -0.5], [164, 0.06, -0.3], [159, 0.13, -0.6], [386, 0.13, -0.6], [145, 0.09, -0.35], [374, 0.09, -0.35],
-    [133, 0.07, -0.4], [362, 0.07, -0.4], [18, 0.1, -0.3], [207, 0.16, -0.3], [427, 0.16, -0.3], [54, 0.18, -0.2], [284, 0.18, -0.2],
-    [172, 0.2, -0.25], [397, 0.2, -0.25],
+  const eyes = [eye(33, 133), eye(263, 362)]
+  const nx0 = lm[4].x, tipY = lm[1].y, brY = lm[168].y, baseY = lm[2].y, wing = Math.abs(lm[98].x - lm[327].x) / 2
+  // 입: 웃는 데모 입 대신 좁고 평평한 입(입꼬리가 살짝 내려간 담담한 선)
+  const mo = { x: lm[0].x, y: (lm[13].y + lm[14].y) / 2, hw: (Math.abs(lm[291].x - lm[61].x) / 2) * 0.74 }
+  const chin = lm[152].y
+  const bumps: number[][] = [
+    [nx0, lm[10].y + 45, w2 * 0.8, 60, 9], // 이마
+    [nx0, eyes[0].y - 44, 20, 17, 6], // 미간
+    [nx0, (brY + tipY) / 2, 13, (tipY - brY) * 0.5, 26], // 콧등
+    [nx0, tipY - 8, 21, 17, 20], // 코끝
+    [nx0 - wing * 0.8, baseY - 14, 15, 12, 11], [nx0 + wing * 0.8, baseY - 14, 15, 12, 11], // 콧방울
+    [mo.x, mo.y - 4, mo.hw * 1.4, 54, 9], // 입 둘레
+    [mo.x, mo.y - 10, mo.hw * 0.8, 8, 5], // 윗입술
+    [mo.x, mo.y + 12, mo.hw * 0.66, 9, 9], // 아랫입술
+    [mo.x, mo.y + 34, mo.hw * 0.62, 8, -6], // 턱입술 고랑
+    [mo.x, lerp(mo.y, chin, 0.6), 54, 36, 15], // 턱끝
   ]
-  const shade = (x: number, y: number) => {
-    const u = (x - f.cx) / f.rx, v = (y - f.cy) / f.ry
-    let s = Math.sqrt(Math.max(0, 1 - u * u * 0.9 - v * v * 0.8))
-    for (const [i, rr, amp] of RELIEF) {
-      const R = rr * w2
-      s += amp * Math.exp(-(((x - f.lm[i].x) ** 2 + (y - f.lm[i].y) ** 2) / (R * R)))
-    }
-    return clamp(s, 0.03, 1.15)
+  for (const e of eyes) {
+    bumps.push([e.x + e.sg * 4, e.y - 46, e.hw * 1.5, 15, 12]) // 눈썹뼈
+    bumps.push([e.x, e.y - 4, e.hw * 1.15, 24, -15]) // 눈두덩 오목
+    bumps.push([e.x, e.y - 1, e.hw * 0.85, 11, 7]) // 눈꺼풀(안구)
+    bumps.push([e.x + e.sg * e.hw * 0.45, e.y + 72, e.hw * 1.3, 34, 13]) // 광대
+    bumps.push([e.x + e.sg * e.hw * 1.9, e.y - 70, 26, 46, -7]) // 관자놀이
   }
-  // 윤곽(눈·눈썹·입술·얼굴선)은 엔진 점을 그대로, 면은 삼각형 안을 고르게 채운다(메시 선이 보이지 않게)
-  for (const p of f.pts) {
-    if (p.edge) {
-      const x = p.x + (r() - 0.5) * 1.6, y = calmY(p.x, p.y) + (r() - 0.5) * 1.6
-      add(x, y, p.s, 1, p.s < 0.42 ? 1 : 0, mouthFade(x, y, true) * capFade(x, y))
-    } else if (r() < (mouthFade(p.x, p.y, false) < 1 ? 0.06 : 0.3)) {
-      // 메시 점은 일부만, 흩뜨려서 구조의 기억으로만 남긴다(입술은 메시가 촘촘해 더 성글게)
-      const x = p.x + (r() + r() - 1) * 2.4, y = calmY(p.x, p.y) + (r() + r() - 1) * 2.4
-      add(x, y, shade(x, y), 0, p.s < 0.42 ? 1 : 0, mouthFade(x, y, false) * 0.8)
+  const brows = [[107, 66, 105, 63, 70], [336, 296, 334, 293, 300]].map((ids) => ids.map((i) => lm[i]))
+  const distPoly = (x: number, y: number, P: { x: number; y: number }[]) => {
+    let best = 1e9
+    for (let i = 0; i < P.length - 1; i++) {
+      const A = P[i], B = P[i + 1], vx = B.x - A.x, vy = B.y - A.y
+      const t = clamp(((x - A.x) * vx + (y - A.y) * vy) / (vx * vx + vy * vy))
+      best = Math.min(best, Math.hypot(x - A.x - vx * t, y - A.y - vy * t))
     }
+    return best
   }
-  // 코: 콧등 하이라이트와 콧방울 윤곽(엔진 윤곽에는 코가 없다)
-  const along = (ids: number[], n: number, sv: number, e: number, fade: number) => {
-    for (let k = 0; k < ids.length - 1; k++) {
-      const A = f.lm[ids[k]], B = f.lm[ids[k + 1]]
-      for (let i = 0; i < n; i++) {
-        const t = i / n
-        add(lerp(A.x, B.x, t) + (r() - 0.5) * 1.4, lerp(A.y, B.y, t) + (r() - 0.5) * 1.4, sv, e, 0, fade)
+  /** 얼굴 면의 밝기 [밝기, 림]; 밝기 -1 = 파낸 선(입술 사이 · 내리깐 눈꺼풀 선) */
+  const light = (x: number, y: number): [number, number] => {
+    const u = (x - fcx) / f.rx, v = (y - f.cy) / f.ry
+    let nxv = u * (0.3 + 1.5 * u * u), nyv = v * (0.25 + 1.1 * v * v)
+    for (const [x0, y0, sx, sy, a] of bumps) {
+      const dx = x - x0, dy = y - y0
+      const g = a * Math.exp(-(dx * dx) / (sx * sx) - (dy * dy) / (sy * sy))
+      nxv += ((2 * dx) / (sx * sx)) * g
+      nyv += ((2 * dy) / (sy * sy)) * g
+    }
+    const d = clamp(((LGT[0] * nxv + LGT[1] * nyv + LGT[2]) / Math.hypot(nxv, nyv, 1) + 0.12) / 1.12)
+    let occ = 1
+    for (const e of eyes) occ *= 1 - 0.5 * gauss(x - e.x, y - (e.y - 6), e.hw * 1.05, 14) // 눈썹뼈 그늘
+    occ *= 1 - 0.55 * gauss(x - nx0, y - (baseY + 10), wing * 1.25, 10) // 코 밑 그늘
+    occ *= 1 - 0.35 * gauss(x - mo.x, y - (mo.y + 30), mo.hw * 0.6, 8) // 아랫입술 밑 그늘
+    for (const sg of [-1, 1]) occ *= 1 - 0.6 * gauss(x - (nx0 + sg * wing * 0.42), y - (baseY - 5), 7, 4) // 콧구멍
+    const xm = (x - mo.x) / mo.hw
+    if (Math.abs(xm) < 1) {
+      const dd = Math.abs(y - (mo.y + 2.5 * xm * xm)), wq = 1 - xm ** 4
+      if (dd < 1.5 * wq) return [-1, 0]
+      occ *= 1 - 0.55 * wq * (1 - clamp(dd / 6))
+    }
+    for (const e of eyes) {
+      const xe = (x - e.x) / e.hw
+      if (Math.abs(xe) < 1.08) {
+        const dd = y - (e.y + 3 - 4.5 * (1 - xe * xe))
+        if (Math.abs(dd) < 1.5 * (1 - Math.min(1, xe ** 4)) + 0.25) return [-1, 0]
+        if (dd > 0 && dd < 7) occ *= 0.55 + (0.45 * dd) / 7 // 속눈썹 그늘
       }
     }
+    for (const P of brows) { const dd = distPoly(x, y, P); if (dd < 8) occ *= 0.6 + 0.4 * (dd / 8) }
+    const rim = clamp((Math.hypot(u, v * 0.92) - 0.8) / 0.2) * clamp((Math.abs(u) - 0.45) / 0.3)
+    return [d * occ, rim]
   }
-  along([168, 6, 197, 195, 5, 4], 16, 0.95, 0.5, 0.75)
-  along([64, 98, 97, 2, 326, 327, 294], 14, 0.5, 1, 0.8)
+  const surf = (x: number, y: number) => {
+    const [b, rim] = light(x, y)
+    if (b < 0 || r() > 0.1 + 0.9 * clamp(b * 1.15)) return
+    add(x, y, Math.min(1.15, b + rim * 0.3), 0, rim > 0.5 ? 1 : 0, 1)
+  }
+  // 얼굴 면: 테셀레이션 삼각형 안을 고르게 채운다(메시 선이 보이지 않게)
   const adj = new Map<number, Set<number>>()
   for (const e of FaceLandmarker.FACE_LANDMARKS_TESSELATION) {
     if (!adj.has(e.start)) adj.set(e.start, new Set())
@@ -415,78 +451,92 @@ function bust(): Bust {
       const k = [e.start, e.end, c].sort((a, b) => a - b).join(',')
       if (seen.has(k)) continue
       seen.add(k)
-      const A = f.lm[e.start], B = f.lm[e.end], Cc = f.lm[c]
-      const area = Math.abs((B.x - A.x) * (Cc.y - A.y) - (Cc.x - A.x) * (B.y - A.y)) / 2
-      tris.push([e.start, e.end, c, area])
+      const A = lm[e.start], B = lm[e.end], Cc = lm[c]
+      tris.push([e.start, e.end, c, Math.abs((B.x - A.x) * (Cc.y - A.y) - (Cc.x - A.x) * (B.y - A.y)) / 2])
     }
   }
   const total = tris.reduce((a, t) => a + t[3], 0)
-  const N = 16000
+  const N = 30000
   for (const [ia, ib, ic, area] of tris) {
     let n = (area / total) * N
     const whole = Math.floor(n)
     n = whole + (r() < n - whole ? 1 : 0)
-    const A = f.lm[ia], B = f.lm[ib], Cc = f.lm[ic]
+    const A = lm[ia], B = lm[ib], Cc = lm[ic]
     for (let i = 0; i < n; i++) {
       let a1 = r(), b1 = r()
       if (a1 + b1 > 1) { a1 = 1 - a1; b1 = 1 - b1 }
-      const x = A.x + (B.x - A.x) * a1 + (Cc.x - A.x) * b1, y0 = A.y + (B.y - A.y) * a1 + (Cc.y - A.y) * b1
-      const y = calmY(x, y0)
-      const sh = shade(x, y0)
-      add(x, y, sh, 0, sh < 0.42 ? 1 : 0, mouthFade(x, y, false))
+      surf(A.x + (B.x - A.x) * a1 + (Cc.x - A.x) * b1, A.y + (B.y - A.y) * a1 + (Cc.y - A.y) * b1)
     }
   }
-  const chin = f.lm[152].y
-  const inFace = (x: number, y: number, m = 1) => ((x - f.cx) / (f.rx * m)) ** 2 + ((y - f.cy) / (f.ry * m)) ** 2 < 1
-  // 두개: 얼굴 메시 위로 이어지는 성긴 돔(위에서 빛을 받아 정수리가 밝다)
-  const lt = f.lm[234], rt = f.lm[454]
-  const ccx = (lt.x + rt.x) / 2, ccy = (lt.y + rt.y) / 2
-  const crx = (Math.abs(rt.x - lt.x) / 2) * 1.05
-  const cry = ccy - f.lm[10].y + 0.3 * w2
-  for (let i = 0; i <= 200; i++) {
-    const a = Math.PI + (Math.PI * i) / 200
-    const j = (r() + r() - 1) * 4
-    add(ccx + Math.cos(a) * (crx + j), ccy + Math.sin(a) * (cry + j), 0.3 + 0.5 * -Math.sin(a), 0.3, 1, 0.55)
+  // 눈구멍(메시에 없는 자리)도 같은 밀도로 덮는다 — 눈은 내리감았다
+  for (const e of eyes) {
+    const m = Math.round((N / total) * Math.PI * e.hw * 0.95 * 9)
+    for (let i = 0; i < m; i++) {
+      const a = r() * 6.283, d = Math.sqrt(r())
+      surf(e.x + Math.cos(a) * d * e.hw * 0.95, e.y + Math.sin(a) * d * 9)
+    }
   }
-  for (let i = 0; i < 2600; i++) {
+  const inFace = (x: number, y: number, m = 1) => ((x - f.cx) / (f.rx * m)) ** 2 + ((y - f.cy) / (f.ry * m)) ** 2 < 1
+  // 얼굴 가장자리: 옆면과 턱선에만 역광 림(석록으로 물든다). 이마 위는 두개로 이어지므로 선을 두지 않는다
+  for (const e of FaceLandmarker.FACE_LANDMARKS_FACE_OVAL) {
+    const A = lm[e.start], B = lm[e.end]
+    for (let i = 0; i < 12; i++) {
+      const t = i / 12, x = lerp(A.x, B.x, t) + (r() - 0.5) * 3, y = lerp(A.y, B.y, t) + (r() - 0.5) * 3
+      const u = (x - fcx) / f.rx, v = (y - f.cy) / f.ry
+      const k = Math.max(clamp((Math.abs(u) - 0.5) / 0.4), clamp((v - 0.55) / 0.35) * 0.45) * clamp((y - lm[9].y + 20) / 60)
+      if (k < 0.05) continue
+      add(x, y, 0.3 + 0.45 * k, 0.35, 1, k)
+    }
+  }
+  // 두개: 위에서 빛을 받는 돔(정수리가 밝지만 얼굴보다 한 단 낮춘다)
+  const lt = lm[234], rt = lm[454]
+  const ccx = (lt.x + rt.x) / 2, ccy = (lt.y + rt.y) / 2
+  const crx = (Math.abs(rt.x - lt.x) / 2) * 1.04
+  const cry = ccy - lm[10].y + 0.3 * w2
+  for (let i = 0; i < 6400; i++) {
     const u = r() * 2 - 1, v = r()
     if (u * u + v * v > 1) continue
     const x = ccx + u * crx, y = ccy - v * cry
-    if (inFace(x, y, 0.98)) continue
-    add(x, y, 0.3 + 0.55 * v, 0, 0, 0.62)
+    if (inFace(x, y, 0.985)) continue
+    const nz = Math.sqrt(Math.max(0, 1 - u * u - v * v))
+    const d = clamp((LGT[0] * u - LGT[1] * v + LGT[2] * nz + 0.12) / 1.12)
+    const rim = clamp((Math.hypot(u, v) - 0.88) / 0.12)
+    if (r() > 0.1 + 0.9 * d) continue
+    add(x + (r() - 0.5) * 1.2, y + (r() - 0.5) * 1.2, d * 0.8 + rim * 0.15, 0, rim > 0.5 ? 1 : 0, 0.72)
   }
-  // 목·어깨(좌우 대칭 곡선 + 성긴 면)
+  // 목·어깨: 윤곽은 성글고 흐리게(마네킹 선처럼 보이지 않게), 어깨 윗면이 빛을 받는다
   const U = (u: number) => BX + u * w2, V = (v: number) => chin + v * w2
   const fadeV = (v: number) => clamp(1 - (v - 1.0) / 1.1)
-  const curve = (p0: number[], c: number[], p1: number[], n: number, s: number, e: number, rim: number) => {
+  const curve = (p0: number[], c: number[], p1: number[], n: number, s: number, e: number, rim: number, fade = 1) => {
     for (const sg of [-1, 1]) for (let i = 0; i < n; i++) {
       const t = i / (n - 1), mt = 1 - t
       const u = mt * mt * p0[0] + 2 * mt * t * c[0] + t * t * p1[0]
       const v = mt * mt * p0[1] + 2 * mt * t * c[1] + t * t * p1[1]
-      add(U(sg * u) + (r() - 0.5) * 1.4, V(v) + (r() - 0.5) * 1.4, s, e, rim, fadeV(v))
+      if (r() < 0.25) continue
+      add(U(sg * u) + (r() - 0.5) * 3, V(v) + (r() - 0.5) * 3, s, e, rim, fadeV(v) * fade)
     }
   }
-  curve([0.6, -0.22], [0.56, 0.1], [0.62, 0.38], 70, 0.32, 1, 1) // 목 옆선
-  curve([0.62, 0.38], [0.8, 0.76], [1.42, 0.86], 110, 0.7, 1, 1) // 승모근
-  curve([1.42, 0.86], [1.76, 0.9], [1.82, 1.36], 80, 0.6, 1, 1) // 어깨
-  curve([1.82, 1.36], [1.88, 1.8], [1.9, 2.3], 70, 0.4, 1, 1) // 팔
-  curve([0.1, 0.98], [0.6, 1.06], [1.14, 0.9], 90, 0.62, 0.7, 0) // 쇄골
-  curve([0.47, -0.3], [0.36, 0.42], [0.08, 0.95], 80, 0.42, 0.5, 0) // 흉쇄유돌근
+  curve([0.6, -0.22], [0.56, 0.1], [0.62, 0.38], 60, 0.26, 0.35, 1, 0.7) // 목 옆선
+  curve([0.62, 0.38], [0.8, 0.76], [1.42, 0.86], 110, 0.55, 0.45, 1) // 승모근
+  curve([1.42, 0.86], [1.76, 0.9], [1.82, 1.36], 80, 0.5, 0.45, 1) // 어깨
+  curve([1.82, 1.36], [1.88, 1.8], [1.9, 2.3], 70, 0.34, 0.4, 1, 0.8) // 팔
+  curve([0.1, 0.98], [0.6, 1.06], [1.14, 0.9], 80, 0.42, 0.25, 0, 0.6) // 쇄골
   const halfW = (v: number) => (v < 0.38 ? 0.6 : v < 0.86 ? lerp(0.62, 1.42, ease.sine((v - 0.38) / 0.48)) : v < 1.36 ? lerp(1.42, 1.82, Math.sqrt((v - 0.86) / 0.5)) : 1.86)
   /** |u|에서 실루엣 윗면의 v (위에서 빛을 받는 면) */
   const vTop = (au: number) => { let v = -0.22; while (v < 2.3 && halfW(v) < au) v += 0.01; return v }
-  for (let i = 0; i < 11000; i++) {
+  for (let i = 0; i < 12000; i++) {
     const v = -0.22 + r() * 2.5, u = (r() * 2 - 1) * halfW(v)
     const x = U(u), y = V(v)
     if (inFace(x, y)) continue
     if (r() > 1.15 - v * 0.3) continue
     const au = Math.abs(u)
     let s: number
-    if (au < 0.6 && v < 0.4) s = 0.12 + 0.28 * ((v + 0.22) / 0.62) // 턱 아래 그늘
-    else s = 0.22 + 0.62 * clamp(1 - (v - vTop(au)) / 0.42) * (au > 0.6 ? 1 : 0.7) // 어깨 윗면이 빛을 받는다
+    if (au < 0.6 && v < 0.4) s = (0.06 + 0.3 * clamp((v + 0.1) / 0.5)) * (0.75 + 0.25 * Math.sqrt(Math.max(0, 1 - (au / 0.6) ** 2))) // 턱 아래 그늘
+    else s = 0.2 + 0.62 * clamp(1 - (v - vTop(au)) / 0.42) * (au > 0.6 ? 1 : 0.7) // 어깨 윗면이 빛을 받는다
+    if (r() > 0.25 + 0.75 * clamp(s * 1.4)) continue
     add(x, y, s, 0, 0, fadeV(v) * 0.85)
   }
-  bustC = { pts, top: ccy - cry, eyeY: (f.lm[33].y + f.lm[263].y) / 2, chin }
+  bustC = { pts, top: ccy - cry, eyeY: (lm[33].y + lm[263].y) / 2, chin }
   return bustC
 }
 interface BustO { T: number; gather?: number; focusY?: number; rim?: number; alpha?: number; glow?: number; rest?: number }
@@ -522,9 +572,9 @@ function drawBust(o: BustO) {
     }
     const lb = 0.5 + 0.5 * clamp((beamHalf(y) - Math.abs(x - BM.cx)) / 90 + 0.4)
     // 위에서 떨어지는 단일 광원: 이마·콧등이 밝고 턱 아래로 식는다
-    const lt = y < b.chin ? lerp(1.15, 0.72, clamp((y - b.top) / (b.chin - b.top))) : 0.8
+    const lt = y < b.chin ? lerp(1.06, 0.9, clamp((y - b.top) / (b.chin - b.top))) : 0.85
     // 면은 대비를 높여(감마) 부조가 읽히게, 윤곽은 고르게
-    const base = p.e > 0 ? 0.1 + p.s * 0.52 + p.e * 0.22 : 0.04 + 0.7 * Math.pow(p.s, 1.7)
+    const base = p.e > 0 ? 0.08 + p.s * 0.5 + p.e * 0.14 : 0.03 + 0.92 * Math.pow(p.s, 1.5)
     const a = Math.min(1, base) * alpha * p.fade * aIn * lb * lt
     if (a <= 0.01) continue
     // 진주광: 일부 입자는 샴페인 금빛, 일부는 푸른 진주빛
@@ -537,8 +587,8 @@ function drawBust(o: BustO) {
       continue
     }
     const dz = Math.abs(y - fy) / 640
-    if (dz > 0.3 && p.r < 0.03 && p.e === 0) {
-      const rr = 2 + dz * 12
+    if (dz > 0.3 && p.r < 0.016 && p.e === 0) {
+      const rr = 3 + dz * 15
       bx.fillStyle = col
       bx.globalAlpha = a * 0.22
       bx.beginPath(); bx.arc(x, y, rr, 0, 6.283); bx.fill()
