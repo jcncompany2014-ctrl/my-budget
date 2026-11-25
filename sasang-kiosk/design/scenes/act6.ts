@@ -344,7 +344,7 @@ const BX = 540, BY = 690, BW = 410
 let bustC: Bust | null = null
 const gauss = (dx: number, dy: number, sx: number, sy: number) => Math.exp(-(dx * dx) / (sx * sx) - (dy * dy) / (sy * sy))
 /** 천장 단일 광원(위·약간 앞·왼쪽) */
-const LGT = (() => { const v = [-0.12, -0.78, 0.62], n = Math.hypot(...v); return v.map((c) => c / n) })()
+const LGT = (() => { const v = [-0.14, -0.66, 0.74], n = Math.hypot(...v); return v.map((c) => c / n) })()
 /**
  * 진주 흉상 — 깊이 정보가 없으므로 얼굴 랜드마크 위에 높이장(가우시안 부조: 이마·눈두덩·콧등·광대·입술·턱)을 세우고
  * 그 기울기로 법선을 구해 천장 광원에 대한 램버트 밝기를 계산한다. 입자는 밝기에 비례해 남기므로(어두운 곳은 성글다)
@@ -369,13 +369,13 @@ function bust(): Bust {
   const mo = { x: lm[0].x, y: (lm[13].y + lm[14].y) / 2, hw: (Math.abs(lm[291].x - lm[61].x) / 2) * 0.74 }
   const chin = lm[152].y
   const bumps: number[][] = [
-    [nx0, lm[10].y + 45, w2 * 0.8, 60, 9], // 이마
+    [nx0, lm[10].y + 45, w2 * 0.8, 60, 5], // 이마
     [nx0, eyes[0].y - 44, 20, 17, 6], // 미간
     [nx0, (brY + tipY) / 2, 13, (tipY - brY) * 0.5, 26], // 콧등
     [nx0, tipY - 8, 21, 17, 20], // 코끝
     [nx0 - wing * 0.8, baseY - 14, 15, 12, 11], [nx0 + wing * 0.8, baseY - 14, 15, 12, 11], // 콧방울
-    [mo.x, mo.y - 4, mo.hw * 1.4, 54, 9], // 입 둘레
-    [mo.x, mo.y - 10, mo.hw * 0.8, 8, 5], // 윗입술
+    [mo.x, mo.y - 2, mo.hw * 1.3, 46, 4], // 입 둘레
+    [mo.x, mo.y - 7, mo.hw * 0.78, 7, 4], // 윗입술
     [mo.x, mo.y + 12, mo.hw * 0.66, 9, 9], // 아랫입술
     [mo.x, mo.y + 34, mo.hw * 0.62, 8, -6], // 턱입술 고랑
     [mo.x, lerp(mo.y, chin, 0.6), 54, 36, 15], // 턱끝
@@ -428,13 +428,15 @@ function bust(): Bust {
       }
     }
     for (const P of brows) { const dd = distPoly(x, y, P); if (dd < 8) occ *= 0.6 + 0.4 * (dd / 8) }
-    const rim = clamp((Math.hypot(u, v * 0.92) - 0.8) / 0.2) * clamp((Math.abs(u) - 0.45) / 0.3)
-    return [d * occ, rim]
+    const rim = clamp((Math.hypot(u, v * 0.92) - 0.86) / 0.14) * clamp((Math.abs(u) - 0.55) / 0.25)
+    // 이마 꼭대기는 한 단 낮춰 초점(눈)보다 밝지 않게
+    const top = 1 - 0.22 * clamp((-v - 0.55) / 0.4)
+    return [d * occ * top, rim]
   }
   const surf = (x: number, y: number) => {
     const [b, rim] = light(x, y)
     if (b < 0 || r() > 0.1 + 0.9 * clamp(b * 1.15)) return
-    add(x, y, Math.min(1.15, b + rim * 0.3), 0, rim > 0.5 ? 1 : 0, 1)
+    add(x, y, Math.min(1.1, b + rim * 0.42), 0, rim > 0.45 ? 1 : 0, 1)
   }
   // 얼굴 면: 테셀레이션 삼각형 안을 고르게 채운다(메시 선이 보이지 않게)
   const adj = new Map<number, Set<number>>()
@@ -500,9 +502,9 @@ function bust(): Bust {
     if (inFace(x, y, 0.985)) continue
     const nz = Math.sqrt(Math.max(0, 1 - u * u - v * v))
     const d = clamp((LGT[0] * u - LGT[1] * v + LGT[2] * nz + 0.12) / 1.12)
-    const rim = clamp((Math.hypot(u, v) - 0.88) / 0.12)
+    const rim = clamp((Math.hypot(u, v) - 0.9) / 0.1) * clamp((Math.abs(u) - 0.6) / 0.3)
     if (r() > 0.1 + 0.9 * d) continue
-    add(x + (r() - 0.5) * 1.2, y + (r() - 0.5) * 1.2, d * 0.8 + rim * 0.15, 0, rim > 0.5 ? 1 : 0, 0.72)
+    add(x + (r() - 0.5) * 1.2, y + (r() - 0.5) * 1.2, d * 0.72 + rim * 0.3, 0, rim > 0.5 ? 1 : 0, 0.66)
   }
   // 목·어깨: 윤곽은 성글고 흐리게(마네킹 선처럼 보이지 않게), 어깨 윗면이 빛을 받는다
   const U = (u: number) => BX + u * w2, V = (v: number) => chin + v * w2
@@ -587,7 +589,7 @@ function drawBust(o: BustO) {
       continue
     }
     const dz = Math.abs(y - fy) / 640
-    if (dz > 0.3 && p.r < 0.016 && p.e === 0) {
+    if (dz > 0.3 && p.r < 0.005 && p.e === 0) {
       const rr = 3 + dz * 15
       bx.fillStyle = col
       bx.globalAlpha = a * 0.22
@@ -598,13 +600,15 @@ function drawBust(o: BustO) {
       bx.stroke()
     } else if (dz < 0.55 || p.r < 0.45) {
       const s = 1.2 + p.r * 1.0 + dz * 2.4
-      lx.fillStyle = col
-      lx.globalAlpha = a * (1 - Math.min(0.72, dz))
-      lx.fillRect(x - s / 2, y - s / 2, s, s)
+      // 초점면에서 먼 입자는 흐린 층으로(얕은 심도) — 구슬처럼 보이는 원판 대신
+      const tg = dz > 0.36 ? bx : lx
+      tg.fillStyle = col
+      tg.globalAlpha = Math.min(1, a * (1 - Math.min(0.72, dz)) * (dz > 0.36 ? 1.35 : 1))
+      tg.fillRect(x - s / 2, y - s / 2, s, s)
     }
   }
   const y0 = b.top - 70, y1 = FLOOR + 50
-  region(B.c, 0, y0, W, y1 - y0, 1.6)
+  region(B.c, 0, y0, W, y1 - y0, 2.2)
   ctx.drawImage(L.c, 0, 0)
   const gl = o.glow ?? 1
   if (gl > 0) for (const [bl, al] of [[2.5, 0.6], [10, 0.4], [30, 0.3]] as const) region(L.c, 0, y0, W, y1 - y0, bl, al * gl, 'lighter')
