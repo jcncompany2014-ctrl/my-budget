@@ -86,7 +86,7 @@ export default function App() {
         <Survey sessionId={sessionId} answers={answers} setAnswers={setAnswers} onBack={() => setStep('scan')} onDone={() => setStep('analyzing')} />
       )}
       {step === 'analyzing' && <Analyzing sessionId={sessionId} hasFace={!!scan} onDone={finish} />}
-      {step === 'result' && result && <Result sessionId={sessionId} result={result} scan={scan} profile={profile} onRestart={reset} />}
+      {step === 'result' && result && <Result sessionId={sessionId} result={result} scan={scan} profile={profile} answers={answers} onRestart={reset} />}
 
       {idleLeft != null && (
         <div className="modal-bg">

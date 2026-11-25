@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision'
 import { FooterNote, Icon, Steps, TopBar } from '../components/ui'
+import demoFace from '../data/demoFace.json'
 import {
   FaceLandmarker, assessQuality, classifySkin, computeMetrics, getLandmarker, medianMetrics, sampleSkin,
   type FaceMetrics, type SkinTone,
@@ -22,12 +23,42 @@ const SCAN_MS = 4200
 
 const params = new URLSearchParams(location.search)
 const MIRROR = params.get('mirror') !== '0'
+export const DEMO = params.has('demo')
+
+/** 프레임 공급원: 실제 카메라 또는 데모(시연용 저장 랜드마크) */
+interface Source {
+  vw: number
+  vh: number
+  draw: (ctx: CanvasRenderingContext2D, sx: number, sy: number, sw: number, sh: number) => void
+  detect: (ts: number) => NormalizedLandmark[] | null
+  skin: (lm: NormalizedLandmark[]) => [number, number, number] | null
+  stop: () => void
+}
+
+function demoSource(): Source {
+  const t0 = performance.now()
+  const base = demoFace.lm
+  return {
+    vw: demoFace.w,
+    vh: demoFace.h,
+    draw: (ctx) => drawGridBg(ctx),
+    detect: (ts) => {
+      const t = (ts - t0) / 1000
+      if (t < 1.2) return null
+      // 미세한 호흡 움직임
+      const dx = Math.sin(t * 1.3) * 0.0025
+      const dy = Math.cos(t * 0.9) * 0.002
+      return base.map(([x, y]) => ({ x: x + dx, y: y + dy, z: 0, visibility: 1 }))
+    },
+    skin: () => [192, 146, 122],
+    stop: () => {},
+  }
+}
 
 export function Scan({ onNext, onBack, onSkip, sessionId }: {
   onNext: (r: ScanResult) => void; onBack: () => void; onSkip: () => void; sessionId: string
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
   const [phase, setPhase] = useState<Phase>('loading')
   const [message, setMessage] = useState('AI 형상 분석 모델을 불러오는 중…')
   const [progress, setProgress] = useState(0)
@@ -55,24 +86,43 @@ export function Scan({ onNext, onBack, onSkip, sessionId }: {
 
     ;(async () => {
       try {
-        const [lmk, s] = await Promise.all([
-          getLandmarker(),
-          navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
-            audio: false,
-          }),
-        ])
-        if (cancelled) { s.getTracks().forEach((t) => t.stop()); return }
-        stream = s
-        const video = document.createElement('video')
-        video.muted = true
-        video.playsInline = true
-        video.srcObject = s
-        await video.play()
-        videoRef.current = video
+        let src: Source
+        if (DEMO) {
+          await new Promise((r) => setTimeout(r, 600))
+          src = demoSource()
+        } else {
+          const [lmk, s] = await Promise.all([
+            getLandmarker(),
+            navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+              audio: false,
+            }),
+          ])
+          if (cancelled) { s.getTracks().forEach((t) => t.stop()); return }
+          stream = s
+          const video = document.createElement('video')
+          video.muted = true
+          video.playsInline = true
+          video.srcObject = s
+          await video.play()
+          src = {
+            get vw() { return video.videoWidth },
+            get vh() { return video.videoHeight },
+            draw: (ctx, sx, sy, sw, sh) => {
+              ctx.save()
+              if (MIRROR) { ctx.translate(CW, 0); ctx.scale(-1, 1) }
+              ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CW, CH)
+              ctx.restore()
+            },
+            detect: (ts) => lmk.detectForVideo(video, ts).faceLandmarks?.[0] ?? null,
+            skin: (lm) => sampleSkin(video, lm, scratch),
+            stop: () => s.getTracks().forEach((t) => t.stop()),
+          }
+        }
+        if (cancelled) return
         setP('searching')
         setMessage('얼굴을 화면 중앙의 가이드에 맞춰 주세요')
-        loop(lmk, video)
+        loop(src)
       } catch (e) {
         console.error(e)
         if (cancelled) return
@@ -81,7 +131,7 @@ export function Scan({ onNext, onBack, onSkip, sessionId }: {
       }
     })()
 
-    function loop(lmk: FaceLandmarker, video: HTMLVideoElement) {
+    function loop(src: Source) {
       const cv = canvasRef.current
       if (!cv || cancelled) return
       const ctx = cv.getContext('2d')!
@@ -90,9 +140,9 @@ export function Scan({ onNext, onBack, onSkip, sessionId }: {
       last = now
       frame++
 
-      const vw = video.videoWidth
-      const vh = video.videoHeight
-      if (!vw || !vh) { raf = requestAnimationFrame(() => loop(lmk, video)); return }
+      const vw = src.vw
+      const vh = src.vh
+      if (!vw || !vh) { raf = requestAnimationFrame(() => loop(src)); return }
 
       // cover crop
       const ca = CW / CH
@@ -107,17 +157,13 @@ export function Scan({ onNext, onBack, onSkip, sessionId }: {
       }
 
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
-      ctx.save()
-      if (MIRROR) { ctx.translate(CW, 0); ctx.scale(-1, 1) }
-      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, CW, CH)
-      ctx.restore()
+      src.draw(ctx, sx, sy, sw, sh)
 
       let lm: NormalizedLandmark[] | null = null
       if (phaseLocal !== 'done') {
         const ts = Math.max(lastTs + 1, now)
         lastTs = ts
-        const res = lmk.detectForVideo(video, ts)
-        lm = res.faceLandmarks?.[0] ?? null
+        lm = src.detect(ts)
       }
 
       // 가이드 바깥 어둡게
@@ -148,7 +194,7 @@ export function Scan({ onNext, onBack, onSkip, sessionId }: {
           const m = computeMetrics(lm, vw, vh)
           samples.push(m)
           if (frame % 6 === 0) {
-            const s = sampleSkin(video, lm, scratch)
+            const s = src.skin(lm)
             if (s) skins.push(s)
           }
           if (frame % 8 === 0) setLive(medianMetrics(samples.slice(-15)))
@@ -169,15 +215,15 @@ export function Scan({ onNext, onBack, onSkip, sessionId }: {
           const avg = skins.reduce((a, s) => [a[0] + s[0], a[1] + s[1], a[2] + s[2]], [0, 0, 0]).map((v) => v / skins.length) as [number, number, number]
           skin = classifySkin(avg)
         }
-        const snapshot = cv.toDataURL('image/jpeg', 0.85)
+        const snapshot = renderMeshSnapshot(lm, map)
         setResult({ metrics, skin, snapshot, landmarks: lm })
         setLive(metrics)
         setP('done')
         setMessage('측정이 완료되었습니다')
-        stream?.getTracks().forEach((t) => t.stop())
+        src.stop()
         return
       }
-      raf = requestAnimationFrame(() => loop(lmk, video))
+      raf = requestAnimationFrame(() => loop(src))
     }
 
     return () => {
@@ -213,7 +259,7 @@ export function Scan({ onNext, onBack, onSkip, sessionId }: {
           <canvas ref={canvasRef} width={CW * DPR} height={CH * DPR} />
           <div className="scan-hud">
             <div className="scan-progress mono">
-              <span>FACE MESH 478PT · {MIRROR ? 'MIRROR' : 'RAW'}</span>
+              <span>FACE MESH 478PT · {DEMO ? 'DEMO' : MIRROR ? 'MIRROR' : 'RAW'}</span>
               <span>{phase.toUpperCase()}</span>
             </div>
             {phase === 'loading' && (
@@ -368,4 +414,63 @@ function drawGuide(ctx: CanvasRenderingContext2D, gx: number, gy: number, rx: nu
   ctx.lineWidth = 1
   ctx.beginPath(); ctx.moveTo(gx, gy - ry - 20); ctx.lineTo(gx, gy + ry + 20); ctx.stroke()
   ctx.restore()
+}
+
+function drawGridBg(ctx: CanvasRenderingContext2D) {
+  const g = ctx.createRadialGradient(CW / 2, CH * 0.45, 40, CW / 2, CH * 0.45, CH * 0.75)
+  g.addColorStop(0, '#13221e')
+  g.addColorStop(1, '#070b0a')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, CW, CH)
+  ctx.strokeStyle = 'rgba(214,200,168,0.07)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  for (let x = 0; x <= CW; x += 34) { ctx.moveTo(x, 0); ctx.lineTo(x, CH) }
+  for (let y = 0; y <= CH; y += 34) { ctx.moveTo(0, y); ctx.lineTo(CW, y) }
+  ctx.stroke()
+}
+
+/** 결과 리포트용 익명화 형상 이미지: 사진 대신 메쉬·측정선만 렌더 */
+function renderMeshSnapshot(lm: NormalizedLandmark[], map: Mapper): string {
+  const c = document.createElement('canvas')
+  c.width = CW * DPR
+  c.height = CH * DPR
+  const ctx = c.getContext('2d')!
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0)
+  drawGridBg(ctx)
+  ctx.lineWidth = 0.7
+  ctx.strokeStyle = 'rgba(95,179,154,0.45)'
+  drawPath(ctx, lm, map, FaceLandmarker.FACE_LANDMARKS_TESSELATION)
+  ctx.lineWidth = 2
+  ctx.strokeStyle = 'rgba(233,207,147,0.95)'
+  for (const k of ['FACE_LANDMARKS_FACE_OVAL', 'FACE_LANDMARKS_LIPS', 'FACE_LANDMARKS_LEFT_EYE', 'FACE_LANDMARKS_RIGHT_EYE',
+    'FACE_LANDMARKS_LEFT_EYEBROW', 'FACE_LANDMARKS_RIGHT_EYEBROW'] as const) drawPath(ctx, lm, map, FaceLandmarker[k])
+  ctx.fillStyle = 'rgba(239,232,218,0.75)'
+  for (let i = 0; i < 468; i += 3) { const [x, y] = map(lm[i]); ctx.fillRect(x - 1, y - 1, 2, 2) }
+  // 측정선 + 라벨
+  const seg = (a: number, b: number, label: string, col: string) => {
+    const [x0, y0] = map(lm[a]); const [x1, y1] = map(lm[b])
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([7, 5])
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([])
+    ctx.fillStyle = col
+    for (const [x, y] of [[x0, y0], [x1, y1]]) { ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill() }
+    ctx.font = '700 22px Noto Serif KR, serif'
+    ctx.fillText(label, Math.max(x0, x1) + 12, (y0 + y1) / 2 + 8)
+  }
+  seg(54, 284, '額', '#5e86cf')
+  seg(234, 454, '顴', '#cfaa62')
+  seg(172, 397, '頤', '#4fa07f')
+  seg(129, 358, '鼻', '#e3a93c')
+  seg(61, 291, '口', '#e0683f')
+  // 삼정
+  const [lx] = map(lm[234]); const [rx] = map(lm[454])
+  const xl = Math.min(lx, rx) - 50, xr = Math.max(lx, rx) + 50
+  const [, ty] = map(lm[10]); const [, by] = map(lm[9]); const [, ny] = map(lm[2]); const [, cy] = map(lm[152])
+  ctx.strokeStyle = 'rgba(239,232,218,0.35)'; ctx.lineWidth = 1
+  ctx.font = '600 17px Pretendard Variable, sans-serif'; ctx.fillStyle = 'rgba(239,232,218,0.7)'
+  for (const [y, t] of [[ty, ''], [by, '上停'], [ny, '中停'], [cy, '下停']] as const) {
+    ctx.beginPath(); ctx.moveTo(xl, y); ctx.lineTo(xr, y); ctx.stroke()
+    if (t) ctx.fillText(t, xl - 4, y - 8)
+  }
+  return c.toDataURL('image/png')
 }

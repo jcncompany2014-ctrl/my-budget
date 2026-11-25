@@ -57,7 +57,8 @@ const FACE_WEIGHTS: Record<TypeKey, Partial<Record<keyof FaceMetrics, number>>> 
   soeum: { faceRatio: 0.5, noseRatio: -0.6, mouthRatio: -0.5, eyeOpen: -0.5, lower: 0.4, jawRatio: -0.3 },
 }
 
-const ZONE_REF = { upper: { mean: 0.33, sd: 0.03 }, middle: { mean: 0.34, sd: 0.025 }, lower: { mean: 0.33, sd: 0.03 } }
+// 기준값: MediaPipe 표준 얼굴 모델(canonical face mesh)에서 산출 후 카메라 원근 보정
+export const ZONE_REF = { upper: { mean: 0.26, sd: 0.03 }, middle: { mean: 0.36, sd: 0.025 }, lower: { mean: 0.38, sd: 0.03 } }
 
 export function metricZ(m: FaceMetrics, k: keyof FaceMetrics): number {
   if (k in METRIC_INFO) {
@@ -148,4 +149,51 @@ function topOf(d: Dist): TypeKey {
 
 export function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
+}
+
+/* ───────────── 판정 근거 (설명 가능성) ───────────── */
+
+export interface Factor {
+  source: '안면' | '설문' | '체격'
+  label: string
+  detail: string
+  value: number // 판정 체질 방향 기여도 (+ 지지, - 반대)
+}
+
+const FACE_LABEL: Partial<Record<keyof FaceMetrics, string>> = {
+  faceRatio: '안면 종횡비', foreheadRatio: '이마 폭', jawRatio: '턱 폭', eyeOpen: '눈 크기',
+  noseRatio: '코볼 폭', mouthRatio: '입 폭', lipRatio: '입술 두께', upper: '상정 비율', lower: '하정 비율',
+}
+
+export function explain(r: Result, answers: Record<string, number>, face: FaceMetrics | null, profile: Profile): Factor[] {
+  const t = r.primary
+  const out: Factor[] = []
+  if (face) {
+    for (const [k, w] of Object.entries(FACE_WEIGHTS[t])) {
+      const key = k as keyof FaceMetrics
+      const z = metricZ(face, key)
+      const v = w! * z * r.weights.face * 2.2
+      if (Math.abs(z) < 0.35) continue
+      out.push({
+        source: '안면',
+        label: FACE_LABEL[key] ?? k,
+        detail: `${face[key].toFixed(2)} (${z >= 0 ? '+' : ''}${z.toFixed(1)}σ)`,
+        value: v,
+      })
+    }
+  }
+  for (const q of QUESTIONS) {
+    const i = answers[q.id]
+    if (i == null) continue
+    const o = q.options[i]
+    const mine = o.score[t] ?? 0
+    const other = Math.max(0, ...TYPE_KEYS.filter((k) => k !== t).map((k) => o.score[k] ?? 0))
+    const v = (mine - other * 0.6) * r.weights.survey * 0.55
+    if (v === 0) continue
+    out.push({ source: '설문', label: `${q.category} · ${q.text.replace(/\?$/, '')}`, detail: o.label, value: v })
+  }
+  const b = bodyScore(profile).dist
+  const bv = (b[t] - 0.25) * r.weights.body * 4
+  out.push({ source: '체격', label: '체질량지수(BMI)', detail: r.bmi.toFixed(1), value: bv })
+  return out.sort((a, z) => Math.abs(z.value) - Math.abs(a.value))
 }

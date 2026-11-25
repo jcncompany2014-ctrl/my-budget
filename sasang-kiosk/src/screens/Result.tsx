@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react'
 import { CONSTITUTIONS, TYPE_KEYS } from '../data/constitutions'
 import { OrganRadar, SasangOrb, TopBar } from '../components/ui'
 import { METRIC_INFO, classifyFiveShape } from '../lib/face'
-import { metricZ, type Profile, type Result as R } from '../lib/scoring'
+import { explain, metricZ, type Profile, type Result as R } from '../lib/scoring'
+import { Evidence, Methodology } from './Evidence'
 import type { ScanResult } from './Scan'
 
 const AUTO_RESET = 150
 
-export function Result({ result, scan, profile, onRestart, sessionId }: {
-  result: R; scan: ScanResult | null; profile: Profile; onRestart: () => void; sessionId: string
+export function Result({ result, scan, profile, answers, onRestart, sessionId }: {
+  result: R; scan: ScanResult | null; profile: Profile; answers: Record<string, number>; onRestart: () => void; sessionId: string
 }) {
+  const factors = explain(result, answers, scan?.metrics ?? null, profile)
   const c = CONSTITUTIONS[result.primary]
   const c2 = CONSTITUTIONS[result.secondary]
   const [tab, setTab] = useState<'food' | 'move' | 'life'>('food')
@@ -200,6 +202,8 @@ export function Result({ result, scan, profile, onRestart, sessionId }: {
           </section>
         )}
 
+        <Evidence factors={factors} type={result.primary} anim={anim} />
+
         {/* 특성 */}
         <section className="panel sec">
           <div className="sec-h"><h2>{c.name}의 특성 <span className="hj">體質 特性</span></h2></div>
@@ -243,6 +247,8 @@ export function Result({ result, scan, profile, onRestart, sessionId }: {
           {tab === 'move' && <ul className="bullets">{c.exercise.map((t) => <li key={t}>{t}</li>)}</ul>}
           {tab === 'life' && <ul className="bullets">{c.lifestyle.map((t) => <li key={t}>{t}</li>)}</ul>}
         </section>
+
+        <Methodology result={result} hasFace={!!scan} />
 
         <div className="disclaimer">
           {profile.sex === 'M' ? '남성' : '여성'} · {profile.age}세 · {profile.height}cm · {profile.weight}kg 기준 분석. 본 결과는 사상의학·형상의학 이론과 설문·안면 비율 측정을 종합한

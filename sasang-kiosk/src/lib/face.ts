@@ -51,14 +51,14 @@ export const METRIC_INFO: Record<
   keyof Omit<FaceMetrics, 'upper' | 'middle' | 'lower' | 'symmetry'>,
   { label: string; hanja: string; mean: number; sd: number; low: string; high: string }
 > = {
-  faceRatio: { label: '안면 종횡비', hanja: '面長', mean: 1.2, sd: 0.07, low: '넓고 둥근', high: '길고 갸름' },
-  foreheadRatio: { label: '이마 폭', hanja: '額廣', mean: 0.79, sd: 0.04, low: '좁음', high: '넓음' },
-  jawRatio: { label: '턱 폭', hanja: '頤廣', mean: 0.8, sd: 0.04, low: '갸름', high: '넓고 각짐' },
-  eyeOpen: { label: '눈 크기', hanja: '目大', mean: 0.3, sd: 0.06, low: '가늘고 작음', high: '크고 또렷' },
-  eyeGap: { label: '미간 거리', hanja: '眉間', mean: 1.05, sd: 0.1, low: '좁음', high: '넓음' },
-  noseRatio: { label: '코볼 폭', hanja: '鼻廣', mean: 0.26, sd: 0.022, low: '좁고 오똑', high: '넓고 큼' },
-  mouthRatio: { label: '입 폭', hanja: '口廣', mean: 0.37, sd: 0.03, low: '작음', high: '큼' },
-  lipRatio: { label: '입술 두께', hanja: '脣厚', mean: 0.3, sd: 0.07, low: '얇음', high: '두꺼움' },
+  faceRatio: { label: '안면 종횡비', hanja: '面長', mean: 1.18, sd: 0.07, low: '넓고 둥근', high: '길고 갸름' },
+  foreheadRatio: { label: '이마 폭', hanja: '額廣', mean: 0.83, sd: 0.04, low: '좁음', high: '넓음' },
+  jawRatio: { label: '턱 폭', hanja: '頤廣', mean: 0.78, sd: 0.04, low: '갸름', high: '넓고 각짐' },
+  eyeOpen: { label: '눈 크기', hanja: '目大', mean: 0.27, sd: 0.06, low: '가늘고 작음', high: '크고 또렷' },
+  eyeGap: { label: '미간 거리', hanja: '眉間', mean: 1.38, sd: 0.1, low: '좁음', high: '넓음' },
+  noseRatio: { label: '코볼 폭', hanja: '鼻廣', mean: 0.26, sd: 0.03, low: '좁고 오똑', high: '넓고 큼' },
+  mouthRatio: { label: '입 폭', hanja: '口廣', mean: 0.36, sd: 0.04, low: '작음', high: '큼' },
+  lipRatio: { label: '입술 두께', hanja: '脣厚', mean: 0.29, sd: 0.07, low: '얇음', high: '두꺼움' },
 }
 
 const d = (a: P, b: P) => Math.hypot(a.x - b.x, a.y - b.y)
